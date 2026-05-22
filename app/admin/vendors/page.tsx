@@ -158,6 +158,28 @@ export default function AdminVendorsPage() {
           <p className="bg-white py-12 text-center text-stone-500">
             Loading vendors...
           </p>
+        ) : message && vendors.length === 0 ? (
+          <div className="bg-white p-8 text-center shadow">
+            <h2 className="text-2xl font-bold">Admin Login Required</h2>
+            <p className="mt-3 text-stone-600">
+              You are not logged in as an admin. Logout from the vendor account,
+              then login with an admin account to approve vendors.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link
+                href="/login?next=/admin/vendors"
+                className="bg-[#6b145d] px-5 py-3 text-sm font-semibold text-white"
+              >
+                Login as Admin
+              </Link>
+              <Link
+                href="/vendor/dashboard"
+                className="border border-stone-300 px-5 py-3 text-sm font-semibold"
+              >
+                Back to Vendor
+              </Link>
+            </div>
+          </div>
         ) : (
           <div className="space-y-4">
             {filteredVendors.map((vendor) => (
