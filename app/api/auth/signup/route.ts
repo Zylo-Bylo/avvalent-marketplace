@@ -1,42 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { hashPassword, signToken } from '@/lib/auth';
+import { hashPassword } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  createOtp,
+  hashToken,
+  minutesFromNow,
+  normalizeEmail,
+  validateStrongPassword,
+} from '@/lib/security';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { email, name, password } = body;
+  const { email, name, password, otp } = body;
 
   if (!email || !name || !password) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
-  const existingUser = await prisma.user.findUnique({ where: { email } });
+  const passwordCheck = validateStrongPassword(password);
+  if (!passwordCheck.valid) {
+    return NextResponse.json({ error: passwordCheck.message }, { status: 400 });
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+  const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
   if (existingUser) {
     return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
   }
 
+  const emailOtp = otp || createOtp();
   const hashedPassword = await hashPassword(password);
   const user = await prisma.user.create({
     data: {
-      email,
+      email: normalizedEmail,
       name,
       password: hashedPassword,
+      emailVerified: false,
+      emailOtpHash: hashToken(emailOtp),
+      emailOtpExpiresAt: minutesFromNow(15),
     },
   });
 
-  const token = signToken({ userId: user.id, role: user.role });
-
-  const response = NextResponse.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
-  response.cookies.set({
-    name: 'auth_token',
-    value: token,
-    httpOnly: true,
-    path: '/',
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
-  });
-
-  return response;
+  return NextResponse.json({
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    requiresVerification: true,
+    message: 'Account created. Verify your email OTP before login.',
+    ...(process.env.NODE_ENV !== 'production' ? { devOtp: emailOtp } : {}),
+  }, { status: 201 });
 }

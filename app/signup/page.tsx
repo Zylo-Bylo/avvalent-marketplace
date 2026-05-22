@@ -9,6 +9,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,7 +32,7 @@ export default function SignupPage() {
       return;
     }
 
-    router.push("/");
+    router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     router.refresh();
   }
 
@@ -61,14 +62,26 @@ export default function SignupPage() {
             required
           />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border p-3"
-            required
-          />
+          <div className="flex rounded-lg border bg-white">
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg p-3 outline-none"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((visible) => !visible)}
+              className="px-3 text-sm font-semibold text-pink-600"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500">
+            Use 8+ characters with uppercase, lowercase, number and special character.
+          </p>
 
           {error && (
             <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">

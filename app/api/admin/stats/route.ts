@@ -27,9 +27,25 @@ export async function GET() {
     }
 
     // Fetch stats
-    const [totalUsers, totalVendors, totalProducts, totalOrders, orderData] = await Promise.all([
+    const [
+      totalUsers,
+      totalVendors,
+      pendingVendors,
+      approvedVendors,
+      rejectedVendors,
+      inactiveVendors,
+      pendingKyc,
+      totalProducts,
+      totalOrders,
+      orderData,
+    ] = await Promise.all([
       prisma.user.count(),
       prisma.vendor.count(),
+      prisma.vendor.count({ where: { status: 'PENDING' } }),
+      prisma.vendor.count({ where: { status: 'APPROVED' } }),
+      prisma.vendor.count({ where: { status: 'REJECTED' } }),
+      prisma.vendor.count({ where: { status: 'INACTIVE' } }),
+      prisma.vendor.count({ where: { kycStatus: { in: ['NOT_SUBMITTED', 'SUBMITTED'] } } }),
       prisma.product.count(),
       prisma.order.count(),
       prisma.order.aggregate({
@@ -40,6 +56,11 @@ export async function GET() {
     const stats = {
       totalUsers,
       totalVendors,
+      pendingVendors,
+      approvedVendors,
+      rejectedVendors,
+      inactiveVendors,
+      pendingKyc,
       totalProducts,
       totalOrders,
       totalRevenue: orderData._sum.totalAmount || 0,

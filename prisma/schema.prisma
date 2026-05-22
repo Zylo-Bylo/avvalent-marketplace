@@ -22,8 +22,24 @@ enum OrderStatus {
 }
 
 enum PaymentMethod {
+  COD
+  UPI
   RAZORPAY
   STRIPE
+}
+
+enum VendorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  INACTIVE
+}
+
+enum KycStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  APPROVED
+  REJECTED
 }
 
 model User {
@@ -33,6 +49,11 @@ model User {
   password      String
   role          UserRole       @default(CUSTOMER)
   avatarUrl     String?
+  emailVerified Boolean        @default(false)
+  emailOtpHash   String?
+  emailOtpExpiresAt DateTime?
+  failedLoginAttempts Int      @default(0)
+  lockedUntil   DateTime?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   vendorProfile Vendor?
@@ -40,6 +61,7 @@ model User {
   wishlist      Wishlist[]
   reviews       Review[]
   notifications Notification[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Vendor {
@@ -53,9 +75,19 @@ model Vendor {
   businessCategory String?
   businessAddress  String?
   gstNumber        String?
+  panNumber        String?
+  aadhaarNumber    String?
   bankDetails      String?
   upiId            String?
   documentsKyc     String?
+  panCardUrl       String?
+  aadhaarUrl       String?
+  gstCertificateUrl String?
+  bankProofUrl     String?
+  status           VendorStatus @default(PENDING)
+  kycStatus        KycStatus @default(NOT_SUBMITTED)
+  rejectionReason  String?
+  approvedAt       DateTime?
   workingHours     String?
   deliveryArea     String?
   products         Product[]
@@ -159,5 +191,15 @@ model Notification {
   title     String
   message   String
   read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
   createdAt DateTime @default(now())
 }

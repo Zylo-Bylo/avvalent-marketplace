@@ -44,7 +44,7 @@ export default function CheckoutPage() {
     state: '',
     zipCode: '',
     phone: '',
-    paymentMethod: 'RAZORPAY',
+    paymentMethod: 'COD',
   });
 
   useEffect(() => {
@@ -75,7 +75,7 @@ export default function CheckoutPage() {
       amount: payload.amount,
       currency: payload.currency,
       order_id: payload.razorpayOrderId,
-      name: 'ZYLO-Buylo',
+      name: 'Zylo-Buylo.com',
       description: 'Order payment',
       handler: async function (response: any) {
         if (!response.razorpay_payment_id) {
@@ -222,6 +222,28 @@ export default function CheckoutPage() {
                       <input
                         type="radio"
                         name="paymentMethod"
+                        value="COD"
+                        checked={formData.paymentMethod === 'COD'}
+                        onChange={handleChange}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-slate-900">Cash on Delivery</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="UPI"
+                        checked={formData.paymentMethod === 'UPI'}
+                        onChange={handleChange}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-slate-900">UPI transfer</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
                         value="RAZORPAY"
                         checked={formData.paymentMethod === 'RAZORPAY'}
                         onChange={handleChange}
@@ -246,7 +268,7 @@ export default function CheckoutPage() {
                 {error && <p className="text-sm text-red-600">{error}</p>}
 
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? 'Processing...' : `Pay ₹${getTotalPrice().toFixed(2)}`}
+                  {loading ? 'Processing...' : `Place Order Rs. ${getTotalPrice().toFixed(2)}`}
                 </Button>
               </form>
             </div>
@@ -263,7 +285,7 @@ export default function CheckoutPage() {
                       <p className="font-medium text-slate-900">{item.name}</p>
                       <p className="text-sm text-slate-600">Qty: {item.quantity}</p>
                     </div>
-                    <p className="font-semibold text-slate-900">₹{(item.price * item.quantity).toFixed(2)}</p>
+                    <p className="font-semibold text-slate-900">Rs. {(item.price * item.quantity).toFixed(2)}</p>
                   </div>
                 ))}
               </div>
@@ -271,7 +293,7 @@ export default function CheckoutPage() {
               <div className="mt-6 space-y-3">
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal</span>
-                  <span>₹{getTotalPrice().toFixed(2)}</span>
+                  <span>Rs. {getTotalPrice().toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Shipping</span>
@@ -286,7 +308,7 @@ export default function CheckoutPage() {
               <div className="mt-6 border-t border-gray-200 pt-4">
                 <div className="flex justify-between text-lg font-bold text-slate-900">
                   <span>Total</span>
-                  <span className="text-pink-600">₹{getTotalPrice().toFixed(2)}</span>
+                  <span className="text-pink-600">Rs. {getTotalPrice().toFixed(2)}</span>
                 </div>
               </div>
             </div>

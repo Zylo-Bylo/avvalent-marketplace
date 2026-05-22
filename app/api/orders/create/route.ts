@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       state: string;
       zipCode: string;
       phone: string;
-      paymentMethod: 'RAZORPAY' | 'STRIPE' | string;
+      paymentMethod: 'COD' | 'UPI' | 'RAZORPAY' | 'STRIPE' | string;
       totalAmount?: number;
     };
 
@@ -55,6 +55,17 @@ export async function POST(request: Request) {
 
     if (products.length !== productIds.length) {
       return NextResponse.json({ error: 'Some products not found' }, { status: 400 });
+    }
+
+    for (const item of items) {
+      const product = products.find((p) => p.id === item.id);
+
+      if (!product || product.inventory < item.quantity) {
+        return NextResponse.json(
+          { error: `${item.name} does not have enough stock.` },
+          { status: 400 }
+        );
+      }
     }
 
     const vendorGroups = new Map<string, CartItem[]>();
@@ -94,8 +105,45 @@ export async function POST(request: Request) {
       createdOrders.push(order);
     }
 
+    await prisma.$transaction(
+      items.map((item) =>
+        prisma.product.update({
+          where: { id: item.id },
+          data: {
+            inventory: {
+              decrement: item.quantity,
+            },
+          },
+        })
+      )
+    );
+
     const order = createdOrders[0];
     const amountInPaise = Math.round((totalAmount || order.totalAmount) * 100);
+
+    if (paymentMethod === 'COD') {
+      return NextResponse.json(
+        {
+          orderId: order.id,
+          paymentMethod,
+          message: 'COD order placed. Payment will be collected on delivery.',
+        },
+        { status: 201 }
+      );
+    }
+
+    if (paymentMethod === 'UPI') {
+      return NextResponse.json(
+        {
+          orderId: order.id,
+          paymentMethod,
+          upiId: process.env.MERCHANT_UPI_ID || process.env.RAZORPAY_KEY_ID || '',
+          amount: totalAmount || order.totalAmount,
+          message: 'UPI order placed. Confirm payment from the order page after transfer.',
+        },
+        { status: 201 }
+      );
+    }
 
     if (paymentMethod === 'RAZORPAY') {
       const razorpayKeyId = process.env.RAZORPAY_KEY_ID;

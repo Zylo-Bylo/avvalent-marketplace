@@ -1,6 +1,21 @@
 import { prisma } from './lib/prisma';
 
 async function main() {
+  await prisma.user.upsert({
+    where: { email: 'admin@zylo-buylo.com' },
+    update: {
+      role: 'ADMIN',
+      emailVerified: true,
+    },
+    create: {
+      email: 'admin@zylo-buylo.com',
+      name: 'Zylo Admin',
+      password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj8nJZkHqUe', // 'password123'
+      role: 'ADMIN',
+      emailVerified: true,
+    },
+  });
+
   // Create categories
   const fashionCategory = await prisma.category.upsert({
     where: { name: 'Fashion' },
@@ -17,16 +32,29 @@ async function main() {
   // Create a sample vendor
   const vendor = await prisma.user.upsert({
     where: { email: 'vendor@zylo-buylo.com' },
-    update: {},
+    update: {
+      emailVerified: true,
+      vendorProfile: {
+        update: {
+          status: 'APPROVED',
+          kycStatus: 'APPROVED',
+          approvedAt: new Date(),
+        },
+      },
+    },
     create: {
       email: 'vendor@zylo-buylo.com',
       name: 'Sample Vendor',
       password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj8nJZkHqUe', // 'password123'
       role: 'VENDOR',
+      emailVerified: true,
       vendorProfile: {
         create: {
           storeName: 'Sample Store',
           description: 'A sample vendor store for testing',
+          status: 'APPROVED',
+          kycStatus: 'APPROVED',
+          approvedAt: new Date(),
         },
       },
     },

@@ -26,6 +26,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Not a vendor' }, { status: 403 });
     }
 
+    if (vendor.status !== 'APPROVED') {
+      return NextResponse.json(
+        { error: 'Vendor account must be approved before adding products.' },
+        { status: 403 }
+      );
+    }
+
     const { name, description, price, categoryId, subcategoryId, sku, inventory, images } = await request.json();
 
     if (!name || !description || price === undefined || price === null || inventory === undefined || inventory === null) {

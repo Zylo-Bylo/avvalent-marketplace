@@ -7,6 +7,11 @@ import Navbar from '@/components/navbar/Navbar';
 interface DashboardStats {
   totalUsers: number;
   totalVendors: number;
+  pendingVendors: number;
+  approvedVendors: number;
+  rejectedVendors: number;
+  inactiveVendors: number;
+  pendingKyc: number;
   totalProducts: number;
   totalOrders: number;
   totalRevenue: number;
@@ -81,6 +86,14 @@ export default function AdminDashboardPage() {
                 <p className="text-sm font-medium text-slate-600">Total Vendors</p>
                 <p className="mt-2 text-3xl font-bold text-green-600">{stats.totalVendors}</p>
               </div>
+              <Link href="/admin/vendors?status=PENDING" className="rounded-2xl border border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 transition hover:-translate-y-1 hover:shadow">
+                <p className="text-sm font-medium text-slate-600">Pending Vendors</p>
+                <p className="mt-2 text-3xl font-bold text-yellow-700">{stats.pendingVendors}</p>
+              </Link>
+              <Link href="/admin/vendors" className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100 p-6 transition hover:-translate-y-1 hover:shadow">
+                <p className="text-sm font-medium text-slate-600">Approved Vendors</p>
+                <p className="mt-2 text-3xl font-bold text-emerald-700">{stats.approvedVendors}</p>
+              </Link>
               <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-purple-50 to-purple-100 p-6">
                 <p className="text-sm font-medium text-slate-600">Total Products</p>
                 <p className="mt-2 text-3xl font-bold text-purple-600">{stats.totalProducts}</p>
@@ -91,8 +104,16 @@ export default function AdminDashboardPage() {
               </div>
               <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-pink-50 to-pink-100 p-6">
                 <p className="text-sm font-medium text-slate-600">Total Revenue</p>
-                <p className="mt-2 text-2xl font-bold text-pink-600">₹{stats.totalRevenue.toFixed(0)}</p>
+                <p className="mt-2 text-2xl font-bold text-pink-600">Rs. {stats.totalRevenue.toFixed(0)}</p>
               </div>
+              <Link href="/admin/vendors" className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100 p-6 transition hover:-translate-y-1 hover:shadow">
+                <p className="text-sm font-medium text-slate-600">KYC Needs Review</p>
+                <p className="mt-2 text-3xl font-bold text-amber-700">{stats.pendingKyc}</p>
+              </Link>
+              <Link href="/admin/vendors" className="rounded-2xl border border-red-200 bg-gradient-to-br from-red-50 to-red-100 p-6 transition hover:-translate-y-1 hover:shadow">
+                <p className="text-sm font-medium text-slate-600">Rejected / Inactive</p>
+                <p className="mt-2 text-3xl font-bold text-red-600">{stats.rejectedVendors + stats.inactiveVendors}</p>
+              </Link>
             </div>
           )}
 
@@ -103,9 +124,12 @@ export default function AdminDashboardPage() {
                 <button className="block w-full rounded-lg bg-slate-100 px-4 py-2 text-left text-sm font-medium text-slate-900 hover:bg-slate-200">
                   Manage Users
                 </button>
-                <button className="block w-full rounded-lg bg-slate-100 px-4 py-2 text-left text-sm font-medium text-slate-900 hover:bg-slate-200">
-                  Manage Vendors
-                </button>
+                <Link
+                  href="/admin/vendors"
+                  className="block w-full rounded-lg bg-yellow-100 px-4 py-2 text-left text-sm font-semibold text-yellow-900 hover:bg-yellow-200"
+                >
+                  Approve Vendors / KYC
+                </Link>
                 <button className="block w-full rounded-lg bg-slate-100 px-4 py-2 text-left text-sm font-medium text-slate-900 hover:bg-slate-200">
                   Review Orders
                 </button>
@@ -127,10 +151,10 @@ export default function AdminDashboardPage() {
             <div className="rounded-2xl border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-slate-900">Recent Activity</h2>
               <div className="mt-4 space-y-3 text-sm text-slate-600">
-                <p>• New vendor registered</p>
-                <p>• Product uploaded</p>
-                <p>• Order completed</p>
-                <p>• Payment received</p>
+                <p>Pending vendors: {stats?.pendingVendors || 0}</p>
+                <p>KYC needing review: {stats?.pendingKyc || 0}</p>
+                <p>Approved vendors: {stats?.approvedVendors || 0}</p>
+                <p>Rejected/inactive vendors: {(stats?.rejectedVendors || 0) + (stats?.inactiveVendors || 0)}</p>
               </div>
             </div>
           </div>

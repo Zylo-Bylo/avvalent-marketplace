@@ -26,6 +26,13 @@ export async function GET() {
       return NextResponse.json({ error: 'Not a vendor' }, { status: 403 });
     }
 
+    if (vendor.status !== 'APPROVED') {
+      return NextResponse.json(
+        { error: 'Vendor account is pending admin approval.' },
+        { status: 403 }
+      );
+    }
+
     // Get vendor's products
     const products = await prisma.product.findMany({
       where: { vendorId: vendor.id },

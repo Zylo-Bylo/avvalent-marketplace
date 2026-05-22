@@ -15,6 +15,7 @@ function LoginForm() {
   const role = searchParams.get("role");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -83,14 +84,23 @@ function LoginForm() {
             required
           />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border p-3"
-            required
-          />
+          <div className="flex rounded-lg border bg-white">
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg p-3 outline-none"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((visible) => !visible)}
+              className="px-3 text-sm font-semibold text-pink-600"
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
 
           {error && (
             <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
@@ -114,6 +124,15 @@ function LoginForm() {
             className="ml-2 font-semibold text-pink-600"
           >
             {role === "vendor" ? "Register as vendor" : "Signup"}
+          </Link>
+        </p>
+        <p className="mt-3 text-center text-sm">
+          <Link href="/forgot-password" className="font-semibold text-pink-600">
+            Forgot password?
+          </Link>
+          <span className="mx-2 text-gray-300">/</span>
+          <Link href="/verify-email" className="font-semibold text-pink-600">
+            Verify email OTP
           </Link>
         </p>
       </div>

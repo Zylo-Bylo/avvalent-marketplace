@@ -36,9 +36,18 @@ type VendorProfile = {
   businessCategory?: string | null;
   businessAddress?: string | null;
   gstNumber?: string | null;
+  panNumber?: string | null;
+  aadhaarNumber?: string | null;
   bankDetails?: string | null;
   upiId?: string | null;
   documentsKyc?: string | null;
+  panCardUrl?: string | null;
+  aadhaarUrl?: string | null;
+  gstCertificateUrl?: string | null;
+  bankProofUrl?: string | null;
+  status?: "PENDING" | "APPROVED" | "REJECTED" | "INACTIVE";
+  kycStatus?: "NOT_SUBMITTED" | "SUBMITTED" | "APPROVED" | "REJECTED";
+  rejectionReason?: string | null;
   workingHours?: string | null;
   deliveryArea?: string | null;
 };
@@ -78,9 +87,15 @@ type ProfileForm = {
   businessCategory: string;
   businessAddress: string;
   gstNumber: string;
+  panNumber: string;
+  aadhaarNumber: string;
   bankDetails: string;
   upiId: string;
   documentsKyc: string;
+  panCardUrl: string;
+  aadhaarUrl: string;
+  gstCertificateUrl: string;
+  bankProofUrl: string;
   workingHours: string;
   deliveryArea: string;
 };
@@ -94,9 +109,15 @@ const emptyProfileForm: ProfileForm = {
   businessCategory: "",
   businessAddress: "",
   gstNumber: "",
+  panNumber: "",
+  aadhaarNumber: "",
   bankDetails: "",
   upiId: "",
   documentsKyc: "",
+  panCardUrl: "",
+  aadhaarUrl: "",
+  gstCertificateUrl: "",
+  bankProofUrl: "",
   workingHours: "",
   deliveryArea: "",
 };
@@ -161,9 +182,15 @@ function formFromVendor(user: VendorUser | null): ProfileForm {
     businessCategory: profile?.businessCategory || "",
     businessAddress: profile?.businessAddress || "",
     gstNumber: profile?.gstNumber || "",
+    panNumber: profile?.panNumber || "",
+    aadhaarNumber: profile?.aadhaarNumber || "",
     bankDetails: profile?.bankDetails || "",
     upiId: profile?.upiId || "",
     documentsKyc: profile?.documentsKyc || "",
+    panCardUrl: profile?.panCardUrl || "",
+    aadhaarUrl: profile?.aadhaarUrl || "",
+    gstCertificateUrl: profile?.gstCertificateUrl || "",
+    bankProofUrl: profile?.bankProofUrl || "",
     workingHours: profile?.workingHours || "",
     deliveryArea: profile?.deliveryArea || "",
   };
@@ -209,6 +236,20 @@ export default function VendorDashboardPage() {
 
       setVendor(userData.user);
       setProfileForm(formFromVendor(userData.user));
+
+      if (userData.user.vendorProfile?.status !== "APPROVED") {
+        const categoriesResponse = await fetch("/api/categories", {
+          cache: "no-store",
+        });
+
+        if (categoriesResponse.ok && isActive) {
+          const data = await categoriesResponse.json();
+          setCategories(data.categories || []);
+        }
+
+        setLoading(false);
+        return;
+      }
 
       const [productsResponse, categoriesResponse] = await Promise.all([
         fetch("/api/vendor/products", { cache: "no-store" }),
@@ -293,6 +334,16 @@ export default function VendorDashboardPage() {
         section: "kyc" as DashboardSection,
       },
       {
+        label: "PAN number",
+        done: Boolean(vendor?.vendorProfile?.panNumber),
+        section: "kyc" as DashboardSection,
+      },
+      {
+        label: "Aadhaar number",
+        done: Boolean(vendor?.vendorProfile?.aadhaarNumber),
+        section: "kyc" as DashboardSection,
+      },
+      {
         label: "Bank details",
         done: Boolean(vendor?.vendorProfile?.bankDetails),
         section: "payments" as DashboardSection,
@@ -304,7 +355,13 @@ export default function VendorDashboardPage() {
       },
       {
         label: "Documents / KYC",
-        done: Boolean(vendor?.vendorProfile?.documentsKyc),
+        done: Boolean(
+          vendor?.vendorProfile?.documentsKyc ||
+            vendor?.vendorProfile?.panCardUrl ||
+            vendor?.vendorProfile?.aadhaarUrl ||
+            vendor?.vendorProfile?.gstCertificateUrl ||
+            vendor?.vendorProfile?.bankProofUrl
+        ),
         section: "kyc" as DashboardSection,
       },
       {
@@ -520,6 +577,20 @@ export default function VendorDashboardPage() {
                 className="rounded-xl border p-3"
               />
               <input
+                name="panNumber"
+                value={profileForm.panNumber}
+                onChange={handleFormChange}
+                placeholder="PAN number"
+                className="rounded-xl border p-3"
+              />
+              <input
+                name="aadhaarNumber"
+                value={profileForm.aadhaarNumber}
+                onChange={handleFormChange}
+                placeholder="Aadhaar number"
+                className="rounded-xl border p-3"
+              />
+              <input
                 name="upiId"
                 value={profileForm.upiId}
                 onChange={handleFormChange}
@@ -537,8 +608,36 @@ export default function VendorDashboardPage() {
                 name="documentsKyc"
                 value={profileForm.documentsKyc}
                 onChange={handleFormChange}
-                placeholder="Documents / KYC details or document link"
+                placeholder="KYC notes or extra document link"
                 className="min-h-24 rounded-xl border p-3"
+              />
+              <input
+                name="panCardUrl"
+                value={profileForm.panCardUrl}
+                onChange={handleFormChange}
+                placeholder="PAN card document URL"
+                className="rounded-xl border p-3"
+              />
+              <input
+                name="aadhaarUrl"
+                value={profileForm.aadhaarUrl}
+                onChange={handleFormChange}
+                placeholder="Aadhaar document URL"
+                className="rounded-xl border p-3"
+              />
+              <input
+                name="gstCertificateUrl"
+                value={profileForm.gstCertificateUrl}
+                onChange={handleFormChange}
+                placeholder="GST certificate URL"
+                className="rounded-xl border p-3"
+              />
+              <input
+                name="bankProofUrl"
+                value={profileForm.bankProofUrl}
+                onChange={handleFormChange}
+                placeholder="Bank proof URL"
+                className="rounded-xl border p-3"
               />
             </div>
           </div>
@@ -646,6 +745,78 @@ export default function VendorDashboardPage() {
           >
             {message.includes("register") ? "Register as Vendor" : "Login"}
           </Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (vendor && vendor.vendorProfile?.status !== "APPROVED") {
+    const vendorProfile = vendor.vendorProfile;
+    const status = vendorProfile?.status || "PENDING";
+
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-gray-100 p-6">
+        <div className="w-full max-w-3xl rounded-2xl bg-white p-8 shadow">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-pink-600">
+                Vendor approval
+              </p>
+              <h1 className="mt-3 text-3xl font-bold">
+                {status === "REJECTED"
+                  ? "Vendor application rejected"
+                  : status === "INACTIVE"
+                    ? "Vendor account inactive"
+                    : "Waiting for admin approval"}
+              </h1>
+              <p className="mt-3 text-gray-600">
+                Your dashboard, product upload, and vendor products will unlock
+                after admin approves your KYC and business details.
+              </p>
+              {vendorProfile?.rejectionReason && (
+                <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+                  {vendorProfile.rejectionReason}
+                </p>
+              )}
+            </div>
+            <span className="rounded-full bg-yellow-100 px-4 py-2 text-sm font-bold text-yellow-800">
+              {status}
+            </span>
+          </div>
+
+          <div className="mt-6 grid gap-3 text-sm md:grid-cols-2">
+            <p>
+              <span className="font-semibold">Business:</span>{" "}
+              {vendorProfile?.storeName || "Not set"}
+            </p>
+            <p>
+              <span className="font-semibold">KYC:</span>{" "}
+              {vendorProfile?.kycStatus || "NOT_SUBMITTED"}
+            </p>
+            <p>
+              <span className="font-semibold">PAN:</span>{" "}
+              {vendorProfile?.panNumber || "Not set"}
+            </p>
+            <p>
+              <span className="font-semibold">GST:</span>{" "}
+              {vendorProfile?.gstNumber || "Not set"}
+            </p>
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/"
+              className="rounded-xl border px-5 py-3 text-sm font-semibold"
+            >
+              Go Home
+            </Link>
+            <Link
+              href="/login?role=vendor&next=/vendor/dashboard"
+              className="rounded-xl bg-pink-600 px-5 py-3 text-sm font-semibold text-white"
+            >
+              Refresh After Approval
+            </Link>
+          </div>
         </div>
       </main>
     );
