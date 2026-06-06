@@ -1,10 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import {
+  getLocalVendorUser,
+  shouldUseLocalSqliteAuth,
+} from '@/lib/local-sqlite-auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const requestedLimit = parseInt(searchParams.get('limit') || '80', 10);
+    const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 80, 1), 100);
+    const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
 
@@ -17,10 +24,20 @@ export async function GET() {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Get vendor by user ID
-    const vendor = await prisma.vendor.findUnique({
-      where: { userId: String(data.userId) },
-    });
+    const localUser = shouldUseLocalSqliteAuth()
+      ? getLocalVendorUser(String(data.userId))
+      : null;
+    const vendor = localUser?.vendorProfile
+      ? {
+          id: localUser.vendorProfile.id,
+          status: localUser.vendorProfile.status,
+        }
+      : await (async () => {
+          const { prisma } = await import('@/lib/prisma');
+          return prisma.vendor.findUnique({
+            where: { userId: String(data.userId) },
+          });
+        })();
 
     if (!vendor) {
       return NextResponse.json({ error: 'Not a vendor' }, { status: 403 });
@@ -33,6 +50,7 @@ export async function GET() {
       );
     }
 
+    const { prisma } = await import('@/lib/prisma');
     // Get vendor's products
     const products = await prisma.product.findMany({
       where: { vendorId: vendor.id },
@@ -41,9 +59,17 @@ export async function GET() {
         subcategory: true,
       },
       orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip: offset,
     });
 
-    return NextResponse.json({ products });
+    const total = await prisma.product.count({ where: { vendorId: vendor.id } });
+
+    return NextResponse.json({
+      products,
+      total,
+      hasMore: offset + limit < total,
+    });
   } catch (error) {
     console.error('Product listing error:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });

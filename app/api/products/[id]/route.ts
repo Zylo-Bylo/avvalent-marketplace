@@ -2,6 +2,25 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  getFallbackProductById,
+  shouldUseFallbackCatalog,
+} from '@/lib/fallback-catalog';
+import { adjustProductStock, ensureInventoryTables, ensureProductInventory } from '@/lib/inventory';
+import { calculateMarketplacePricing } from '@/lib/pricing';
+
+let inventorySetupPromise: Promise<void> | null = null;
+
+function ensureInventoryReady() {
+  if (!inventorySetupPromise) {
+    inventorySetupPromise = ensureInventoryTables().catch((error) => {
+      inventorySetupPromise = null;
+      throw error;
+    });
+  }
+
+  return inventorySetupPromise;
+}
 
 async function getProductManager() {
   const cookieStore = await cookies();
@@ -29,6 +48,13 @@ async function getProductManager() {
     return { error: 'Not a vendor or admin', status: 403 as const };
   }
 
+  if (user.role !== 'ADMIN' && user.vendorProfile?.status !== 'APPROVED') {
+    return {
+      error: 'Vendor account must be approved before managing products.',
+      status: 403 as const,
+    };
+  }
+
   return { user };
 }
 
@@ -38,6 +64,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    await ensureInventoryReady();
 
     const product = await prisma.product.findUnique({
       where: { id },
@@ -59,8 +87,22 @@ export async function GET(
             id: true,
             storeName: true,
             description: true,
+            logoUrl: true,
+            businessCategory: true,
+            _count: {
+              select: {
+                products: true,
+                orders: true,
+              },
+            },
           },
         },
+        _count: {
+          select: {
+            reviews: true,
+          },
+        },
+        inventories: true,
       },
     });
 
@@ -71,6 +113,17 @@ export async function GET(
     return NextResponse.json({ product });
   } catch (error) {
     console.error('Product fetch error:', error);
+    if (shouldUseFallbackCatalog(error)) {
+      const { id } = await params;
+      const product = getFallbackProductById(id);
+
+      if (!product) {
+        return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      }
+
+      return NextResponse.json({ product });
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch product' },
       { status: 500 }
@@ -115,23 +168,132 @@ export async function PUT(
       name,
       description,
       price,
+      mrp,
+      vendorPrice,
+      sellingPrice,
+      discountPercent,
+      platformCommissionPercent,
+      packagingCharge,
+      weightGrams,
+      packageSize,
+      fragile,
+      shippingCharge,
+      codCharge,
       categoryId,
       subcategoryId,
       sku,
       inventory,
       images,
     } = await request.json();
+    const nextCategoryId =
+      categoryId !== undefined ? categoryId || null : product.categoryId;
+    const nextSubcategoryId =
+      subcategoryId !== undefined ? subcategoryId || null : product.subcategoryId;
+
+    if (nextCategoryId) {
+      const category = await prisma.category.findUnique({
+        where: { id: nextCategoryId },
+        select: { id: true },
+      });
+
+      if (!category) {
+        return NextResponse.json(
+          { error: 'Selected category was not found.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (nextSubcategoryId) {
+      const subcategory = await prisma.subcategory.findFirst({
+        where: {
+          id: nextSubcategoryId,
+          ...(nextCategoryId ? { categoryId: nextCategoryId } : {}),
+        },
+        select: { id: true },
+      });
+
+      if (!subcategory) {
+        return NextResponse.json(
+          { error: 'Selected subcategory does not belong to this category.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    const pricing =
+      price !== undefined ||
+      mrp !== undefined ||
+      vendorPrice !== undefined ||
+      sellingPrice !== undefined ||
+      discountPercent !== undefined ||
+      platformCommissionPercent !== undefined ||
+      packagingCharge !== undefined ||
+      weightGrams !== undefined ||
+      packageSize !== undefined ||
+      fragile !== undefined ||
+      shippingCharge !== undefined ||
+      codCharge !== undefined
+        ? calculateMarketplacePricing({
+            price: price !== undefined ? price : product.price,
+            mrp: mrp !== undefined ? mrp : product.mrp,
+            vendorPrice:
+              vendorPrice !== undefined ? vendorPrice : product.vendorPrice,
+            sellingPrice:
+              sellingPrice !== undefined ? sellingPrice : product.sellingPrice,
+            discountPercent:
+              discountPercent !== undefined
+                ? discountPercent
+                : product.discountPercent,
+            platformCommissionPercent:
+              platformCommissionPercent !== undefined
+                ? platformCommissionPercent
+                : product.platformCommissionPercent,
+            packagingCharge:
+              packagingCharge !== undefined
+                ? packagingCharge
+                : product.packagingCharge,
+            weightGrams:
+              weightGrams !== undefined ? weightGrams : product.weightGrams,
+            packageSize:
+              packageSize !== undefined ? packageSize : product.packageSize,
+            fragile: fragile !== undefined ? fragile : product.fragile,
+            shippingCharge:
+              shippingCharge !== undefined ? shippingCharge : product.shippingCharge,
+            codCharge: codCharge !== undefined ? codCharge : product.codCharge,
+          })
+        : null;
 
     const updatedProduct = await prisma.product.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
-        ...(price !== undefined && { price: parseFloat(price) }),
-        ...(categoryId !== undefined && { categoryId: categoryId || null }),
-        ...(subcategoryId !== undefined && {
-          subcategoryId: subcategoryId || null,
+        ...(pricing && {
+          price: pricing.finalCustomerPrice,
+          mrp: pricing.mrp,
+          vendorPrice: pricing.vendorPrice,
+          sellingPrice: pricing.sellingPrice,
+          discountPercent: pricing.discountPercent,
+          discountAmount: pricing.discountAmount,
+          platformCommissionPercent: pricing.platformCommissionPercent,
+          platformCommissionAmount: pricing.platformCommissionAmount,
+          packagingCharge: pricing.packagingCharge,
+          weightGrams: pricing.weightGrams || null,
+          packageSize: pricing.packageSize,
+          fragile: pricing.fragile,
+          shippingCharge: pricing.shippingCharge,
+          codCharge: pricing.codCharge,
+          finalCustomerPrice: pricing.finalCustomerPrice,
+          vendorPayout: pricing.vendorPayout,
+          priceApproved: manager.user.role === 'ADMIN' || product.priceApproved,
         }),
+        ...(categoryId !== undefined && { categoryId: categoryId || null }),
+        ...(subcategoryId !== undefined
+          ? { subcategoryId: subcategoryId || null }
+          : categoryId !== undefined
+            ? { subcategoryId: null }
+            : {}),
         ...(sku !== undefined && { sku: sku || null }),
         ...(inventory !== undefined && { inventory: parseInt(inventory) }),
         ...(images !== undefined && {
@@ -149,6 +311,22 @@ export async function PUT(
         },
       },
     });
+
+    await ensureProductInventory(updatedProduct.id, {
+      id: updatedProduct.id,
+      vendorId: updatedProduct.vendorId,
+      sku: updatedProduct.sku,
+      inventory: updatedProduct.inventory,
+    });
+    if (inventory !== undefined) {
+      await adjustProductStock({
+        productId: updatedProduct.id,
+        quantity: Number(inventory || 0),
+        mode: 'SET',
+        reason: 'Product stock updated from product editor.',
+        adjustedByUserId: manager.user.id,
+      });
+    }
 
     return NextResponse.json(updatedProduct);
   } catch (error) {

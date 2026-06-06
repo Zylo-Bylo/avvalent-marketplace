@@ -1,5 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import {
+  getFallbackProducts,
+  shouldUseFallbackCatalog,
+} from '@/lib/fallback-catalog';
+import { ensureInventoryTables } from '@/lib/inventory';
+
+let inventorySetupPromise: Promise<void> | null = null;
+
+function ensureInventoryReady() {
+  if (!inventorySetupPromise) {
+    inventorySetupPromise = ensureInventoryTables().catch((error) => {
+      inventorySetupPromise = null;
+      throw error;
+    });
+  }
+
+  return inventorySetupPromise;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,15 +25,19 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const categoryId = searchParams.get('categoryId');
     const subcategoryId = searchParams.get('subcategoryId');
+    const vendorId = searchParams.get('vendorId');
     const search = searchParams.get('search');
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
     const includeOutOfStock = searchParams.get('includeOutOfStock') === 'true';
     const sort = searchParams.get('sort') || 'newest';
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const requestedLimit = parseInt(searchParams.get('limit') || '40', 10);
+    const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 40, 1), 60);
+    const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
 
-    const where: any = {};
+    await ensureInventoryReady();
+
+    const where: Record<string, unknown> = {};
 
     if (!includeOutOfStock) {
       where.inventory = {
@@ -40,6 +62,10 @@ export async function GET(request: NextRequest) {
       where.subcategoryId = subcategoryId;
     }
 
+    if (vendorId) {
+      where.vendorId = vendorId;
+    }
+
     if (search) {
       where.OR = [
         {
@@ -58,15 +84,17 @@ export async function GET(request: NextRequest) {
     }
 
     if (minPrice || maxPrice) {
-      where.price = {};
+      const priceFilter: { gte?: number; lte?: number } = {};
 
       if (minPrice) {
-        where.price.gte = Number(minPrice);
+        priceFilter.gte = Number(minPrice);
       }
 
       if (maxPrice) {
-        where.price.lte = Number(maxPrice);
+        priceFilter.lte = Number(maxPrice);
       }
+
+      where.price = priceFilter;
     }
 
     const orderBy =
@@ -80,7 +108,17 @@ export async function GET(request: NextRequest) {
 
     const products = await prisma.product.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        price: true,
+        mrp: true,
+        discountPercent: true,
+        inventory: true,
+        images: true,
+        categoryId: true,
+        subcategoryId: true,
         category: {
           select: {
             id: true,
@@ -93,6 +131,7 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        inventories: true,
         vendor: {
           select: {
             id: true,
@@ -114,6 +153,11 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Products fetch error:', error);
+    if (shouldUseFallbackCatalog(error)) {
+      const { searchParams } = new URL(request.url);
+      return NextResponse.json(getFallbackProducts(searchParams));
+    }
+
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
   }
 }
