@@ -295,9 +295,9 @@ export default function AdminHomepagePage() {
             <section className="bg-white p-5 shadow">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-2xl font-black">Hero Banner System</h2>
+                  <h2 className="text-2xl font-black">Hero Banner Content</h2>
                   <p className="mt-1 text-sm text-stone-600">
-                    Homepage par ek premium banner frame rahega. Slide 1 ka text/buttons main banner control karta hai; sabhi slides ki images/videos right side me rotate hoti hain.
+                    Homepage par ek fixed premium hero banner rahega. Slide 1 ka text aur buttons live hero me dikhte hain; sabhi slides ki images/videos right side media area me rotate hoti hain.
                   </p>
                 </div>
                 <button
@@ -312,7 +312,7 @@ export default function AdminHomepagePage() {
               <div className="mt-4 grid gap-3 rounded-2xl border border-[#ead7e8] bg-[#fff8fc] p-4 text-sm text-stone-700 lg:grid-cols-4">
                 <div>
                   <p className="font-black text-stone-950">Recommended image</p>
-                  <p className="mt-1 text-xs">Desktop: 1600 x 520 px. Mobile safe: center product/person.</p>
+                  <p className="mt-1 text-xs">Best upload: 1600 x 560 px. System media ko 720 x 250 frame me auto-fit karega.</p>
                 </div>
                 <div>
                   <p className="font-black text-stone-950">Text limit</p>
@@ -324,7 +324,7 @@ export default function AdminHomepagePage() {
                 </div>
                 <div>
                   <p className="font-black text-stone-950">Live size lock</p>
-                  <p className="mt-1 text-xs">Homepage keeps one compact banner frame, around 3-4 inch visual height.</p>
+                  <p className="mt-1 text-xs">Live hero me image/video frame top aligned hai, taki poora media visible rahe.</p>
                 </div>
               </div>
 
@@ -332,7 +332,18 @@ export default function AdminHomepagePage() {
                 {content.heroSlides.map((slide, index) => (
                   <div key={`${slide.title}-${index}`} className="rounded-xl border border-stone-200 bg-[#fffafc] p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="font-black">Slide {index + 1}</h3>
+                      <div>
+                        <h3 className="font-black">
+                          {index === 0
+                            ? "Slide 1 - Main hero text & buttons"
+                            : `Slide ${index + 1} - Rotating hero media`}
+                        </h3>
+                        <p className="mt-1 text-xs font-semibold text-stone-500">
+                          {index === 0
+                            ? "Is slide ka title, description, Shop Now aur Seller button live homepage par use hota hai."
+                            : "Is slide ki image/video hero media area me rotate hogi. Text/buttons backup content ke liye rahenge."}
+                        </p>
+                      </div>
                       <select
                         value={`${slide.theme}|${slide.panel}`}
                         onChange={(event) => {
@@ -349,13 +360,13 @@ export default function AdminHomepagePage() {
                       </select>
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <FieldLabel label="Small label">
+                      <FieldLabel label={index === 0 ? "Hero small label" : "Backup small label"}>
                         <input value={slide.eyebrow} onChange={(event) => updateHero(index, { eyebrow: event.target.value })} placeholder="Zylo-Buylo sale" className="rounded-lg border p-3" />
                       </FieldLabel>
-                      <FieldLabel label="Main title">
+                      <FieldLabel label={index === 0 ? "Hero main title" : "Backup title"}>
                         <input value={slide.title} onChange={(event) => updateHero(index, { title: event.target.value })} placeholder="Shop smart, sell easy" className="rounded-lg border p-3" />
                       </FieldLabel>
-                      <FieldLabel label="Highlight line">
+                      <FieldLabel label={index === 0 ? "Hero highlight line" : "Backup highlight"}>
                         <input value={slide.highlight} onChange={(event) => updateHero(index, { highlight: event.target.value })} placeholder="Trusted vendors. Better prices." className="rounded-lg border p-3" />
                       </FieldLabel>
                       <FieldLabel label="Banner image/video URL" hint="Yahan direct .jpg/.png/.webp image URL, public path like /hero-banner.png, ya direct .mp4 video URL dalen. Webpage link mat dalen.">
@@ -369,16 +380,16 @@ export default function AdminHomepagePage() {
                           onUploaded={(url) => updateHero(index, { image: url })}
                         />
                       </div>
-                      <FieldLabel label="Primary button label">
+                      <FieldLabel label={index === 0 ? "Shop Now button label" : "Backup primary label"}>
                         <input value={slide.primaryLabel} onChange={(event) => updateHero(index, { primaryLabel: event.target.value })} placeholder="Shop Now" className="rounded-lg border p-3" />
                       </FieldLabel>
-                      <FieldLabel label="Primary button route" hint="Example: /products or /products?offer=true. Image URL yahan nahi dalna hai.">
+                      <FieldLabel label={index === 0 ? "Shop Now button route" : "Backup primary route"} hint="Example: /products or /products?offer=true. Image URL yahan nahi dalna hai.">
                         <input value={slide.primaryHref} onChange={(event) => updateHero(index, { primaryHref: event.target.value })} placeholder="/products" className="rounded-lg border p-3" />
                       </FieldLabel>
-                      <FieldLabel label="Second button label">
+                      <FieldLabel label={index === 0 ? "Seller button label" : "Backup second label"}>
                         <input value={slide.secondaryLabel} onChange={(event) => updateHero(index, { secondaryLabel: event.target.value })} placeholder="Become a seller" className="rounded-lg border p-3" />
                       </FieldLabel>
-                      <FieldLabel label="Second button route" hint="Example: /supplier or /vendor/register.">
+                      <FieldLabel label={index === 0 ? "Seller button route" : "Backup second route"} hint="Example: /supplier or /vendor/register.">
                         <input value={slide.secondaryHref} onChange={(event) => updateHero(index, { secondaryHref: event.target.value })} placeholder="/supplier" className="rounded-lg border p-3" />
                       </FieldLabel>
                       <FieldLabel label="Image alt text" hint="SEO/accessibility ke liye short image description." >
