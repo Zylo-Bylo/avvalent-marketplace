@@ -1131,24 +1131,24 @@ export default function HomePage() {
         </div>
       </header>
 
-      <section className="bg-[#130817] bg-[radial-gradient(circle_at_top,rgba(159,32,137,0.24),transparent_36%),linear-gradient(180deg,#1a0b20,#0f1117)] px-3 py-3 md:hidden">
+      <section className="bg-[#100713] bg-[radial-gradient(circle_at_top,rgba(247,200,91,0.14),transparent_32%),radial-gradient(circle_at_20%_10%,rgba(159,32,137,0.25),transparent_34%),linear-gradient(180deg,#19091f,#0f1117)] px-2.5 pb-28 pt-2.5 md:hidden">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-black text-white">Products for you</h1>
-            <p className="text-[11px] font-semibold text-white/65">
-              Select category, then order fast
+            <h1 className="text-base font-black text-white">Products for you</h1>
+            <p className="text-[10px] font-semibold text-white/60">
+              Category se choose karo, fast order karo
             </p>
           </div>
-          <Link href="/products" className="rounded-full bg-[#6b145d] px-3 py-2 text-[11px] font-black uppercase text-white">
+          <Link href="/products" className="rounded-full bg-[#f7c85b] px-3 py-1.5 text-[10px] font-black uppercase text-[#160716]">
             View all
           </Link>
         </div>
 
-        <div className="mb-3 overflow-x-auto rounded-2xl border border-white/10 bg-white/10 p-2 shadow-[0_16px_34px_rgba(0,0,0,0.24)] backdrop-blur">
-          <div className="flex min-w-max gap-2">
+        <div className="mb-2.5 overflow-x-auto rounded-xl border border-white/10 bg-white/10 p-1.5 shadow-[0_14px_28px_rgba(0,0,0,0.22)] backdrop-blur">
+          <div className="flex min-w-max gap-1.5">
             <Link
               href="/products"
-                className="flex w-20 shrink-0 flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white p-2 text-center"
+                className="flex w-[72px] shrink-0 flex-col items-center gap-1 rounded-xl border border-white/10 bg-white p-1.5 text-center"
             >
               <span className="grid h-12 w-12 place-items-center rounded-xl bg-[#fde7f2] text-sm font-black text-[#8b2c72]">
                 All
@@ -1161,7 +1161,7 @@ export default function HomePage() {
               <Link
                 key={category.id}
                 href={`/products?category=${category.slug || slugify(category.name)}`}
-                className="flex w-20 shrink-0 flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white p-2 text-center"
+                className="flex w-[72px] shrink-0 flex-col items-center gap-1 rounded-xl border border-white/10 bg-white p-1.5 text-center"
               >
                 <span className="relative h-12 w-12 overflow-hidden rounded-xl bg-[#fff4fb]">
                   <Image
@@ -1180,24 +1180,24 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2">
           {freshProducts.slice(0, 12).map((product, index) => {
             const hasDeal = Boolean(product.mrp && product.mrp > product.price);
 
             return (
               <article
                 key={product.id}
-                className="overflow-hidden rounded-2xl border border-white/10 bg-white shadow-[0_14px_30px_rgba(0,0,0,0.24)]"
+                className="overflow-hidden rounded-xl border border-white/10 bg-white shadow-[0_12px_24px_rgba(0,0,0,0.22)]"
               >
                 <Link href={`/products/${product.id}`} className="block">
-                  <div className="relative aspect-[2/3] overflow-hidden bg-[#f7f7f9]">
+                  <div className="relative aspect-[4/5] overflow-hidden bg-[#f7f7f9]">
                     <Image
                       src={product.images?.[0] || fallbackImage}
                       alt={product.name}
                       fill
                       priority={index < 4}
                       sizes="50vw"
-                      className="object-cover"
+                      className="object-contain p-1"
                     />
                     {hasDeal && (
                       <span className="absolute left-1.5 top-1.5 rounded-full bg-green-600 px-1.5 py-0.5 text-[9px] font-black text-white">
@@ -1205,20 +1205,20 @@ export default function HomePage() {
                       </span>
                     )}
                   </div>
-                  <div className="p-1.5">
-                    <h2 className="line-clamp-2 min-h-8 text-[11px] font-black leading-4 text-[#111827]">
+                  <div className="px-1.5 pb-2 pt-1">
+                    <h2 className="line-clamp-1 text-[10.5px] font-black leading-3 text-[#111827]">
                       {product.name}
                     </h2>
                     <div className="mt-1 flex items-end justify-between gap-1">
-                      <p className="text-sm font-black text-[#b12704]">
+                      <p className="text-[13px] font-black leading-4 text-[#b12704]">
                         {priceLabel(product.price)}
                       </p>
                       <span className="rounded-full bg-[#f3f4f6] px-1.5 py-0.5 text-[8px] font-bold text-[#315c48]">
-                        Stock
+                        View
                       </span>
                     </div>
                     {product.mrp && product.mrp > product.price && (
-                      <p className="mt-0.5 truncate text-[10px] text-[#6b7280]">
+                      <p className="mt-0.5 truncate text-[9px] text-[#6b7280]">
                         <span className="line-through">{priceLabel(product.mrp)}</span>
                       </p>
                     )}
