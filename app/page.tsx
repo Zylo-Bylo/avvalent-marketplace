@@ -1315,34 +1315,34 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl space-y-5 px-4 py-5">
           <div className={`overflow-hidden rounded-[26px] border border-white/15 shadow-[0_24px_70px_rgba(0,0,0,0.36)] ${baseHero.theme}`}>
             <div className="relative grid overflow-hidden md:h-[325px] md:grid-cols-[0.82fr_1.18fr]">
-              <div className="relative z-10 flex h-full flex-col justify-center px-8 py-7 lg:px-10">
+              <div className="relative z-10 flex h-full flex-col justify-start px-8 py-6 lg:px-10">
                 <p className="w-fit rounded-full border border-white/50 bg-white/90 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#6b145d] shadow-sm">
                   {baseHero.eyebrow}
                 </p>
-                <h1 className="mt-4 max-w-xl text-4xl font-black leading-[1.02] text-[#081225] lg:text-5xl">
+                <h1 className="mt-3 max-w-lg text-[38px] font-black leading-[0.98] text-[#081225] lg:text-[44px]">
                   {baseHero.title}
                   <span className="block bg-gradient-to-r from-[#6b145d] via-[#e71876] to-[#ff7a1a] bg-clip-text text-transparent">
                     {baseHero.highlight}
                   </span>
                 </h1>
-                <p className="mt-4 line-clamp-2 max-w-xl text-base leading-6 text-[#374151]">
+                <p className="mt-3 line-clamp-1 max-w-xl text-sm font-semibold leading-5 text-[#374151]">
                   {baseHero.text}
                 </p>
-                <div className="mt-5 flex flex-wrap gap-3">
+                <div className="mt-4 flex flex-wrap gap-3">
                   <Link
                     href={baseHero.primaryHref}
-                    className="rounded-full bg-[#6b145d] px-7 py-3 text-xs font-black uppercase text-white shadow-[0_14px_30px_rgba(107,20,93,0.28)] transition hover:-translate-y-0.5 hover:bg-[#8b2c72]"
+                    className="rounded-full bg-[#6b145d] px-6 py-2.5 text-xs font-black uppercase text-white shadow-[0_14px_30px_rgba(107,20,93,0.28)] transition hover:-translate-y-0.5 hover:bg-[#8b2c72]"
                   >
                     {baseHero.primaryLabel}
                   </Link>
                   <Link
                     href={baseHero.secondaryHref}
-                    className="rounded-full border border-[#6b145d] bg-white/90 px-7 py-3 text-xs font-black uppercase text-[#6b145d] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff4fb]"
+                    className="rounded-full border border-[#6b145d] bg-white/90 px-6 py-2.5 text-xs font-black uppercase text-[#6b145d] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff4fb]"
                   >
                     {baseHero.secondaryLabel}
                   </Link>
                 </div>
-                <div className="mt-5 flex items-center gap-2">
+                <div className="mt-3 flex items-center gap-2">
                   {heroSlides.map((slide, index) => (
                     <button
                       key={`${slide.image}-${index}`}
