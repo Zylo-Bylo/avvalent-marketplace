@@ -13,11 +13,12 @@ import {
 } from "@/lib/homepage-content";
 
 const themeOptions = [
-  { label: "Pink marketplace", theme: "bg-[#fff6fb]", panel: "bg-[#fff0f6]" },
+  { label: "Pearl luxury", theme: "bg-[#fff6fb]", panel: "bg-[#fff0f6]" },
   { label: "Gold luxury", theme: "bg-[#fff8ec]", panel: "bg-[#2a140c]" },
+  { label: "Midnight premium", theme: "bg-[#f8f0ff]", panel: "bg-[#1f1024]" },
   { label: "Blue trust", theme: "bg-[#f4f9ff]", panel: "bg-[#eef6ff]" },
   { label: "Green fresh", theme: "bg-[#f0fdf4]", panel: "bg-[#e8f8ee]" },
-  { label: "Purple premium", theme: "bg-[#f6f0ff]", panel: "bg-[#efe7ff]" },
+  { label: "Rose festival", theme: "bg-[#fff1f2]", panel: "bg-[#4a102a]" },
 ];
 
 function cloneDefaultContent() {
@@ -132,9 +133,9 @@ function BannerMediaPreview({
 
 function HeroSlidePreview({ slide }: { slide: HomepageHeroSlide }) {
   return (
-    <div className={`overflow-hidden rounded-2xl border border-[#ead1e5] bg-[radial-gradient(circle_at_top_right,rgba(255,247,252,0.98),rgba(255,255,255,0.99)_44%,rgba(255,249,240,0.96))] shadow-sm ${slide.theme}`}>
-      <div className="relative grid overflow-hidden md:h-[190px] md:grid-cols-[0.88fr_1.12fr]">
-        <div className="relative z-10 flex min-h-[170px] flex-col justify-center px-4 py-4 md:h-full md:min-h-0">
+    <div className={`overflow-hidden rounded-2xl border border-white/20 shadow-sm ${slide.theme}`}>
+      <div className="relative grid overflow-hidden md:h-[185px] md:grid-cols-[0.82fr_1.18fr]">
+        <div className="relative z-10 flex min-h-[165px] flex-col justify-center px-4 py-4 md:h-full md:min-h-0">
           <p className="w-fit rounded-full border border-[#ead7e8] bg-white/90 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#6b145d]">
             {slide.eyebrow || "Small label"}
           </p>
@@ -156,16 +157,11 @@ function HeroSlidePreview({ slide }: { slide: HomepageHeroSlide }) {
             </span>
           </div>
         </div>
-        <div className="relative z-0 px-4 pb-4 md:px-0 md:pb-0">
-          <div className={`h-[130px] overflow-hidden rounded-2xl border border-white/70 bg-white/60 md:h-full md:rounded-l-2xl md:rounded-r-none ${slide.panel}`}>
+        <div className="relative z-0 flex items-center px-4 pb-4 md:px-3 md:py-4">
+          <div className={`h-[125px] w-full overflow-hidden rounded-2xl border border-white/70 bg-white/60 md:h-full ${slide.panel}`}>
             <BannerMediaPreview src={slide.image} alt={slide.imageAlt || slide.title} className="h-full" />
           </div>
         </div>
-      </div>
-      <div className="grid gap-px bg-[#ead7e8] text-center text-[9px] font-black uppercase text-[#111827] sm:grid-cols-3">
-        <div className="bg-white/90 px-2 py-1.5">Secure shopping</div>
-        <div className="bg-white/90 px-2 py-1.5">Best prices</div>
-        <div className="bg-white/90 px-2 py-1.5">Fast delivery</div>
       </div>
     </div>
   );
@@ -222,9 +218,9 @@ export default function AdminHomepagePage() {
         ...current.heroSlides,
         {
           ...defaultHomepageContent.heroSlides[0],
-          eyebrow: "New campaign",
-          title: "New offer banner",
-          highlight: "Change this from admin",
+          eyebrow: "New homepage media",
+          title: "Premium marketplace banner",
+          highlight: "Change image from admin",
           image: "/hero-marketplace-visual.png",
         },
       ].slice(0, 6),
@@ -299,9 +295,9 @@ export default function AdminHomepagePage() {
             <section className="bg-white p-5 shadow">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-2xl font-black">Hero Slider</h2>
+                  <h2 className="text-2xl font-black">Hero Banner System</h2>
                   <p className="mt-1 text-sm text-stone-600">
-                    First screenshot ke marked area ke liye image/video slides yahan manage honge.
+                    Homepage par ek premium banner frame rahega. Slide 1 ka text/buttons main banner control karta hai; sabhi slides ki images/videos right side me rotate hoti hain.
                   </p>
                 </div>
                 <button
@@ -328,7 +324,7 @@ export default function AdminHomepagePage() {
                 </div>
                 <div>
                   <p className="font-black text-stone-950">Live size lock</p>
-                  <p className="mt-1 text-xs">Homepage keeps slides compact, around 3-4 inch visual height.</p>
+                  <p className="mt-1 text-xs">Homepage keeps one compact banner frame, around 3-4 inch visual height.</p>
                 </div>
               </div>
 
@@ -394,8 +390,10 @@ export default function AdminHomepagePage() {
                     </div>
                     <div className="mt-4 rounded-2xl border border-[#ead7e8] bg-white p-3">
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-black text-stone-900">Live compact preview</p>
-                        <p className="text-xs font-semibold text-stone-500">Same safe height used on homepage</p>
+                        <p className="text-sm font-black text-stone-900">Compact media preview</p>
+                        <p className="text-xs font-semibold text-stone-500">
+                          Slide 1 text is used as main hero text; this slide image/video can rotate on homepage.
+                        </p>
                       </div>
                       <HeroSlidePreview slide={slide} />
                     </div>

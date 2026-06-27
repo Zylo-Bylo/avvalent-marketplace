@@ -411,7 +411,9 @@ export default function HomePage() {
     () => [...filteredProducts].slice(0, 12),
     [filteredProducts],
   );
-  const activeHero = heroSlides[activeHeroSlide % heroSlides.length] || heroSlides[0];
+  const baseHero = heroSlides[0] || defaultHomepageContent.heroSlides[0];
+  const activeHeroMedia =
+    heroSlides[activeHeroSlide % Math.max(heroSlides.length, 1)] || baseHero;
 
   const userDisplayName =
     currentUser?.vendorProfile?.storeName ||
@@ -907,14 +909,14 @@ export default function HomePage() {
         </div>
 
         <div
-          className="relative border-t border-[#f0e6ef] bg-white"
+          className="relative border-t border-white/10 bg-[#130817] text-white shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]"
           onMouseLeave={() => setTreeMenuOpen(false)}
         >
           <div className="mx-auto flex max-w-7xl items-center gap-5 overflow-x-auto px-3 text-sm">
             <button
               type="button"
               onClick={() => setTreeMenuOpen((open) => !open)}
-              className="shrink-0 py-2 font-bold text-[#6b145d] hover:bg-[#fff4fb] md:hidden"
+              className="shrink-0 py-2 font-bold text-[#ffd166] hover:text-white md:hidden"
             >
               All
             </button>
@@ -934,8 +936,8 @@ export default function HomePage() {
                 }}
                 className={`shrink-0 py-2 text-left ${
                   activeTreeSlug === category.slug && treeMenuOpen
-                    ? "bg-[#fff4fb] font-bold text-[#6b145d]"
-                    : "text-[#242334] hover:bg-[#fff4fb] hover:text-[#6b145d]"
+                    ? "font-bold text-[#ffd166]"
+                    : "text-white/85 hover:text-[#ffd166]"
                 }`}
               >
                 {category.name}
@@ -943,7 +945,7 @@ export default function HomePage() {
             ))}
             <Link
               href="/supplier"
-              className="shrink-0 py-2 font-semibold text-[#6b145d] hover:text-[#9f2089]"
+              className="shrink-0 py-2 font-semibold text-[#ffd166] hover:text-white"
             >
               Become a Supplier
             </Link>
@@ -1309,51 +1311,41 @@ export default function HomePage() {
         )}
       </section>
 
-      <section className="hidden bg-white md:block">
+      <section className="hidden bg-[#120817] bg-[radial-gradient(circle_at_top_left,rgba(159,32,137,0.34),transparent_28%),linear-gradient(135deg,#120817,#1f1024_48%,#0b0f18)] md:block">
         <div className="mx-auto max-w-7xl space-y-5 px-4 py-5">
-          <div className={`overflow-hidden rounded-[26px] border border-[#ead1e5] bg-[radial-gradient(circle_at_top_right,rgba(255,247,252,0.98),rgba(255,255,255,0.99)_44%,rgba(255,249,240,0.96))] shadow-[0_18px_52px_rgba(107,20,93,0.14)] transition-colors duration-500 ${activeHero.theme}`}>
-            <div
-              key={activeHeroSlide}
-              className="zylo-hero-slide relative grid gap-0 overflow-hidden md:h-[340px] md:grid-cols-[0.88fr_1.12fr]"
-            >
-              <div className="relative z-10 flex min-h-[205px] flex-col justify-center px-5 py-5 sm:min-h-[220px] sm:px-8 md:h-full md:min-h-0 lg:px-10">
-                <p className="w-fit rounded-full border border-[#ead7e8] bg-white/90 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#6b145d] shadow-sm">
-                  {activeHero.eyebrow}
+          <div className={`overflow-hidden rounded-[26px] border border-white/15 shadow-[0_24px_70px_rgba(0,0,0,0.36)] ${baseHero.theme}`}>
+            <div className="relative grid overflow-hidden md:h-[325px] md:grid-cols-[0.82fr_1.18fr]">
+              <div className="relative z-10 flex h-full flex-col justify-center px-8 py-7 lg:px-10">
+                <p className="w-fit rounded-full border border-white/50 bg-white/90 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#6b145d] shadow-sm">
+                  {baseHero.eyebrow}
                 </p>
-                <h1 className="mt-3 max-w-xl text-2xl font-black leading-[1.06] text-[#081225] sm:text-4xl md:text-5xl">
-                  {activeHero.title}
-                  <span className="block bg-gradient-to-r from-[#e71876] via-[#8b1a7a] to-[#ff7a1a] bg-clip-text text-transparent">
-                    {activeHero.highlight}
+                <h1 className="mt-4 max-w-xl text-4xl font-black leading-[1.02] text-[#081225] lg:text-5xl">
+                  {baseHero.title}
+                  <span className="block bg-gradient-to-r from-[#6b145d] via-[#e71876] to-[#ff7a1a] bg-clip-text text-transparent">
+                    {baseHero.highlight}
                   </span>
                 </h1>
-                <p className="mt-3 line-clamp-2 max-w-xl text-xs leading-5 text-[#4b5563] sm:text-sm md:text-base md:leading-6">
-                  {activeHero.text}
+                <p className="mt-4 line-clamp-2 max-w-xl text-base leading-6 text-[#374151]">
+                  {baseHero.text}
                 </p>
-                <div className="mt-4 flex flex-wrap gap-2 sm:gap-3">
+                <div className="mt-5 flex flex-wrap gap-3">
                   <Link
-                    href={activeHero.primaryHref}
-                    className="rounded-full bg-[#6b145d] px-6 py-2.5 text-xs font-black uppercase text-white shadow-[0_12px_24px_rgba(107,20,93,0.25)] transition hover:-translate-y-0.5 hover:bg-[#8b2c72]"
+                    href={baseHero.primaryHref}
+                    className="rounded-full bg-[#6b145d] px-7 py-3 text-xs font-black uppercase text-white shadow-[0_14px_30px_rgba(107,20,93,0.28)] transition hover:-translate-y-0.5 hover:bg-[#8b2c72]"
                   >
-                    {activeHero.primaryLabel}
+                    {baseHero.primaryLabel}
                   </Link>
                   <Link
-                    href={activeHero.secondaryHref}
-                    className="rounded-full border border-[#6b145d] bg-white/90 px-6 py-2.5 text-xs font-black uppercase text-[#6b145d] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff4fb]"
+                    href={baseHero.secondaryHref}
+                    className="rounded-full border border-[#6b145d] bg-white/90 px-7 py-3 text-xs font-black uppercase text-[#6b145d] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#fff4fb]"
                   >
-                    {activeHero.secondaryLabel}
+                    {baseHero.secondaryLabel}
                   </Link>
                 </div>
-
-                <div className="mt-4 grid max-w-lg grid-cols-3 gap-1.5 text-center text-[9px] font-black uppercase text-[#111827] sm:gap-2 sm:text-[10px]">
-                  <span className="rounded-full border border-[#ead7e8] bg-white/80 px-2 py-1.5 shadow-sm">Verified sellers</span>
-                  <span className="rounded-full border border-[#ead7e8] bg-white/80 px-2 py-1.5 shadow-sm">Secure payment</span>
-                  <span className="rounded-full border border-[#ead7e8] bg-white/80 px-2 py-1.5 shadow-sm">Fast dispatch</span>
-                </div>
-
-                <div className="mt-4 flex items-center gap-2">
+                <div className="mt-5 flex items-center gap-2">
                   {heroSlides.map((slide, index) => (
                     <button
-                      key={slide.eyebrow}
+                      key={`${slide.image}-${index}`}
                       type="button"
                       onClick={() => setActiveHeroSlide(index)}
                       className={`h-2.5 rounded-full transition-all ${
@@ -1361,18 +1353,19 @@ export default function HomePage() {
                           ? "w-9 bg-[#6b145d]"
                           : "w-2.5 bg-[#d8bfd2] hover:bg-[#9f2089]"
                       }`}
-                      aria-label={`Show banner ${index + 1}`}
+                      aria-label={`Show banner media ${index + 1}`}
                     />
                   ))}
                 </div>
               </div>
-              <div className="relative z-0 flex w-full items-center justify-end px-4 pb-4 md:z-auto md:p-5">
-                <div className={`relative h-[158px] w-full overflow-hidden rounded-[20px] border border-white/70 bg-white/60 shadow-[0_14px_30px_rgba(15,23,42,0.12)] sm:h-[175px] md:h-full md:max-h-[300px] md:rounded-[22px] md:shadow-[0_18px_44px_rgba(15,23,42,0.14)] ${activeHero.panel}`}>
+              <div className="relative z-0 flex h-full items-center p-5 pl-0">
+                <div className={`relative h-full max-h-[285px] w-full overflow-hidden rounded-[24px] border border-white/70 bg-white/60 shadow-[0_18px_44px_rgba(15,23,42,0.16)] ${baseHero.panel}`}>
                   <SmartBannerMedia
-                    src={activeHero.image}
-                    alt={activeHero.imageAlt}
+                    key={activeHeroSlide}
+                    src={activeHeroMedia.image}
+                    alt={activeHeroMedia.imageAlt || baseHero.imageAlt}
                     className="h-full"
-                    badge="Premium marketplace"
+                    badge="Admin managed"
                   />
                 </div>
               </div>
@@ -1385,7 +1378,7 @@ export default function HomePage() {
                   )
                 }
                 className="absolute left-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-lg font-black text-[#6b145d] shadow-lg ring-1 ring-[#ead7e8] hover:bg-white md:flex"
-                aria-label="Previous banner"
+                aria-label="Previous banner media"
               >
                 {"<"}
               </button>
@@ -1395,7 +1388,7 @@ export default function HomePage() {
                   setActiveHeroSlide((current) => (current + 1) % heroSlides.length)
                 }
                 className="absolute right-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-lg font-black text-[#6b145d] shadow-lg ring-1 ring-[#ead7e8] hover:bg-white md:flex"
-                aria-label="Next banner"
+                aria-label="Next banner media"
               >
                 {">"}
               </button>

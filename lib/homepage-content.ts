@@ -83,10 +83,10 @@ export const defaultHomepageContent: HomepageContent = {
   ],
   heroSlides: [
     {
-      eyebrow: "Zylo-Buylo marketplace sale",
+      eyebrow: "Zylo-Buylo premium marketplace",
       title: "Shop smart, sell easy",
-      highlight: "Trusted vendors. Better prices.",
-      text: "Fashion, beauty, electronics, home products and appliance parts from verified sellers.",
+      highlight: "Luxury deals. Trusted sellers.",
+      text: "A cleaner marketplace experience for fashion, beauty, electronics, home products and appliance parts.",
       primaryLabel: "Shop now",
       primaryHref: "/products",
       secondaryLabel: "Become a seller",
