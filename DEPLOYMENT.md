@@ -38,10 +38,17 @@ Recommended Supabase flow:
 4. Run the Prisma schema deployment against the production database before first launch:
 
 ```bash
-npx prisma db push
+npm run prisma:db:push
+npm run seed
 ```
 
-Run the command locally only after setting `DATABASE_URL` to the production database, or from a secure CI environment.
+Run the commands locally only after setting `DATABASE_URL` to the production database, or from a secure CI environment.
+
+This project uses SQLite locally and Postgres in production. The helper script at
+`scripts/prisma-schema.mjs` automatically generates the correct Prisma schema:
+
+- no `DATABASE_URL` or `file:./dev.db` -> SQLite
+- `postgresql://...` or `postgres://...` -> Postgres
 
 ## GitHub and Vercel Flow
 

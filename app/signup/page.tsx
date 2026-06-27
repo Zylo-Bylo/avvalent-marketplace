@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next");
+  const safeNext = next?.startsWith("/") ? next : "";
+  const loginHref = safeNext
+    ? `/login?role=customer&next=${encodeURIComponent(safeNext)}`
+    : "/login";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,22 +24,32 @@ export default function SignupPage() {
     setError("");
     setLoading(true);
 
-    const response = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
-    });
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
 
-    const data = await response.json();
-    setLoading(false);
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
 
-    if (!response.ok) {
-      setError(data.error || "Signup failed");
-      return;
+      if (!response.ok) {
+        setError(data.error || "Signup failed. Please try again.");
+        return;
+      }
+
+      router.push(
+        `/verify-email?email=${encodeURIComponent(email)}${
+          safeNext ? `&next=${encodeURIComponent(safeNext)}` : ""
+        }`
+      );
+      router.refresh();
+    } catch {
+      setError("Signup service is not responding. Restart server and try again.");
+    } finally {
+      setLoading(false);
     }
-
-    router.push(`/verify-email?email=${encodeURIComponent(email)}`);
-    router.refresh();
   }
 
   return (
@@ -100,11 +116,25 @@ export default function SignupPage() {
 
         <p className="mt-5 text-center text-gray-500">
           Already have an account?
-          <Link href="/login" className="ml-2 text-pink-600">
+          <Link href={loginHref} className="ml-2 text-pink-600">
             Login
           </Link>
         </p>
       </div>
     </main>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-gray-100">
+          <p className="text-gray-600">Loading signup...</p>
+        </main>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   );
 }

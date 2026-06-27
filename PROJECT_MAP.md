@@ -1,0 +1,20 @@
+# Zylo-Buylo Project Map
+
+| Feature | Route | Main File | Component File | Data Source | Admin/Vendor Update Source | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| Header | `/` | `app/page.tsx` | Inline homepage header | `/api/auth/me`, `/api/categories`, cart store | Auth/session, admin categories | Logo, search, category menu, seller link, account dropdown and cart. |
+| Hero Banner | `/` | `app/page.tsx` | Inline hero banner | Static banner config, `/hero-marketplace-visual.png` | Future admin banner settings | Zylo-Buylo branded marketplace hero. |
+| Shop Now Button | `/products` | `app/page.tsx` | Inline hero CTA | Product listing route | Vendor/admin product catalog | Direct route to `/products`; no homepage scroll jump. |
+| Category Shortcut Section | `/products?category=category-slug` | `app/page.tsx` | Inline category card row | Static category shortcut config | Admin category/product catalog | Fashion, Electronics, Beauty, Home, AC, TV, Washing Machine and Mobile Accessories. |
+| Banner 2 | `/products?sort=new`, `/products?sort=popular`, `/products?offer=true`, `/products?bulk=true` | `app/page.tsx` | Inline shortcut banner cards | Static shortcut config, `/api/products` query params | Vendor/admin product catalog | New Arrivals, Best Sellers, Deals and Bulk Buy all use real routes. |
+| Brand Shopping Section | `/products?brand=brand-slug` | `app/page.tsx` | Inline brand cards | Static brand shortcut config, `/api/products` brand filter | Product names/descriptions/vendor store names | Samsung, LG, Whirlpool, IFB, Haier, Bajaj, Boat and Noise. |
+| Banner 3 | `/products?offer=true` | `app/page.tsx` | Inline mega discount banner | Static banner config, product offer filter | Vendor/admin discounts | Mega Discount / Up to 70% Off / Shop Deals. |
+| Trending Section | `/products?category=category-slug&sort=trending` | `app/page.tsx` | Inline trending cards | Static trending config, `/api/products` sort/category filters | Vendor/admin product catalog | Trending Fashion, Electronics, Beauty, Spare Parts and Home Products. |
+| Featured Products | `/products?featured=true` | `app/page.tsx` | Inline featured product grid | `/api/products?limit=48` | Vendor/admin products, stock and discounts | Shows product image, name, price, MRP, discount, rating, stock and Add to Cart. |
+| Best Deals | `/products?offer=true` | `app/page.tsx` | Inline deals carousel | `/api/products` offer filter | Vendor/admin discount fields | Discount products with View All to offer listing. |
+| Supplier Landing Page | `/supplier` | `app/supplier/page.tsx` | Inline supplier landing sections | Static supplier content, marketplace visual | Leads to vendor registration form | Meesho-style seller onboarding page with benefits, steps, documents, categories and FAQ. |
+| Vendor Banner | `/supplier` | `app/page.tsx` | Inline vendor CTA section | Static CTA | Vendor registration flow | “Sell on Zylo-Buylo” CTA opens supplier landing page before registration. |
+| App Download | `/download-app`, `/#download-app` | `app/page.tsx`, `app/download-app/page.tsx` | Inline app CTA and placeholder page | Static content | Future app store links | Google Play and App Store style buttons route to placeholder page. |
+| Products Page | `/products` | `app/products/page.tsx` | Inline products grid layout | `/api/products`, `/api/categories` | Vendor/admin product and category tools | Supports category, brand, sort, offer, bulk and featured query params. |
+| Filter Sidebar | `/products?category=...&brand=...&offer=true&bulk=true&featured=true` | `app/products/page.tsx` | Inline desktop sidebar/mobile drawer | URL params, `/api/products`, `/api/categories` | Admin categories, vendor products/stock | Desktop sidebar always visible; mobile drawer opens with filter button. |
+| Product Card | `/products/[id]`, `/cart` | `app/page.tsx`, `app/products/page.tsx` | Inline product card/tile | `/api/products`, cart store | Vendor/admin price, image, stock and discount data | Cards show product details and homepage cards include Add to Cart. |

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 
 const products = [
@@ -51,11 +52,15 @@ export default function ProductGrid() {
 
             <div className="bg-white rounded-2xl shadow hover:shadow-xl overflow-hidden cursor-pointer">
 
-              <img
+              <div className="relative h-64 w-full">
+                <Image
                 src={product.image}
                 alt={product.name}
-                className="w-full h-64 object-cover"
+                  fill
+                  sizes="(min-width: 768px) 25vw, 50vw"
+                  className="object-cover"
               />
+              </div>
 
               <div className="p-4">
 

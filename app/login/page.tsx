@@ -13,48 +13,81 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
   const role = searchParams.get("role");
+  const customerLogin = role === "customer" || next === "/profile";
+  const adminRequired =
+    searchParams.get("admin") === "1" || next?.startsWith("/admin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [verifyEmailUrl, setVerifyEmailUrl] = useState("");
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
+    setVerifyEmailUrl("");
     setLoading(true);
 
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          expectedRole: adminRequired
+            ? "ADMIN"
+            : role === "vendor"
+              ? "VENDOR"
+              : undefined,
+        }),
+      });
 
-    const data = await response.json();
-    setLoading(false);
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
 
-    if (!response.ok) {
-      setError(data.error || "Login failed");
-      return;
-    }
+      if (!response.ok) {
+        setError(data.error || "Login failed. Please try again.");
+        if (data.requiresVerification) {
+          setVerifyEmailUrl(
+            data.verifyEmailUrl ||
+              `/verify-email?email=${encodeURIComponent(email)}`,
+          );
+        }
+        return;
+      }
 
-    const user = data.user as LoginUser;
+      const user = data.user as LoginUser;
 
-    if (next) {
-      router.push(next);
+      if (next?.startsWith("/admin") && user.role !== "ADMIN") {
+        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+        setError("Admin login is required to access dashboard.");
+        return;
+      }
+
+      const redirectTo =
+        next ||
+        (user.role === "VENDOR"
+          ? "/vendor/dashboard"
+          : user.role === "ADMIN"
+            ? "/admin/dashboard"
+            : "/profile");
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("zylo-auth-change"));
+        window.location.assign(redirectTo);
+        return;
+      }
+
+      router.push(redirectTo);
       router.refresh();
-      return;
+    } catch {
+      setError("Login service is not responding. Restart server and try again.");
+    } finally {
+      setLoading(false);
     }
-
-    if (user.role === "VENDOR") {
-      router.push("/vendor/dashboard");
-    } else if (user.role === "ADMIN") {
-      router.push("/admin/dashboard");
-    } else {
-      router.push("/");
-    }
-
-    router.refresh();
   }
 
   return (
@@ -65,11 +98,25 @@ function LoginForm() {
             ZYLO BUYLO
           </Link>
           <h1 className="mt-4 text-3xl font-bold text-gray-900">
-            {role === "vendor" ? "Vendor Login" : "Login"}
+            {role === "vendor"
+              ? "Vendor Login"
+              : customerLogin
+                ? "Customer Login"
+                : "Login"}
           </h1>
+          {customerLogin && (
+            <p className="mt-2 text-sm text-gray-500">
+              Login to view your profile, orders, wishlist, and delivery updates.
+            </p>
+          )}
           {role === "vendor" && (
             <p className="mt-2 text-sm text-gray-500">
               Login to manage products, inventory, orders, and payments.
+            </p>
+          )}
+          {adminRequired && (
+            <p className="mt-3 rounded-lg bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-700">
+              Admin login is required to access dashboard.
             </p>
           )}
         </div>
@@ -103,9 +150,17 @@ function LoginForm() {
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
-              {error}
-            </p>
+            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              <p>{error}</p>
+              {verifyEmailUrl && (
+                <Link
+                  href={verifyEmailUrl}
+                  className="mt-2 inline-flex font-semibold text-pink-700 underline"
+                >
+                  Enter OTP and verify email
+                </Link>
+              )}
+            </div>
           )}
 
           <button

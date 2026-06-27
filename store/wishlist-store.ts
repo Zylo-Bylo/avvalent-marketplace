@@ -6,6 +6,9 @@ type WishlistItem = {
   name: string;
   category: string;
   price: number;
+  mrp?: number;
+  discountPercent?: number;
+  shippingCharge?: number;
   image: string;
 };
 

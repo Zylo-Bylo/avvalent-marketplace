@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminUser } from '@/lib/admin-auth';
 import { ORDER_STATUSES } from '@/lib/order-status';
 import { prisma } from '@/lib/prisma';
+import { ensureTrustTables, getOrderTrustSnapshot } from '@/lib/trust';
 
 export const runtime = 'nodejs';
 
@@ -37,6 +38,8 @@ export async function GET(request: NextRequest) {
       ],
     }),
   };
+
+  await ensureTrustTables();
 
   const [orders, total, summary] = await Promise.all([
     prisma.order.findMany({
@@ -79,8 +82,15 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
+  const ordersWithTrust = await Promise.all(
+    orders.map(async (order) => ({
+      ...order,
+      trust: await getOrderTrustSnapshot(order.id),
+    })),
+  );
+
   return NextResponse.json({
-    orders,
+    orders: ordersWithTrust,
     total,
     hasMore: offset + limit < total,
     summary: summary.map((item) => ({

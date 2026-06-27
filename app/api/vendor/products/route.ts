@@ -5,6 +5,7 @@ import {
   getLocalVendorUser,
   shouldUseLocalSqliteAuth,
 } from '@/lib/local-sqlite-auth';
+import { ensureVariantSchema } from '@/lib/variants';
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,12 +52,14 @@ export async function GET(request: NextRequest) {
     }
 
     const { prisma } = await import('@/lib/prisma');
+    await ensureVariantSchema();
     // Get vendor's products
     const products = await prisma.product.findMany({
       where: { vendorId: vendor.id },
       include: {
         category: true,
         subcategory: true,
+        variants: true,
       },
       orderBy: { createdAt: 'desc' },
       take: limit,

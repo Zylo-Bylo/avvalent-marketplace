@@ -10,7 +10,7 @@ async function main() {
     create: {
       email: 'admin@zylo-buylo.com',
       name: 'Zylo Admin',
-      password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj8nJZkHqUe', // 'password123'
+      password: '$2b$12$6Hmw14A9D2oQblC/1Q9rFu4bZN9QVesvD8lYPS7uh0IKn7yl5lvdi', // 'password123'
       role: 'ADMIN',
       emailVerified: true,
     },
@@ -45,7 +45,7 @@ async function main() {
     create: {
       email: 'vendor@zylo-buylo.com',
       name: 'Sample Vendor',
-      password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj8nJZkHqUe', // 'password123'
+      password: '$2b$12$6Hmw14A9D2oQblC/1Q9rFu4bZN9QVesvD8lYPS7uh0IKn7yl5lvdi', // 'password123'
       role: 'VENDOR',
       emailVerified: true,
       vendorProfile: {

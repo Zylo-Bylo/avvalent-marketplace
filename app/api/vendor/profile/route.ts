@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import {
+  getLocalVendorUser,
+  shouldUseLocalSqliteAuth,
+  updateLocalVendorProfile,
+} from '@/lib/local-sqlite-auth';
 
 const vendorSelect = {
   id: true,
@@ -17,6 +21,7 @@ const vendorSelect = {
   bankDetails: true,
   upiId: true,
   documentsKyc: true,
+  metadata: true,
   panCardUrl: true,
   aadhaarUrl: true,
   gstCertificateUrl: true,
@@ -52,6 +57,17 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  if (shouldUseLocalSqliteAuth()) {
+    const user = getLocalVendorUser(userId);
+
+    if (!user || user.role !== 'VENDOR' || !user.vendorProfile) {
+      return NextResponse.json({ error: 'Not a vendor' }, { status: 403 });
+    }
+
+    return NextResponse.json({ user });
+  }
+
+  const { prisma } = await import('@/lib/prisma');
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -79,13 +95,25 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  if (shouldUseLocalSqliteAuth()) {
+    const body = await request.json();
+    const user = updateLocalVendorProfile(userId, body);
+
+    if (!user || user.role !== 'VENDOR' || !user.vendorProfile) {
+      return NextResponse.json({ error: 'Not a vendor' }, { status: 403 });
+    }
+
+    return NextResponse.json({ user });
+  }
+
+  const { prisma } = await import('@/lib/prisma');
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       id: true,
       role: true,
       vendorProfile: {
-        select: { id: true },
+        select: { id: true, metadata: true },
       },
     },
   });
@@ -132,6 +160,16 @@ export async function PUT(request: NextRequest) {
         bankDetails: toNullableString(body.bankDetails),
         upiId: toNullableString(body.upiId),
         documentsKyc: toNullableString(body.documentsKyc),
+        metadata: {
+          ...(
+            user.vendorProfile.metadata &&
+            typeof user.vendorProfile.metadata === 'object' &&
+            !Array.isArray(user.vendorProfile.metadata)
+              ? (user.vendorProfile.metadata as Record<string, unknown>)
+              : {}
+          ),
+          business_category: toNullableString(body.businessCategory),
+        },
         panCardUrl: toNullableString(body.panCardUrl),
         aadhaarUrl: toNullableString(body.aadhaarUrl),
         gstCertificateUrl: toNullableString(body.gstCertificateUrl),

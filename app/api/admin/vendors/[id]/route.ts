@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { sendVendorStatusEmail } from '@/lib/email';
+import {
+  getLocalUserRole,
+  shouldUseLocalSqliteAuth,
+  updateLocalVendorStatus,
+} from '@/lib/local-sqlite-auth';
 
 async function requireAdmin() {
   const cookieStore = await cookies();
@@ -16,6 +21,11 @@ async function requireAdmin() {
     return false;
   }
 
+  if (shouldUseLocalSqliteAuth()) {
+    return getLocalUserRole(String(data.userId)) === 'ADMIN';
+  }
+
+  const { prisma } = await import('@/lib/prisma');
   const user = await prisma.user.findUnique({
     where: { id: String(data.userId) },
     select: { role: true },
@@ -48,32 +58,63 @@ export async function PATCH(
           ? 'REJECTED'
           : undefined;
 
-  const vendor = await prisma.vendor.update({
-    where: { id },
-    data: {
-      status,
-      ...(nextKycStatus && { kycStatus: nextKycStatus }),
-      rejectionReason: status === 'REJECTED' ? rejectionReason || 'Rejected by admin' : null,
-      approvedAt: status === 'APPROVED' ? new Date() : null,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          emailVerified: true,
-          createdAt: true,
-        },
-      },
-      _count: {
-        select: {
-          products: true,
-          orders: true,
-        },
-      },
-    },
-  });
+  const vendor = shouldUseLocalSqliteAuth()
+    ? updateLocalVendorStatus({
+        vendorId: id,
+        status,
+        kycStatus: nextKycStatus,
+        rejectionReason,
+      })
+    : await (async () => {
+        const { prisma } = await import('@/lib/prisma');
+        return prisma.vendor.update({
+          where: { id },
+          data: {
+            status,
+            ...(nextKycStatus && { kycStatus: nextKycStatus }),
+            rejectionReason: status === 'REJECTED' ? rejectionReason || 'Rejected by admin' : null,
+            approvedAt: status === 'APPROVED' ? new Date() : null,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                emailVerified: true,
+                createdAt: true,
+              },
+            },
+            _count: {
+              select: {
+                products: true,
+                orders: true,
+              },
+            },
+          },
+        });
+      })();
+
+  if (!vendor) {
+    return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
+  }
+
+  if (!shouldUseLocalSqliteAuth() && ['APPROVED', 'REJECTED', 'INACTIVE'].includes(status)) {
+    const notifiedVendor = vendor as {
+      user: { email: string };
+      storeName: string;
+      rejectionReason?: string | null;
+    };
+
+    await sendVendorStatusEmail({
+      to: notifiedVendor.user.email,
+      storeName: notifiedVendor.storeName,
+      status: status as 'APPROVED' | 'REJECTED' | 'INACTIVE',
+      rejectionReason: notifiedVendor.rejectionReason,
+    }).catch((error) => {
+      console.error('Vendor status email failed:', error);
+    });
+  }
 
   return NextResponse.json({ vendor });
 }

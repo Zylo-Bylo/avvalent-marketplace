@@ -1,23 +1,34 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { signCheckoutAuthToken } from '@/lib/checkout-auth-token';
+import { clearAuthCookies, getAuthSession } from '@/lib/session-cookies';
+import {
+  getLocalVendorUser,
+  shouldUseLocalSqliteAuth,
+} from '@/lib/local-sqlite-auth';
 
-export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
+export async function GET(request: Request) {
+  const session = await getAuthSession();
+  const hostname = new URL(request.url).hostname;
+  const checkoutAuthToken = session
+    ? signCheckoutAuthToken({
+        type: 'checkout_auth',
+        userId: session.userId,
+        role: session.role,
+      })
+    : null;
 
-  if (!token) {
+  if (!session) {
     return NextResponse.json({ user: null });
   }
 
-  const data = verifyToken(token);
-  if (!data || typeof data !== 'object' || !data.userId) {
-    return NextResponse.json({ user: null }, { status: 401 });
+  if (shouldUseLocalSqliteAuth()) {
+    const user = getLocalVendorUser(session.userId);
+    return NextResponse.json({ user, checkoutAuthToken });
   }
 
+  const { prisma } = await import('@/lib/prisma');
   const user = await prisma.user.findUnique({
-    where: { id: String(data.userId) },
+    where: { id: session.userId },
     select: {
       id: true,
       email: true,
@@ -38,6 +49,7 @@ export async function GET() {
           bankDetails: true,
           upiId: true,
           documentsKyc: true,
+          metadata: true,
           panCardUrl: true,
           aadhaarUrl: true,
           gstCertificateUrl: true,
@@ -53,5 +65,10 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json({ user });
+  const response = NextResponse.json({ user, checkoutAuthToken });
+  if (!user) {
+    clearAuthCookies(response, hostname);
+  }
+
+  return response;
 }

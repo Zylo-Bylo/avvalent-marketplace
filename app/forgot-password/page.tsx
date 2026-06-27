@@ -6,21 +6,41 @@ import { useState } from "react";
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [resetUrl, setResetUrl] = useState("");
+  const [accountFound, setAccountFound] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setMessage("");
+    setResetUrl("");
+    setAccountFound(null);
 
-    const response = await fetch("/api/auth/forgot-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    const data = await response.json();
-    setLoading(false);
-    setMessage(data.resetUrl ? `${data.message} ${data.resetUrl}` : data.message || data.error);
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
+
+      setMessage(data.error || data.message || "Reset request complete.");
+      setResetUrl(data.resetUrl || "");
+      setAccountFound(
+        typeof data.accountFound === "boolean"
+          ? data.accountFound
+          : response.ok
+            ? null
+            : false
+      );
+    } catch {
+      setMessage("Password reset service is not responding. Restart server and try again.");
+      setAccountFound(false);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -39,9 +59,23 @@ export default function ForgotPasswordPage() {
             required
           />
           {message && (
-            <p className="rounded-lg bg-pink-50 p-3 text-sm text-pink-700">
+            <p
+              className={`rounded-lg p-3 text-sm ${
+                accountFound === false
+                  ? "bg-red-50 text-red-700"
+                  : "bg-pink-50 text-pink-700"
+              }`}
+            >
               {message}
             </p>
+          )}
+          {resetUrl && (
+            <Link
+              href={resetUrl}
+              className="block rounded-lg border border-pink-200 bg-white p-3 text-center text-sm font-semibold text-pink-600"
+            >
+              Open Reset Password Page
+            </Link>
           )}
           <button
             disabled={loading}

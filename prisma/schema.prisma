@@ -243,6 +243,7 @@ model Product {
   subcategoryId String?
   reviews     Review[]
   orderItems  OrderItem[]
+  variants    ProductVariant[]
   wishlists   Wishlist[]
   inventories Inventory[]
   stockMovements StockMovement[]
@@ -255,8 +256,33 @@ model Product {
   @@index([subcategoryId])
   @@index([inventory])
   @@index([price])
+  @@index([discountPercent])
   @@index([createdAt])
   @@index([updatedAt])
+}
+
+model ProductVariant {
+  id                String   @id @default(cuid())
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId         String
+  sizeLabel         String?
+  numericSize       String?
+  color             String?
+  sku               String?  @unique
+  stockQuantity     Int      @default(0)
+  price             Float?
+  vendorPrice       Float?
+  mrp               Float?
+  imageUrl          String?
+  status            String   @default("IN_STOCK")
+  lowStockThreshold Int      @default(3)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([productId])
+  @@index([sku])
+  @@index([status])
+  @@index([stockQuantity])
 }
 
 model Inventory {
@@ -505,6 +531,11 @@ model OrderItem {
   orderId   String
   product   Product  @relation(fields: [productId], references: [id])
   productId String
+  variantId String?
+  sizeLabel String?
+  numericSize String?
+  variantColor String?
+  variantSku String?
   quantity  Int
   price     Float
   mrp       Float?

@@ -20,10 +20,12 @@
 # production
 /build
 /backup
+/prisma/.generated/
 build-output.txt
 dev.db
 *.db
 *.db-journal
+.local-auth.json
 
 # misc
 .DS_Store
@@ -47,3 +49,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel

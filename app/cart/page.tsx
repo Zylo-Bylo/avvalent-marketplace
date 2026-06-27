@@ -81,6 +81,13 @@ export default function CartPage() {
                 <div>
                   <h2 className="text-xl font-bold">{item.name}</h2>
                   <p className="text-sm text-gray-500">{item.category}</p>
+                  {(item.sizeLabel || item.numericSize || item.color || item.sku) && (
+                    <p className="mt-1 text-xs font-semibold text-gray-600">
+                      {[item.sizeLabel, item.numericSize && `Size ${item.numericSize}`, item.color, item.sku && `SKU ${item.sku}`]
+                        .filter(Boolean)
+                        .join(" / ")}
+                    </p>
+                  )}
                   <p className="mt-2 font-bold text-pink-600">
                     Rs. {item.price}
                   </p>

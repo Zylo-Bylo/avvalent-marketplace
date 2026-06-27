@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendOtpEmail } from '@/lib/email';
 import { createOtp, hashToken, minutesFromNow, normalizeEmail } from '@/lib/security';
 
 export async function POST(request: NextRequest) {
@@ -30,8 +31,16 @@ export async function POST(request: NextRequest) {
     },
   });
 
+  const emailSent = await sendOtpEmail({
+    to: normalizeEmail(email),
+    otp,
+  });
+
   return NextResponse.json({
-    message: 'OTP generated. Connect an email provider before production to send this automatically.',
+    message: emailSent
+      ? 'OTP sent. Check your email.'
+      : 'OTP generated. Connect an email provider before production to send this automatically.',
+    emailSent,
     ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}),
   });
 }

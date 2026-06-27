@@ -7,7 +7,7 @@ export default function Hero() {
       </h1>
 
       <p className="mt-4 text-lg">
-        Shop from India's Trusted Vendors
+        Shop from India&apos;s Trusted Vendors
       </p>
 
       <button className="mt-6 bg-pink-600 text-white px-6 py-3 rounded-lg">

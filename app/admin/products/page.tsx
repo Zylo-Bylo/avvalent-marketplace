@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/navbar/Navbar";
-
-type User = {
-  id: string;
-  role: "CUSTOMER" | "VENDOR" | "ADMIN";
-};
+import {
+  PACKAGE_SIZE_OPTIONS,
+  calculateMarketplacePricing,
+  formatRupees,
+} from "@/lib/pricing";
 
 type Subcategory = {
   id: string;
@@ -27,6 +27,19 @@ type Product = {
   description: string;
   sku?: string | null;
   price: number;
+  mrp?: number | null;
+  vendorPrice?: number | null;
+  sellingPrice?: number | null;
+  discountPercent?: number | null;
+  platformCommissionPercent?: number | null;
+  platformCommissionAmount?: number | null;
+  vendorPayout?: number | null;
+  packagingCharge?: number | null;
+  weightGrams?: number | null;
+  packageSize?: string | null;
+  fragile?: boolean | null;
+  shippingCharge?: number | null;
+  codCharge?: number | null;
   inventory: number;
   images: string[];
   categoryId?: string | null;
@@ -50,6 +63,16 @@ type ProductForm = {
   description: string;
   sku: string;
   price: string;
+  mrp: string;
+  vendorPrice: string;
+  discountPercent: string;
+  platformCommissionPercent: string;
+  packagingCharge: string;
+  weightGrams: string;
+  packageSize: string;
+  fragile: boolean;
+  shippingCharge: string;
+  codCharge: string;
   inventory: string;
   categoryId: string;
   subcategoryId: string;
@@ -64,6 +87,16 @@ function formFromProduct(product: Product): ProductForm {
     description: product.description,
     sku: product.sku || "",
     price: String(product.price),
+    mrp: String(product.mrp || ""),
+    vendorPrice: String(product.vendorPrice || product.price),
+    discountPercent: String(product.discountPercent || ""),
+    platformCommissionPercent: String(product.platformCommissionPercent || 10),
+    packagingCharge: String(product.packagingCharge || ""),
+    weightGrams: String(product.weightGrams || ""),
+    packageSize: product.packageSize || "AUTO",
+    fragile: Boolean(product.fragile),
+    shippingCharge: String(product.shippingCharge || ""),
+    codCharge: String(product.codCharge || 0),
     inventory: String(product.inventory),
     categoryId: product.categoryId || product.category?.id || "",
     subcategoryId: product.subcategoryId || product.subcategory?.id || "",
@@ -79,7 +112,6 @@ function imageList(value: string) {
 }
 
 export default function AdminProductsPage() {
-  const [user, setUser] = useState<User | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [editingId, setEditingId] = useState("");
@@ -94,6 +126,21 @@ export default function AdminProductsPage() {
     (category) => category.id === form?.categoryId
   );
   const formSubcategories = selectedFormCategory?.subcategories || [];
+  const pricingPreview = form
+    ? calculateMarketplacePricing({
+        price: form.price,
+        mrp: form.mrp,
+        vendorPrice: form.vendorPrice,
+        discountPercent: form.discountPercent,
+        platformCommissionPercent: form.platformCommissionPercent,
+        packagingCharge: form.packagingCharge,
+        weightGrams: form.weightGrams,
+        packageSize: form.packageSize,
+        fragile: form.fragile,
+        shippingCharge: form.shippingCharge,
+        codCharge: form.codCharge,
+      })
+    : null;
 
   const filteredProducts = useMemo(
     () =>
@@ -134,32 +181,12 @@ export default function AdminProductsPage() {
   }
 
   useEffect(() => {
-    let isActive = true;
-
     async function loadAdminPage() {
-      const userResponse = await fetch("/api/auth/me", { cache: "no-store" });
-      const userData = await userResponse.json();
-
-      if (!isActive) {
-        return;
-      }
-
-      setUser(userData.user);
-
-      if (userData.user?.role === "ADMIN") {
-        await loadProducts();
-      }
-
-      if (isActive) {
-        setLoading(false);
-      }
+      await loadProducts();
+      setLoading(false);
     }
 
     loadAdminPage();
-
-    return () => {
-      isActive = false;
-    };
   }, []);
 
   function startEdit(product: Product) {
@@ -179,6 +206,10 @@ export default function AdminProductsPage() {
     >
   ) {
     const { name, value } = event.target;
+    const nextValue =
+      event.target instanceof HTMLInputElement && event.target.type === "checkbox"
+        ? event.target.checked
+        : value;
 
     setForm((current) => {
       if (!current) {
@@ -195,7 +226,7 @@ export default function AdminProductsPage() {
 
       return {
         ...current,
-        [name]: value,
+        [name]: nextValue,
       };
     });
   }
@@ -218,6 +249,16 @@ export default function AdminProductsPage() {
         description: form.description,
         sku: form.sku,
         price: form.price,
+        mrp: form.mrp,
+        vendorPrice: form.vendorPrice,
+        discountPercent: form.discountPercent,
+        platformCommissionPercent: form.platformCommissionPercent,
+        packagingCharge: form.packagingCharge,
+        weightGrams: form.weightGrams,
+        packageSize: form.packageSize,
+        fragile: form.fragile,
+        shippingCharge: form.shippingCharge,
+        codCharge: form.codCharge,
         inventory: form.inventory,
         categoryId: form.categoryId,
         subcategoryId: form.subcategoryId,
@@ -256,43 +297,8 @@ export default function AdminProductsPage() {
       return;
     }
 
-    setProducts((current) =>
-      current.filter((item) => item.id !== product.id)
-    );
+    setProducts((current) => current.filter((item) => item.id !== product.id));
     setMessage("Product deleted.");
-  }
-
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-[#f7f2ea]">
-        <Navbar />
-        <p className="py-20 text-center text-stone-500">
-          Loading admin products...
-        </p>
-      </main>
-    );
-  }
-
-  if (user?.role !== "ADMIN") {
-    return (
-      <main className="min-h-screen bg-[#f7f2ea]">
-        <Navbar />
-        <section className="mx-auto max-w-xl px-4 py-16 text-center">
-          <div className="bg-white p-8 shadow">
-            <h1 className="text-2xl font-bold">Admin Access Needed</h1>
-            <p className="mt-3 text-stone-600">
-              Login as an admin to manage marketplace products.
-            </p>
-            <Link
-              href="/login"
-              className="mt-5 inline-block bg-[#6b145d] px-5 py-3 font-semibold text-white"
-            >
-              Login
-            </Link>
-          </div>
-        </section>
-      </main>
-    );
   }
 
   return (
@@ -305,10 +311,9 @@ export default function AdminProductsPage() {
             <Link href="/admin/dashboard" className="text-sm text-[#d6b36a]">
               Back to Admin Dashboard
             </Link>
-            <h1 className="mt-3 text-4xl font-bold">Product Management</h1>
+            <h1 className="mt-3 text-4xl font-bold">Products</h1>
             <p className="mt-2 max-w-2xl text-sm text-[#d8c8af]">
-              Review vendor products, fix categories, update stock and remove
-              bad listings.
+              Product images, vendor listings, categories, price, stock and status.
             </p>
           </div>
 
@@ -363,164 +368,343 @@ export default function AdminProductsPage() {
           </p>
         )}
 
-        <div className="space-y-4">
-          {filteredProducts.map((product) => (
-            <article key={product.id} className="bg-white shadow">
-              <div className="grid gap-4 p-4 lg:grid-cols-[90px_1fr_180px_170px] lg:items-center">
-                <div className="h-24 w-24 overflow-hidden bg-stone-100">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={product.images?.[0] || fallbackImage}
-                    alt={product.name}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-
-                <div>
-                  <h2 className="text-lg font-bold">{product.name}</h2>
-                  <p className="mt-1 line-clamp-2 text-sm text-stone-500">
-                    {product.description}
-                  </p>
-                  <p className="mt-2 text-xs text-stone-500">
-                    {product.category?.name || "No category"} /{" "}
-                    {product.subcategory?.name || "No subcategory"} /{" "}
-                    {product.vendor?.storeName || "Vendor"}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xl font-bold text-[#315c48]">
-                    Rs. {product.price}
-                  </p>
-                  <p className="text-sm text-stone-500">
-                    Stock: {product.inventory}
-                  </p>
-                  <p className="text-xs text-stone-500">
-                    SKU: {product.sku || "Not set"}
-                  </p>
-                </div>
-
-                <div className="flex gap-2 lg:justify-end">
-                  <button
-                    onClick={() => startEdit(product)}
-                    className="border border-stone-300 px-4 py-2 text-sm font-semibold"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteProduct(product)}
-                    className="border border-red-200 px-4 py-2 text-sm font-semibold text-red-600"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-
-              {editingId === product.id && form && (
-                <form
-                  onSubmit={saveProduct}
-                  className="grid gap-3 border-t border-stone-200 bg-[#fffaf1] p-4 md:grid-cols-2"
-                >
-                  <input
-                    name="name"
-                    value={form.name}
-                    onChange={updateForm}
-                    placeholder="Product name"
-                    className="border border-stone-300 px-4 py-3 text-sm outline-none"
-                    required
-                  />
-                  <input
-                    name="sku"
-                    value={form.sku}
-                    onChange={updateForm}
-                    placeholder="SKU"
-                    className="border border-stone-300 px-4 py-3 text-sm outline-none"
-                  />
-                  <input
-                    type="number"
-                    name="price"
-                    value={form.price}
-                    onChange={updateForm}
-                    placeholder="Price"
-                    className="border border-stone-300 px-4 py-3 text-sm outline-none"
-                    required
-                  />
-                  <input
-                    type="number"
-                    name="inventory"
-                    value={form.inventory}
-                    onChange={updateForm}
-                    placeholder="Inventory"
-                    className="border border-stone-300 px-4 py-3 text-sm outline-none"
-                    required
-                  />
-                  <select
-                    name="categoryId"
-                    value={form.categoryId}
-                    onChange={updateForm}
-                    className="border border-stone-300 px-4 py-3 text-sm outline-none"
-                  >
-                    <option value="">No category</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    name="subcategoryId"
-                    value={form.subcategoryId}
-                    onChange={updateForm}
-                    disabled={!form.categoryId}
-                    className="border border-stone-300 px-4 py-3 text-sm outline-none disabled:bg-stone-100"
-                  >
-                    <option value="">No subcategory</option>
-                    {formSubcategories.map((subcategory) => (
-                      <option key={subcategory.id} value={subcategory.id}>
-                        {subcategory.name}
-                      </option>
-                    ))}
-                  </select>
-                  <textarea
-                    name="description"
-                    value={form.description}
-                    onChange={updateForm}
-                    placeholder="Description"
-                    className="min-h-28 border border-stone-300 px-4 py-3 text-sm outline-none md:col-span-2"
-                  />
-                  <textarea
-                    name="imageUrls"
-                    value={form.imageUrls}
-                    onChange={updateForm}
-                    placeholder="Image URLs, one per line"
-                    className="min-h-24 border border-stone-300 px-4 py-3 text-sm outline-none md:col-span-2"
-                  />
-
-                  <div className="flex gap-2 md:col-span-2">
-                    <button
-                      disabled={saving}
-                      className="bg-[#6b145d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                    >
-                      {saving ? "Saving..." : "Save Product"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      className="border border-stone-300 px-5 py-3 text-sm font-semibold"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
-            </article>
-          ))}
-        </div>
-
-        {filteredProducts.length === 0 && (
-          <p className="bg-white py-12 text-center text-stone-500">
-            No products match this search.
+        {loading ? (
+          <p className="bg-white py-12 text-center text-stone-500 shadow">
+            Loading admin products...
           </p>
+        ) : (
+          <div className="overflow-hidden bg-white shadow">
+            <div className="overflow-x-auto">
+              <table className="min-w-[1050px] w-full border-collapse text-left text-sm">
+                <thead className="bg-[#17130f] text-[#f8efe2]">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Product Image</th>
+                    <th className="px-4 py-3 font-semibold">Product Name</th>
+                    <th className="px-4 py-3 font-semibold">Category</th>
+                    <th className="px-4 py-3 font-semibold">Vendor</th>
+                    <th className="px-4 py-3 font-semibold">Price</th>
+                    <th className="px-4 py-3 font-semibold">Stock</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-4 py-3 font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.map((product) => (
+                    <Fragment key={product.id}>
+                      <tr className="border-b border-stone-100">
+                        <td className="px-4 py-4 align-top">
+                          <div className="h-16 w-16 overflow-hidden bg-stone-100">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={product.images?.[0] || fallbackImage}
+                              alt={product.name}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <p className="font-bold text-stone-950">
+                            {product.name}
+                          </p>
+                          <p className="mt-1 text-xs text-stone-500">
+                            SKU: {product.sku || "Not set"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <p>{product.category?.name || "No category"}</p>
+                          <p className="mt-1 text-xs text-stone-500">
+                            {product.subcategory?.name || "No subcategory"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          {product.vendor?.storeName || "Marketplace"}
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <p className="font-bold text-[#315c48]">
+                            {formatRupees(product.price)}
+                          </p>
+                          {product.mrp && product.mrp > product.price && (
+                            <p className="text-xs text-stone-500">
+                              <span className="line-through">
+                                {formatRupees(product.mrp)}
+                              </span>{" "}
+                              {product.discountPercent || 0}% off
+                            </p>
+                          )}
+                          <p className="mt-1 text-xs text-stone-500">
+                            Payout {formatRupees(product.vendorPayout || product.vendorPrice || product.price)}
+                          </p>
+                          <p className="mt-1 text-xs text-stone-500">
+                            Packaging {formatRupees(product.packagingCharge || 0)}
+                          </p>
+                          <p className="mt-1 text-xs text-stone-500">
+                            Delivery {formatRupees(product.shippingCharge || 0)}
+                          </p>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          {product.inventory}
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <span
+                            className={`inline-block px-3 py-1 text-xs font-bold ${
+                              product.inventory > 0
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {product.inventory > 0 ? "Active" : "Out of stock"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 align-top">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => startEdit(product)}
+                              className="border border-stone-300 px-3 py-2 text-xs font-semibold"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => deleteProduct(product)}
+                              className="border border-red-200 px-3 py-2 text-xs font-semibold text-red-600"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {editingId === product.id && form && (
+                        <tr>
+                          <td colSpan={8} className="bg-[#fffaf1] p-4">
+                            <form
+                              onSubmit={saveProduct}
+                              className="grid gap-3 md:grid-cols-2"
+                            >
+                              <input
+                                name="name"
+                                value={form.name}
+                                onChange={updateForm}
+                                placeholder="Product name"
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                                required
+                              />
+                              <input
+                                name="sku"
+                                value={form.sku}
+                                onChange={updateForm}
+                                placeholder="SKU"
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                              />
+                              <input
+                                type="number"
+                                name="vendorPrice"
+                                value={form.vendorPrice}
+                                onChange={updateForm}
+                                placeholder="Vendor payout"
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                                required
+                              />
+                              <input
+                                type="number"
+                                name="mrp"
+                                value={form.mrp}
+                                onChange={updateForm}
+                                placeholder="MRP"
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                              />
+                              <input
+                                type="number"
+                                name="discountPercent"
+                                value={form.discountPercent}
+                                onChange={updateForm}
+                                placeholder="Discount %"
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                              />
+                              <input
+                                type="number"
+                                name="platformCommissionPercent"
+                                value={form.platformCommissionPercent}
+                                onChange={updateForm}
+                                placeholder="Commission %"
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                              />
+                              <input
+                                type="number"
+                                name="weightGrams"
+                                value={form.weightGrams}
+                                onChange={updateForm}
+                                placeholder="Weight grams"
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                              />
+                              <select
+                                name="packageSize"
+                                value={form.packageSize}
+                                onChange={updateForm}
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                              >
+                                {PACKAGE_SIZE_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <label className="flex items-center gap-2 border border-stone-300 bg-white px-4 py-3 text-sm font-semibold">
+                                <input
+                                  type="checkbox"
+                                  name="fragile"
+                                  checked={form.fragile}
+                                  onChange={updateForm}
+                                  className="h-4 w-4"
+                                />
+                                Fragile
+                              </label>
+                              <input
+                                type="number"
+                                name="packagingCharge"
+                                value={form.packagingCharge}
+                                onChange={updateForm}
+                                placeholder="Packaging charge"
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                              />
+                              <input
+                                type="number"
+                                name="shippingCharge"
+                                value={form.shippingCharge}
+                                onChange={updateForm}
+                                placeholder="Delivery charge auto"
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                              />
+                              <input
+                                type="number"
+                                name="codCharge"
+                                value={form.codCharge}
+                                onChange={updateForm}
+                                placeholder="COD charge"
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                              />
+                              <input
+                                type="number"
+                                name="inventory"
+                                value={form.inventory}
+                                onChange={updateForm}
+                                placeholder="Inventory"
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                                required
+                              />
+                              <select
+                                name="categoryId"
+                                value={form.categoryId}
+                                onChange={updateForm}
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none"
+                              >
+                                <option value="">No category</option>
+                                {categories.map((category) => (
+                                  <option key={category.id} value={category.id}>
+                                    {category.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <select
+                                name="subcategoryId"
+                                value={form.subcategoryId}
+                                onChange={updateForm}
+                                disabled={!form.categoryId}
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none disabled:bg-stone-100"
+                              >
+                                <option value="">No subcategory</option>
+                                {formSubcategories.map((subcategory) => (
+                                  <option key={subcategory.id} value={subcategory.id}>
+                                    {subcategory.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <textarea
+                                name="description"
+                                value={form.description}
+                                onChange={updateForm}
+                                placeholder="Description"
+                                className="min-h-28 border border-stone-300 px-4 py-3 text-sm outline-none md:col-span-2"
+                              />
+                              <textarea
+                                name="imageUrls"
+                                value={form.imageUrls}
+                                onChange={updateForm}
+                                placeholder="Image URLs, one per line"
+                                className="min-h-24 border border-stone-300 px-4 py-3 text-sm outline-none md:col-span-2"
+                              />
+
+                              {pricingPreview && (
+                                <div className="grid gap-3 border border-[#dfd1bd] bg-white p-4 text-sm md:col-span-2 md:grid-cols-6">
+                                  <div>
+                                    <p className="text-xs uppercase text-stone-500">Customer price</p>
+                                    <p className="mt-1 font-bold text-[#315c48]">
+                                      {formatRupees(pricingPreview.finalCustomerPrice)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs uppercase text-stone-500">Vendor payout</p>
+                                    <p className="mt-1 font-bold">
+                                      {formatRupees(pricingPreview.vendorPayout)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs uppercase text-stone-500">Platform fee</p>
+                                    <p className="mt-1 font-bold">
+                                      {formatRupees(pricingPreview.platformCommissionAmount)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs uppercase text-stone-500">Packaging</p>
+                                    <p className="mt-1 font-bold">
+                                      {formatRupees(pricingPreview.packagingCharge)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs uppercase text-stone-500">Delivery</p>
+                                    <p className="mt-1 font-bold">
+                                      {formatRupees(pricingPreview.shippingCharge)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs uppercase text-stone-500">Discount</p>
+                                    <p className="mt-1 font-bold text-green-700">
+                                      {pricingPreview.discountPercent}% off
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="flex gap-2 md:col-span-2">
+                                <button
+                                  disabled={saving}
+                                  className="bg-[#6b145d] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                                >
+                                  {saving ? "Saving..." : "Save Product"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEdit}
+                                  className="border border-stone-300 px-5 py-3 text-sm font-semibold"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {filteredProducts.length === 0 && (
+              <p className="py-12 text-center text-stone-500">
+                No products match this search.
+              </p>
+            )}
+          </div>
         )}
       </section>
     </main>

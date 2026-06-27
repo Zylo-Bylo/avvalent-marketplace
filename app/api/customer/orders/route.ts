@@ -1,25 +1,36 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getAuthSession } from '@/lib/session-cookies';
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token')?.value;
+    const session = await getAuthSession();
 
-    if (!token) {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const data = verifyToken(token);
-    if (!data || typeof data !== 'object' || !data.userId) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
-
     const orders = await prisma.order.findMany({
-      where: { userId: String(data.userId) },
-      include: { items: true },
+      where: { userId: session.userId },
+      include: {
+        vendor: {
+          select: {
+            storeName: true,
+          },
+        },
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                images: true,
+                sku: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 

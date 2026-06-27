@@ -4,12 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/prisma-schema.mjs generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && next build",
-    "seed": "npx tsx seed.ts"
+    "postinstall": "node scripts/prisma-schema.mjs generate",
+    "prisma:generate": "node scripts/prisma-schema.mjs generate",
+    "prisma:db:push": "node scripts/prisma-schema.mjs db push",
+    "vercel-build": "node scripts/prisma-schema.mjs generate && next build",
+    "seed": "node scripts/prisma-schema.mjs generate && npx tsx seed.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.8.0",

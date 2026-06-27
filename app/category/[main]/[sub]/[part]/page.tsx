@@ -11,6 +11,8 @@ type Product = {
   id: string;
   name: string;
   price: number;
+  mrp?: number | null;
+  discountPercent?: number | null;
   images: string[];
   category?: {
     name: string;
@@ -130,6 +132,14 @@ export default function CategoryPartPage() {
                     <p className="mt-4 text-xl font-bold text-[#315c48]">
                       Rs. {product.price}
                     </p>
+                    {product.mrp && product.mrp > product.price && (
+                      <p className="text-xs text-stone-500">
+                        <span className="line-through">Rs. {product.mrp}</span>{" "}
+                        <span className="font-bold text-green-700">
+                          {product.discountPercent || 0}% off
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
               </Link>

@@ -6,6 +6,11 @@ import { Suspense, useState } from "react";
 
 function VerifyEmailForm() {
   const searchParams = useSearchParams();
+  const next = searchParams.get("next");
+  const safeNext = next?.startsWith("/") ? next : "";
+  const loginHref = safeNext
+    ? `/login?role=customer&next=${encodeURIComponent(safeNext)}`
+    : "/login";
   const [email, setEmail] = useState(searchParams.get("email") || "");
   const [otp, setOtp] = useState("");
   const [message, setMessage] = useState("");
@@ -81,7 +86,7 @@ function VerifyEmailForm() {
           Resend OTP
         </button>
         <p className="mt-5 text-center text-sm">
-          <Link href="/login" className="font-semibold text-pink-600">
+          <Link href={loginHref} className="font-semibold text-pink-600">
             Back to login
           </Link>
         </p>

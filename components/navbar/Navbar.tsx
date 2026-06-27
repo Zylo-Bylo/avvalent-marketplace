@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCartStore } from "@/store/cart-store";
 
@@ -28,8 +28,9 @@ const vendorMenuItems = [
 ];
 
 export default function Navbar() {
-  const router = useRouter();
+  const pathname = usePathname();
   const cartCount = useCartStore((state) => state.getTotalItems());
+  const clearCart = useCartStore((state) => state.clearCart);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -39,32 +40,48 @@ export default function Navbar() {
     setMounted(true);
 
     async function loadUser() {
-      const response = await fetch("/api/auth/me", { cache: "no-store" });
-      const data = await response.json();
+      try {
+        const response = await fetch("/api/auth/me", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        const data = await response.json();
 
-      if (isActive) {
-        setUser(data.user || null);
+        if (isActive) {
+          setUser(data.user || null);
+        }
+      } catch {
+        if (isActive) {
+          setUser(null);
+        }
       }
     }
 
     loadUser();
+    window.addEventListener("focus", loadUser);
+    window.addEventListener("pageshow", loadUser);
+    window.addEventListener("zylo-auth-change", loadUser);
 
     return () => {
       isActive = false;
+      window.removeEventListener("focus", loadUser);
+      window.removeEventListener("pageshow", loadUser);
+      window.removeEventListener("zylo-auth-change", loadUser);
     };
-  }, []);
+  }, [pathname]);
 
   const isVendor = user?.role === "VENDOR";
+  const isAdmin = user?.role === "ADMIN";
   const displayName =
     user?.vendorProfile?.storeName || user?.name || user?.email || "Account";
   const visibleCartCount = mounted ? cartCount : 0;
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    clearCart();
     setUser(null);
     setMenuOpen(false);
-    router.push("/login");
-    router.refresh();
+    window.dispatchEvent(new Event("zylo-auth-change"));
+    window.location.href = "/api/auth/logout?next=/login";
   }
 
   return (
@@ -83,7 +100,11 @@ export default function Navbar() {
             Wishlist
           </Link>
 
-          {isVendor ? (
+          {isAdmin ? (
+            <Link href="/admin/dashboard" className="hover:text-pink-600">
+              Admin Dashboard
+            </Link>
+          ) : isVendor ? (
             <Link href="/vendor/dashboard" className="hover:text-pink-600">
               Vendor Dashboard
             </Link>
@@ -114,7 +135,33 @@ export default function Navbar() {
                     <p className="text-xs text-slate-500">{user.email}</p>
                   </div>
 
-                  {isVendor ? (
+                  {isAdmin ? (
+                    <>
+                      <Link
+                        href="/admin/dashboard"
+                        className="block bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-700 hover:bg-pink-100"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Open Admin Dashboard
+                      </Link>
+
+                      <Link
+                        href="/admin/vendors"
+                        className="block px-4 py-2 text-sm hover:bg-slate-100"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Vendor Approvals
+                      </Link>
+
+                      <Link
+                        href="/admin/products"
+                        className="block px-4 py-2 text-sm hover:bg-slate-100"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Product Management
+                      </Link>
+                    </>
+                  ) : isVendor ? (
                     <>
                       <Link
                         href="/vendor/dashboard"
@@ -138,11 +185,27 @@ export default function Navbar() {
                   ) : (
                     <>
                       <Link
+                        href="/profile"
+                        className="block bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-700 hover:bg-pink-100"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        My Profile
+                      </Link>
+
+                      <Link
                         href="/orders"
                         className="block px-4 py-2 text-sm hover:bg-slate-100"
                         onClick={() => setMenuOpen(false)}
                       >
                         My Orders
+                      </Link>
+
+                      <Link
+                        href="/wishlist"
+                        className="block px-4 py-2 text-sm hover:bg-slate-100"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Wishlist
                       </Link>
 
                       <Link
@@ -167,8 +230,15 @@ export default function Navbar() {
           ) : (
             <>
               <Link
+                href="/login?role=customer&next=/profile"
+                className="hidden rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50 md:inline-block"
+              >
+                Customer Login
+              </Link>
+
+              <Link
                 href="/login?role=vendor&next=/vendor/dashboard"
-                className="hidden rounded-full border border-pink-600 bg-white px-4 py-2 text-sm font-medium text-pink-700 hover:bg-pink-50 sm:inline-block"
+                className="hidden rounded-full border border-pink-600 bg-white px-4 py-2 text-sm font-medium text-pink-700 hover:bg-pink-50 lg:inline-block"
               >
                 Vendor Login
               </Link>

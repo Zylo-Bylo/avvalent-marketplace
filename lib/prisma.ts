@@ -5,10 +5,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 
 dotenv.config({ path: '.env.local' });
 
-const databaseUrl = process.env.DATABASE_URL ?? 'file:./dev.db';
+const DEFAULT_SQLITE_URL = 'file:./dev.db';
+
+const databaseUrl = process.env.DATABASE_URL ?? DEFAULT_SQLITE_URL;
 
 declare global {
-  // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
 }
 

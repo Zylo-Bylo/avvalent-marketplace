@@ -1,0 +1,1796 @@
+{
+  "generatedAt": "2026-05-25T06:17:08.483Z",
+  "categories": [
+    {
+      "id": "cmpdh6vis001ku0v433whvryq",
+      "name": "AC Parts",
+      "slug": "ac-parts"
+    },
+    {
+      "id": "cmpf7f665001adcv4eezailfh",
+      "name": "Ac Installation Material",
+      "slug": "ac-installation-material"
+    },
+    {
+      "id": "cmpf8qx1l002xdcv4ohapmsm8",
+      "name": "Accessories",
+      "slug": "accessories"
+    },
+    {
+      "id": "cmpf8fxxv002edcv43elvmhtl",
+      "name": "Audio Parts",
+      "slug": "audio-parts"
+    },
+    {
+      "id": "cmpf8984v0023dcv4a57plbwq",
+      "name": "Back light Parts",
+      "slug": "back-light-parts"
+    },
+    {
+      "id": "cmpdh6un5000mu0v4xtc7k9b3",
+      "name": "Beauty & Personal Care",
+      "slug": "beauty-personal-care"
+    },
+    {
+      "id": "cmpez6wih000nnwv44qicj9lq",
+      "name": "Blouses",
+      "slug": "blouses"
+    },
+    {
+      "id": "cmpf8m9g6002ndcv48gwygjqr",
+      "name": "Connectivity",
+      "slug": "connectivity"
+    },
+    {
+      "id": "cmpf87097001xdcv49cf1nysa",
+      "name": "Display Panel",
+      "slug": "display-panel"
+    },
+    {
+      "id": "cmpez2cdl000gnwv40wt1c8a3",
+      "name": "Dupatta Sets",
+      "slug": "dupatta-sets"
+    },
+    {
+      "id": "cmpdh6w6g0025u0v42mc7g7vr",
+      "name": "Electric Fitting",
+      "slug": "electric-fitting"
+    },
+    {
+      "id": "cmpf7beai0012dcv49cpvt2md",
+      "name": "Electrical Parts",
+      "slug": "electrical-parts"
+    },
+    {
+      "id": "cmowb7cbq0001r8v4irm8ifem",
+      "name": "Electronics",
+      "slug": "electronics"
+    },
+    {
+      "id": "cmowb7c9m0000r8v4awk86h85",
+      "name": "Fashion",
+      "slug": "fashion"
+    },
+    {
+      "id": "cmpez88o2000qnwv4l240u0i3",
+      "name": "Gowns",
+      "slug": "gowns"
+    },
+    {
+      "id": "cmpdh6v6j0019u0v40m0wqp1v",
+      "name": "Grocery",
+      "slug": "grocery"
+    },
+    {
+      "id": "cmpdh6vdh001eu0v4rvec0y0k",
+      "name": "Hardware",
+      "slug": "hardware"
+    },
+    {
+      "id": "cmpdh6uw7000yu0v44q7rr3jg",
+      "name": "Home & Kitchen",
+      "slug": "home-kitchen"
+    },
+    {
+      "id": "cmpdh6vvr001yu0v43y20xj2y",
+      "name": "Home Bathroom Fitting",
+      "slug": "home-bathroom-fitting"
+    },
+    {
+      "id": "cmpf74cce000sdcv4erm98efp",
+      "name": "Indoor Unit Parts",
+      "slug": "indoor-unit-parts"
+    },
+    {
+      "id": "cmpdh6uru000su0v4ydjm5r87",
+      "name": "Jewellery & Accessories",
+      "slug": "jewellery-accessories"
+    },
+    {
+      "id": "cmpdh6ujj000hu0v4fez0adx4",
+      "name": "Kids",
+      "slug": "kids"
+    },
+    {
+      "id": "cmpeyxr12000anwv4mgji6ywz",
+      "name": "Kurta Sets",
+      "slug": "kurta-sets"
+    },
+    {
+      "id": "cmpf854x9001vdcv49dzgbpru",
+      "name": "LED/OLED/QLED/LCD/HD TV parts",
+      "slug": "led-oled-qled-lcd-hd-tv-parts"
+    },
+    {
+      "id": "cmpdh6uf8000bu0v4mfc7njfw",
+      "name": "Men Fashion",
+      "slug": "men-fashion"
+    },
+    {
+      "id": "cmpf6xyhb000idcv4jnkfoequ",
+      "name": "Out Door Unit Parts",
+      "slug": "out-door-unit-parts"
+    },
+    {
+      "id": "cmpf8dmfh0028dcv4a6mas7qo",
+      "name": "PCB Boards",
+      "slug": "pcb-boards"
+    },
+    {
+      "id": "cmpf8i98w002idcv4djd8zb7e",
+      "name": "Power Parts",
+      "slug": "power-parts"
+    },
+    {
+      "id": "cmpf8o75j002sdcv47h4hcn92",
+      "name": "Remote & sensor",
+      "slug": "remote-sensor"
+    },
+    {
+      "id": "cmpdh6vnf001ru0v47kl0zbs6",
+      "name": "Washing Machine Parts",
+      "slug": "washing-machine-parts"
+    },
+    {
+      "id": "cmpdh6u4e0000u0v4pmzfz9zt",
+      "name": "Women Ethnic",
+      "slug": "women-ethnic"
+    },
+    {
+      "id": "cmpdh6ubi0006u0v4k90k4vo8",
+      "name": "Women Western",
+      "slug": "women-western"
+    },
+    {
+      "id": "cmpf5w9ov0000dcv4ath9srcr",
+      "name": "popular",
+      "slug": "popular"
+    }
+  ],
+  "subcategories": [
+    {
+      "id": "cmpf7eb920019dcv4xmouea3t",
+      "name": "Ac Installation Material",
+      "slug": "ac-installation-material-1779350586227",
+      "categoryId": "cmpdh6vis001ku0v433whvryq"
+    },
+    {
+      "id": "cmpdh6v570018u0v47avklsnu",
+      "name": "Accessories",
+      "slug": "electronics-accessories",
+      "categoryId": "cmowb7cbq0001r8v4irm8ifem"
+    },
+    {
+      "id": "cmpf7vgf5001udcv45o8sh9aj",
+      "name": "Accessories",
+      "slug": "accessories-1779351386080",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpf8q74p002wdcv4n7idqfjg",
+      "name": "Accessories",
+      "slug": "accessories-1779352820376",
+      "categoryId": "cmpf854x9001vdcv49dzgbpru"
+    },
+    {
+      "id": "cmpf75lel000vdcv48toceh98",
+      "name": "Air Filter",
+      "slug": "air-filter-1779350179481",
+      "categoryId": "cmpf74cce000sdcv4erm98efp"
+    },
+    {
+      "id": "cmpez78kc000onwv4p9llw3op",
+      "name": "All Blouses",
+      "slug": "all-blouses-1779336819226",
+      "categoryId": "cmpez6wih000nnwv44qicj9lq"
+    },
+    {
+      "id": "cmpez2olv000hnwv4hfkltrpf",
+      "name": "All Dupatta Sets",
+      "slug": "all-dupatta-sets-1779336606738",
+      "categoryId": "cmpez2cdl000gnwv40wt1c8a3"
+    },
+    {
+      "id": "cmpez8k4v000rnwv4q5zga8e2",
+      "name": "All Gowns",
+      "slug": "all-gowns-1779336880878",
+      "categoryId": "cmpez88o2000qnwv4l240u0i3"
+    },
+    {
+      "id": "cmpeyy9f4000bnwv4onbbyhdn",
+      "name": "All Kurta's",
+      "slug": "all-kurta-s-1779336400431",
+      "categoryId": "cmpeyxr12000anwv4mgji6ywz"
+    },
+    {
+      "id": "cmpdh6v2w0016u0v4rpclsah5",
+      "name": "Audio",
+      "slug": "electronics-audio",
+      "categoryId": "cmowb7cbq0001r8v4irm8ifem"
+    },
+    {
+      "id": "cmpf8gril002gdcv4dmsfpbaz",
+      "name": "Audio IC",
+      "slug": "audio-ic-1779352380236",
+      "categoryId": "cmpf8fxxv002edcv43elvmhtl"
+    },
+    {
+      "id": "cmpf8fper002ddcv4o8e8ei1u",
+      "name": "Audio Parts",
+      "slug": "audio-parts-1779352330850",
+      "categoryId": "cmpf854x9001vdcv49dzgbpru"
+    },
+    {
+      "id": "cmpf890k10022dcv4ft6htc7y",
+      "name": "Back Light Parts",
+      "slug": "back-light-parts-1779352018704",
+      "categoryId": "cmpf854x9001vdcv49dzgbpru"
+    },
+    {
+      "id": "cmpdh6uvh000xu0v4nw60jbjm",
+      "name": "Bags",
+      "slug": "jewellery-accessories-bags",
+      "categoryId": "cmpdh6uru000su0v4ydjm5r87"
+    },
+    {
+      "id": "cmpf60ogr000adcv4h3fzyul7",
+      "name": "Bags & Luggage",
+      "slug": "bags-luggage-1779348270553",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpdh6uu7000vu0v4j4qbtlhb",
+      "name": "Bangles",
+      "slug": "jewellery-accessories-bangles",
+      "categoryId": "cmpdh6uru000su0v4ydjm5r87"
+    },
+    {
+      "id": "cmpdh6ur2000ru0v4e40qgofz",
+      "name": "Bath & Body",
+      "slug": "beauty-personal-care-bath-body",
+      "categoryId": "cmpdh6un5000mu0v4xtc7k9b3"
+    },
+    {
+      "id": "cmpf5y38o0005dcv4qgo28iut",
+      "name": "Beauty & personal Care",
+      "slug": "beauty-personal-care-1779348149734",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpdh6v0r0013u0v4bezlmpl1",
+      "name": "Bedding",
+      "slug": "home-kitchen-bedding",
+      "categoryId": "cmpdh6uw7000yu0v44q7rr3jg"
+    },
+    {
+      "id": "cmpf7rrn9001jdcv4x1idtqtm",
+      "name": "Belt & pulley",
+      "slug": "belt-pulley-1779351214004",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6vpn001tu0v4smj0jq2j",
+      "name": "Belts",
+      "slug": "washing-machine-parts-belts",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6v9m001cu0v45hryfztx",
+      "name": "Beverages",
+      "slug": "grocery-beverages",
+      "categoryId": "cmpdh6v6j0019u0v40m0wqp1v"
+    },
+    {
+      "id": "cmpf62wo4000ddcv4eknibj4p",
+      "name": "Bike accessories",
+      "slug": "bike-accessories-1779348374499",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpdh6uap0005u0v4dzkp0gyj",
+      "name": "Blouses",
+      "slug": "women-ethnic-blouses",
+      "categoryId": "cmpdh6u4e0000u0v4pmzfz9zt"
+    },
+    {
+      "id": "cmpf75cme000udcv4jq4f9rju",
+      "name": "Blower Fan",
+      "slug": "blower-fan-1779350168101",
+      "categoryId": "cmpf74cce000sdcv4erm98efp"
+    },
+    {
+      "id": "cmpdh6ukz000ju0v43mvw57fl",
+      "name": "Boys Clothing",
+      "slug": "kids-boys-clothing",
+      "categoryId": "cmpdh6ujj000hu0v4fez0adx4"
+    },
+    {
+      "id": "cmpf6z7gj000mdcv4ahikbunq",
+      "name": "Capacitor",
+      "slug": "capacitor-1779349881473",
+      "categoryId": "cmpf6xyhb000idcv4jnkfoequ"
+    },
+    {
+      "id": "cmpf7t6pp001odcv4gqe95qfm",
+      "name": "Capacitor",
+      "slug": "capacitor-1779351280188",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpf8iojg002jdcv4euy2bvhq",
+      "name": "Capacitor",
+      "slug": "capacitor-1779352469691",
+      "categoryId": "cmpf8i98w002idcv4djd8zb7e"
+    },
+    {
+      "id": "cmpdh6vko001nu0v49ce7z8cr",
+      "name": "Capacitors",
+      "slug": "ac-parts-capacitors",
+      "categoryId": "cmpdh6vis001ku0v433whvryq"
+    },
+    {
+      "id": "cmpf63dk8000edcv48mnsbwca",
+      "name": "Car Accessories",
+      "slug": "car-accessories-1779348396390",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpdh6vcp001du0v42ql0zr6z",
+      "name": "Cleaning Supplies",
+      "slug": "grocery-cleaning-supplies",
+      "categoryId": "cmpdh6v6j0019u0v40m0wqp1v"
+    },
+    {
+      "id": "cmpf6yfg3000jdcv4jx3ssaev",
+      "name": "Compressor",
+      "slug": "compressor-1779349845170",
+      "categoryId": "cmpf6xyhb000idcv4jnkfoequ"
+    },
+    {
+      "id": "cmpdh6vjh001lu0v4u6gufs38",
+      "name": "Compressors",
+      "slug": "ac-parts-compressors",
+      "categoryId": "cmpdh6vis001ku0v433whvryq"
+    },
+    {
+      "id": "cmpf6yoyu000kdcv47ayj6uka",
+      "name": "Condenser Coil",
+      "slug": "condenser-coil-1779349857507",
+      "categoryId": "cmpf6xyhb000idcv4jnkfoequ"
+    },
+    {
+      "id": "cmpf6yy1h000ldcv4jtvusjbq",
+      "name": "Condenser Fan",
+      "slug": "condenser-fan-1779349869266",
+      "categoryId": "cmpf6xyhb000idcv4jnkfoequ"
+    },
+    {
+      "id": "cmpdh6wax002bu0v4xyiqob0b",
+      "name": "Conduits & Pipes",
+      "slug": "electric-fitting-conduits-pipes",
+      "categoryId": "cmpdh6w6g0025u0v42mc7g7vr"
+    },
+    {
+      "id": "cmpf8lluv002mdcv4fug4zev1",
+      "name": "Connectivity",
+      "slug": "connectivity-1779352606182",
+      "categoryId": "cmpf854x9001vdcv49dzgbpru"
+    },
+    {
+      "id": "cmpf6zqn7000ndcv4advzt4cl",
+      "name": "Contactor/Relay",
+      "slug": "contactor-relay-1779349906337",
+      "categoryId": "cmpf6xyhb000idcv4jnkfoequ"
+    },
+    {
+      "id": "cmpdh6vub001xu0v4ncw5f9a1",
+      "name": "Control Panels",
+      "slug": "washing-machine-parts-control-panels",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6ux9000zu0v4zkxuz90r",
+      "name": "Cookware",
+      "slug": "home-kitchen-cookware",
+      "categoryId": "cmpdh6uw7000yu0v44q7rr3jg"
+    },
+    {
+      "id": "cmpdh6vk5001mu0v4pgulh436",
+      "name": "Cooling Coils",
+      "slug": "ac-parts-cooling-coils",
+      "categoryId": "cmpdh6vis001ku0v433whvryq"
+    },
+    {
+      "id": "cmpf70d8v000pdcv4y8zahyyu",
+      "name": "Copper Coil",
+      "slug": "copper-coil-1779349935630",
+      "categoryId": "cmpf6xyhb000idcv4jnkfoequ"
+    },
+    {
+      "id": "cmpf7fhn3001bdcv4ng2jw2kc",
+      "name": "Copper Pipe",
+      "slug": "copper-pipe-1779350641166",
+      "categoryId": "cmpf7f665001adcv4eezailfh"
+    },
+    {
+      "id": "cmpf70w2w000qdcv4lfiamsm9",
+      "name": "Copper Tubes Service Valve",
+      "slug": "copper-tubes-service-valve-1779349960039",
+      "categoryId": "cmpf6xyhb000idcv4jnkfoequ"
+    },
+    {
+      "id": "cmpez3bca000inwv46jty5h9b",
+      "name": "Cotton Dupatta",
+      "slug": "cotton-dupatta-1779336636201",
+      "categoryId": "cmpez2cdl000gnwv40wt1c8a3"
+    },
+    {
+      "id": "cmpez16nm000fnwv4qm7jr5m3",
+      "name": "Cotton Kurta Sets",
+      "slug": "cotton-kurta-sets-1779336536817",
+      "categoryId": "cmpeyxr12000anwv4mgji6ywz"
+    },
+    {
+      "id": "cmpf8acuc0025dcv4smwfvhbu",
+      "name": "Diffuser Sheet",
+      "slug": "diffuser-sheet-1779352081283",
+      "categoryId": "cmpf8984v0023dcv4a57plbwq"
+    },
+    {
+      "id": "cmpf7v6tp001tdcv42syi3tnq",
+      "name": "Display Panel",
+      "slug": "display-panel-1779351373644",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpf860cy001wdcv42n25zcbk",
+      "name": "Display Panel",
+      "slug": "display-panel-1779351878481",
+      "categoryId": "cmpf854x9001vdcv49dzgbpru"
+    },
+    {
+      "id": "cmpdh6vhd001iu0v4mt37af5z",
+      "name": "Door Hardware",
+      "slug": "hardware-door-hardware",
+      "categoryId": "cmpdh6vdh001eu0v4rvec0y0k"
+    },
+    {
+      "id": "cmpf7tm2b001qdcv43djgd9kn",
+      "name": "Door Lock",
+      "slug": "door-lock-1779351300082",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpf77ers000zdcv4eksfk93n",
+      "name": "Drain Pipe",
+      "slug": "drain-pipe-1779350264199",
+      "categoryId": "cmpf74cce000sdcv4erm98efp"
+    },
+    {
+      "id": "cmpf7fohm001cdcv4hfed4e3q",
+      "name": "Drain Pipe",
+      "slug": "drain-pipe-1779350650041",
+      "categoryId": "cmpf7f665001adcv4eezailfh"
+    },
+    {
+      "id": "cmpf7skl1001mdcv4n1slvulw",
+      "name": "Drain Pump",
+      "slug": "drain-pump-1779351251507",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6vqm001uu0v4n5yhuphv",
+      "name": "Drain Pumps",
+      "slug": "washing-machine-parts-drain-pumps",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6w200022u0v4n6peg40w",
+      "name": "Drainage Fittings",
+      "slug": "home-bathroom-fitting-drainage-fittings",
+      "categoryId": "cmpdh6vvr001yu0v43y20xj2y"
+    },
+    {
+      "id": "cmpdh6u9x0004u0v4hfu1ipcr",
+      "name": "Dress Materials",
+      "slug": "women-ethnic-dress-materials",
+      "categoryId": "cmpdh6u4e0000u0v4pmzfz9zt"
+    },
+    {
+      "id": "cmpdh6uc30007u0v4y9a0jte4",
+      "name": "Dresses",
+      "slug": "women-western-dresses",
+      "categoryId": "cmpdh6ubi0006u0v4k90k4vo8"
+    },
+    {
+      "id": "cmpf7rg1x001idcv4fco2joiy",
+      "name": "Drum & Tub",
+      "slug": "drum-tub-1779351198980",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6utk000uu0v40mz60pet",
+      "name": "Earrings",
+      "slug": "jewellery-accessories-earrings",
+      "categoryId": "cmpdh6uru000su0v4ydjm5r87"
+    },
+    {
+      "id": "cmpf7b9ar0011dcv46r74axyp",
+      "name": "Electrical Parts",
+      "slug": "electrical-parts-1779350443730",
+      "categoryId": "cmpdh6vis001ku0v433whvryq"
+    },
+    {
+      "id": "cmpf5yqfl0007dcv4yqa40lfw",
+      "name": "Electronics",
+      "slug": "electronics-1779348179792",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpf755to000tdcv4aj6fvkdb",
+      "name": "Evaporatior Coil",
+      "slug": "evaporatior-coil-1779350159291",
+      "categoryId": "cmpf74cce000sdcv4erm98efp"
+    },
+    {
+      "id": "cmpdh6vlj001ou0v4ugjjin0n",
+      "name": "Fan Motors",
+      "slug": "ac-parts-fan-motors",
+      "categoryId": "cmpdh6vis001ku0v433whvryq"
+    },
+    {
+      "id": "cmpdh6vgr001hu0v49e7l5bsr",
+      "name": "Fasteners",
+      "slug": "hardware-fasteners",
+      "categoryId": "cmpdh6vdh001eu0v4rvec0y0k"
+    },
+    {
+      "id": "cmpdh6vwz001zu0v47nrtlrcf",
+      "name": "Faucets",
+      "slug": "home-bathroom-fitting-faucets",
+      "categoryId": "cmpdh6vvr001yu0v43y20xj2y"
+    },
+    {
+      "id": "cmpdh6vsw001wu0v4rzyl1etd",
+      "name": "Filters",
+      "slug": "washing-machine-parts-filters",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6uia000fu0v4nu3wka4w",
+      "name": "Footwear",
+      "slug": "men-fashion-footwear",
+      "categoryId": "cmpdh6uf8000bu0v4mfc7njfw"
+    },
+    {
+      "id": "cmpf5xqxx0004dcv4umjpnv7a",
+      "name": "Footwear",
+      "slug": "footwear-1779348133796",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpdh6uq6000qu0v4u1y64306",
+      "name": "Fragrance",
+      "slug": "beauty-personal-care-fragrance",
+      "categoryId": "cmpdh6un5000mu0v4xtc7k9b3"
+    },
+    {
+      "id": "cmpdh6uzg0011u0v4cvosh47f",
+      "name": "Furniture",
+      "slug": "home-kitchen-furniture",
+      "categoryId": "cmpdh6uw7000yu0v44q7rr3jg"
+    },
+    {
+      "id": "cmpf7c8ql0014dcv4t0wrnm0z",
+      "name": "Fuse",
+      "slug": "fuse-1779350489660",
+      "categoryId": "cmpf7beai0012dcv49cpvt2md"
+    },
+    {
+      "id": "cmpf8irwz002kdcv42pi7u1ap",
+      "name": "Fuse",
+      "slug": "fuse-1779352474065",
+      "categoryId": "cmpf8i98w002idcv4djd8zb7e"
+    },
+    {
+      "id": "cmpdh6vmv001qu0v4msbe5ctp",
+      "name": "Gas & Copper Pipe",
+      "slug": "ac-parts-gas-copper-pipe",
+      "categoryId": "cmpdh6vis001ku0v433whvryq"
+    },
+    {
+      "id": "cmpf7s2iw001kdcv4qiokpwdd",
+      "name": "Gearbox",
+      "slug": "gearbox-1779351228102",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6uk3000iu0v4d8wobifn",
+      "name": "Girls Clothing",
+      "slug": "kids-girls-clothing",
+      "categoryId": "cmpdh6ujj000hu0v4fez0adx4"
+    },
+    {
+      "id": "cmpf5yg1l0006dcv49hxw7j6o",
+      "name": "Grocery",
+      "slug": "grocery-1779348166328",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpf8moc9002odcv4rjyzy6t7",
+      "name": "HDMI Port",
+      "slug": "hdmi-port-1779352656050",
+      "categoryId": "cmpf8m9g6002ndcv48gwygjqr"
+    },
+    {
+      "id": "cmpdh6upl000pu0v4gxrj3g9r",
+      "name": "Hair Care",
+      "slug": "beauty-personal-care-hair-care",
+      "categoryId": "cmpdh6un5000mu0v4xtc7k9b3"
+    },
+    {
+      "id": "cmpdh6vef001fu0v4nm32epzl",
+      "name": "Hand Tools",
+      "slug": "hardware-hand-tools",
+      "categoryId": "cmpdh6vdh001eu0v4rvec0y0k"
+    },
+    {
+      "id": "cmpdh6vyr0021u0v4dmchby1k",
+      "name": "Health Faucets",
+      "slug": "home-bathroom-fitting-health-faucets",
+      "categoryId": "cmpdh6vvr001yu0v43y20xj2y"
+    },
+    {
+      "id": "cmpf60v70000bdcv4f7lpmvqo",
+      "name": "Healthcare",
+      "slug": "healthcare-1779348279275",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpf607xk0009dcv48h5npafx",
+      "name": "Home & kitchen",
+      "slug": "home-kitchen-1779348249126",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpdh6v030012u0v4r397d1y0",
+      "name": "Home Decor",
+      "slug": "home-kitchen-home-decor",
+      "categoryId": "cmpdh6uw7000yu0v44q7rr3jg"
+    },
+    {
+      "id": "cmpf63wse000fdcv4q0e3k5fm",
+      "name": "Home Furniture",
+      "slug": "home-furniture-1779348421308",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpf7uv3f001sdcv4e13jsqgw",
+      "name": "Hoses & Pipes",
+      "slug": "hoses-pipes-1779351358442",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpf71ha1000rdcv4je0rmrkk",
+      "name": "Indoor Unit Parts",
+      "slug": "indoor-unit-parts-1779349987512",
+      "categoryId": "cmpdh6vis001ku0v433whvryq"
+    },
+    {
+      "id": "cmpdh6vrl001vu0v4zfd6z283",
+      "name": "Inlet Valves",
+      "slug": "washing-machine-parts-inlet-valves",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6uj0000gu0v4wby6lgoy",
+      "name": "Innerwear",
+      "slug": "men-fashion-innerwear",
+      "categoryId": "cmpdh6uf8000bu0v4mfc7njfw"
+    },
+    {
+      "id": "cmpf5z5010008dcv47gxidsun",
+      "name": "Innerwear Nightwear",
+      "slug": "innerwear-nightwear-1779348198671",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpf7g34q001ddcv4wna7i60m",
+      "name": "Insulation Tape",
+      "slug": "insulation-tape-1779350669017",
+      "categoryId": "cmpf7f665001adcv4eezailfh"
+    },
+    {
+      "id": "cmpf7cync0016dcv43ntm8uw1",
+      "name": "Inverter PCB",
+      "slug": "inverter-pcb-1779350523238",
+      "categoryId": "cmpf7beai0012dcv49cpvt2md"
+    },
+    {
+      "id": "cmpf8oqwu002udcv44dassuay",
+      "name": "Ir Sensor",
+      "slug": "ir-sensor-1779352752701",
+      "categoryId": "cmpf8o75j002sdcv47h4hcn92"
+    },
+    {
+      "id": "cmpdh6udy0009u0v4cudxivej",
+      "name": "Jeans",
+      "slug": "women-western-jeans",
+      "categoryId": "cmpdh6ubi0006u0v4k90k4vo8"
+    },
+    {
+      "id": "cmpdh6uhn000eu0v4co8pdoux",
+      "name": "Jeans",
+      "slug": "men-fashion-jeans",
+      "categoryId": "cmpdh6uf8000bu0v4mfc7njfw"
+    },
+    {
+      "id": "cmpf5x0sh0001dcv4ip1yhklh",
+      "name": "Jewellery",
+      "slug": "jewellery-1779348099804",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpf5xiyq0003dcv45rn2a9ta",
+      "name": "Kids",
+      "slug": "kids-1779348123456",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpeyz32x000cnwv4njcdez3f",
+      "name": "Kurta Palazzo Sets",
+      "slug": "kurta-palazzo-sets-1779336438871",
+      "categoryId": "cmpeyxr12000anwv4mgji6ywz"
+    },
+    {
+      "id": "cmpeyzjlq000dnwv4aor0loo3",
+      "name": "Kurta Pant Sets",
+      "slug": "kurta-pant-sets-1779336460285",
+      "categoryId": "cmpeyxr12000anwv4mgji6ywz"
+    },
+    {
+      "id": "cmpdh6u8c0002u0v43ts5o54h",
+      "name": "Kurtis",
+      "slug": "women-ethnic-kurtis",
+      "categoryId": "cmpdh6u4e0000u0v4pmzfz9zt"
+    },
+    {
+      "id": "cmpf88ax40021dcv4mwnl5xmg",
+      "name": "LCD Panel",
+      "slug": "lcd-panel-1779351985478",
+      "categoryId": "cmpf87097001xdcv49cf1nysa"
+    },
+    {
+      "id": "cmpdh6wa0002au0v4nexty6x6",
+      "name": "LED Fittings",
+      "slug": "electric-fitting-led-fittings",
+      "categoryId": "cmpdh6w6g0025u0v42mc7g7vr"
+    },
+    {
+      "id": "cmpf87iaf001ydcv4htyu37jn",
+      "name": "LED Panel",
+      "slug": "led-panel-1779351948374",
+      "categoryId": "cmpf87097001xdcv49cf1nysa"
+    },
+    {
+      "id": "cmpf8a1rc0024dcv41yuvqo32",
+      "name": "Led Strip",
+      "slug": "led-strip-1779352066919",
+      "categoryId": "cmpf8984v0023dcv4a57plbwq"
+    },
+    {
+      "id": "cmpdh6u990003u0v4mngkuz1i",
+      "name": "Lehengas",
+      "slug": "women-ethnic-lehengas",
+      "categoryId": "cmpdh6u4e0000u0v4pmzfz9zt"
+    },
+    {
+      "id": "cmpf7dbhg0018dcv4eoat17wz",
+      "name": "MCB",
+      "slug": "mcb-1779350539875",
+      "categoryId": "cmpf7beai0012dcv49cpvt2md"
+    },
+    {
+      "id": "cmpdh6w940029u0v4at8yifka",
+      "name": "MCB & Distribution",
+      "slug": "electric-fitting-mcb-distribution",
+      "categoryId": "cmpdh6w6g0025u0v42mc7g7vr"
+    },
+    {
+      "id": "cmpf8e0r90029dcv45bupg5wd",
+      "name": "Main Board",
+      "slug": "main-board-1779352252244",
+      "categoryId": "cmpf8dmfh0028dcv4a6mas7qo"
+    },
+    {
+      "id": "cmpdh6unv000nu0v41v9jkp24",
+      "name": "Makeup",
+      "slug": "beauty-personal-care-makeup",
+      "categoryId": "cmpdh6un5000mu0v4xtc7k9b3"
+    },
+    {
+      "id": "cmpf5xea00002dcv4uyywubgi",
+      "name": "Men Fashion",
+      "slug": "men-fashion-1779348117382",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpdh6v1z0015u0v4ng3ujec9",
+      "name": "Mobiles",
+      "slug": "electronics-mobiles",
+      "categoryId": "cmowb7cbq0001r8v4irm8ifem"
+    },
+    {
+      "id": "cmpf7r6u8001hdcv4nu3qkuci",
+      "name": "Motor",
+      "slug": "motor-1779351187038",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6von001su0v46xnc2b55",
+      "name": "Motors",
+      "slug": "washing-machine-parts-motors",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6usi000tu0v4ejfea5iu",
+      "name": "Necklaces",
+      "slug": "jewellery-accessories-necklaces",
+      "categoryId": "cmpdh6uru000su0v4ydjm5r87"
+    },
+    {
+      "id": "cmpf648am000gdcv4cu3xl0dw",
+      "name": "Office Furniture",
+      "slug": "office-furniture-1779348436221",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpf87ot5001zdcv4968tmea4",
+      "name": "Oled Panel",
+      "slug": "oled-panel-1779351956823",
+      "categoryId": "cmpf87097001xdcv49cf1nysa"
+    },
+    {
+      "id": "cmpf6xc0c000hdcv4hoqqungb",
+      "name": "Out Door Unit Parts",
+      "slug": "out-door-unit-parts-1779349794050",
+      "categoryId": "cmpdh6vis001ku0v433whvryq"
+    },
+    {
+      "id": "cmpf7gl8f001fdcv4l54m0arh",
+      "name": "Outdoor Stand",
+      "slug": "outdoor-stand-1779350692478",
+      "categoryId": "cmpf7f665001adcv4eezailfh"
+    },
+    {
+      "id": "cmpf767el000xdcv4ipucy7j2",
+      "name": "PCB / Control Board",
+      "slug": "pcb-control-board-1779350207996",
+      "categoryId": "cmpf74cce000sdcv4erm98efp"
+    },
+    {
+      "id": "cmpf7suwk001ndcv404bhx6t7",
+      "name": "PCB Board",
+      "slug": "pcb-board-1779351264883",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpf8d9xw0027dcv40sff2gyr",
+      "name": "PCB Boards",
+      "slug": "pcb-boards-1779352217491",
+      "categoryId": "cmpf854x9001vdcv49dzgbpru"
+    },
+    {
+      "id": "cmpf8e9u1002adcv4kxq1hlnc",
+      "name": "Power Board",
+      "slug": "power-board-1779352264008",
+      "categoryId": "cmpf8dmfh0028dcv4a6mas7qo"
+    },
+    {
+      "id": "cmpf8ru7j0030dcv4ov9xjb40",
+      "name": "Power Cable",
+      "slug": "power-cable-1779352896941",
+      "categoryId": "cmpf8qx1l002xdcv4ohapmsm8"
+    },
+    {
+      "id": "cmpf8i30c002hdcv474lb1o6h",
+      "name": "Power Parts",
+      "slug": "power-parts-1779352441787",
+      "categoryId": "cmpf854x9001vdcv49dzgbpru"
+    },
+    {
+      "id": "cmpdh6vfv001gu0v4pnf9dzks",
+      "name": "Power Tools",
+      "slug": "hardware-power-tools",
+      "categoryId": "cmpdh6vdh001eu0v4rvec0y0k"
+    },
+    {
+      "id": "cmpf7gqin001gdcv4dkxybn3y",
+      "name": "Pvc Duct",
+      "slug": "pvc-duct-1779350699325",
+      "categoryId": "cmpf7f665001adcv4eezailfh"
+    },
+    {
+      "id": "cmpf882o40020dcv4zv2ea3r1",
+      "name": "QLED Panel",
+      "slug": "qled-panel-1779351974787",
+      "categoryId": "cmpf87097001xdcv49cf1nysa"
+    },
+    {
+      "id": "cmpez3lbc000jnwv4wca1xwm7",
+      "name": "Rayon Dupatta",
+      "slug": "rayon-dupatta-1779336649127",
+      "categoryId": "cmpez2cdl000gnwv40wt1c8a3"
+    },
+    {
+      "id": "cmpf8asyi0026dcv4e75n7k3c",
+      "name": "Reflector Sheet",
+      "slug": "reflector-sheet-1779352102168",
+      "categoryId": "cmpf8984v0023dcv4a57plbwq"
+    },
+    {
+      "id": "cmpf7073g000odcv45ftmpizt",
+      "name": "Refrigerant Gas",
+      "slug": "refrigerant-gas-1779349927658",
+      "categoryId": "cmpf6xyhb000idcv4jnkfoequ"
+    },
+    {
+      "id": "cmpf8npja002rdcv4p64tys1s",
+      "name": "Remote & Sensor",
+      "slug": "remote-sensor-1779352704260",
+      "categoryId": "cmpf854x9001vdcv49dzgbpru"
+    },
+    {
+      "id": "cmpf8olr7002tdcv4wkk5frbs",
+      "name": "Remote Control",
+      "slug": "remote-control-1779352746018",
+      "categoryId": "cmpf8o75j002sdcv47h4hcn92"
+    },
+    {
+      "id": "cmpdh6vma001pu0v4tzpo1rij",
+      "name": "Remote Controls",
+      "slug": "ac-parts-remote-controls",
+      "categoryId": "cmpdh6vis001ku0v433whvryq"
+    },
+    {
+      "id": "cmpf77pk80010dcv4kvdajkip",
+      "name": "Remote Sensor",
+      "slug": "remote-sensor-1779350278183",
+      "categoryId": "cmpf74cce000sdcv4erm98efp"
+    },
+    {
+      "id": "cmpdh6vhw001ju0v4gqgue1ar",
+      "name": "Safety Gear",
+      "slug": "hardware-safety-gear",
+      "categoryId": "cmpdh6vdh001eu0v4rvec0y0k"
+    },
+    {
+      "id": "cmpdh6u640001u0v4ns0kcd2c",
+      "name": "Sarees",
+      "slug": "women-ethnic-sarees",
+      "categoryId": "cmpdh6u4e0000u0v4pmzfz9zt"
+    },
+    {
+      "id": "cmpdh6umb000lu0v416e7gumj",
+      "name": "School Essentials",
+      "slug": "kids-school-essentials",
+      "categoryId": "cmpdh6ujj000hu0v4fez0adx4"
+    },
+    {
+      "id": "cmpf7tenr001pdcv4tgfqncs4",
+      "name": "Sensor's",
+      "slug": "sensor-s-1779351290486",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpez0gn9000enwv4ki6teg8v",
+      "name": "Sharara Sets",
+      "slug": "sharara-sets-1779336503108",
+      "categoryId": "cmpeyxr12000anwv4mgji6ywz"
+    },
+    {
+      "id": "cmpdh6ufr000cu0v4bavxbvj1",
+      "name": "Shirts",
+      "slug": "men-fashion-shirts",
+      "categoryId": "cmpdh6uf8000bu0v4mfc7njfw"
+    },
+    {
+      "id": "cmpdh6vxv0020u0v44h65023x",
+      "name": "Showers",
+      "slug": "home-bathroom-fitting-showers",
+      "categoryId": "cmpdh6vvr001yu0v43y20xj2y"
+    },
+    {
+      "id": "cmpdh6up2000ou0v4psdcqm35",
+      "name": "Skin Care",
+      "slug": "beauty-personal-care-skin-care",
+      "categoryId": "cmpdh6un5000mu0v4xtc7k9b3"
+    },
+    {
+      "id": "cmpdh6uej000au0v4cw6c79ky",
+      "name": "Skirts",
+      "slug": "women-western-skirts",
+      "categoryId": "cmpdh6ubi0006u0v4k90k4vo8"
+    },
+    {
+      "id": "cmpf8etr6002cdcv42qxb6hru",
+      "name": "Smart Tv Board",
+      "slug": "smart-tv-board-1779352289825",
+      "categoryId": "cmpf8dmfh0028dcv4a6mas7qo"
+    },
+    {
+      "id": "cmpdh6v3k0017u0v4bkjn3j3z",
+      "name": "Smart Watches",
+      "slug": "electronics-smart-watches",
+      "categoryId": "cmowb7cbq0001r8v4irm8ifem"
+    },
+    {
+      "id": "cmpdh6v8m001bu0v4fxu57bjq",
+      "name": "Snacks",
+      "slug": "grocery-snacks",
+      "categoryId": "cmpdh6v6j0019u0v40m0wqp1v"
+    },
+    {
+      "id": "cmpdh6w7q0027u0v4o4h78ssw",
+      "name": "Sockets",
+      "slug": "electric-fitting-sockets",
+      "categoryId": "cmpdh6w6g0025u0v42mc7g7vr"
+    },
+    {
+      "id": "cmpf8gi5f002fdcv4xkmjeoef",
+      "name": "Speaker",
+      "slug": "speaker-1779352368097",
+      "categoryId": "cmpf8fxxv002edcv43elvmhtl"
+    },
+    {
+      "id": "cmpf7d8bz0017dcv4wrkm484l",
+      "name": "Stabilizer",
+      "slug": "stabilizer-1779350535790",
+      "categoryId": "cmpf7beai0012dcv49cpvt2md"
+    },
+    {
+      "id": "cmpdh6v7o001au0v443rb579f",
+      "name": "Staples",
+      "slug": "grocery-staples",
+      "categoryId": "cmpdh6v6j0019u0v40m0wqp1v"
+    },
+    {
+      "id": "cmpf61bsn000cdcv4u7ldv4kb",
+      "name": "Stationary & office",
+      "slug": "stationary-office-1779348300789",
+      "categoryId": "cmpf5w9ov0000dcv4ath9srcr"
+    },
+    {
+      "id": "cmpdh6uya0010u0v4p8c11uf0",
+      "name": "Storage",
+      "slug": "home-kitchen-storage",
+      "categoryId": "cmpdh6uw7000yu0v44q7rr3jg"
+    },
+    {
+      "id": "cmpf75s78000wdcv475dg2ucb",
+      "name": "Swing Motor",
+      "slug": "swing-motor-1779350188291",
+      "categoryId": "cmpf74cce000sdcv4erm98efp"
+    },
+    {
+      "id": "cmpdh6w760026u0v4cvls18we",
+      "name": "Switches",
+      "slug": "electric-fitting-switches",
+      "categoryId": "cmpdh6w6g0025u0v42mc7g7vr"
+    },
+    {
+      "id": "cmpf8ej5i002bdcv4ne4dshwo",
+      "name": "T-Con Board",
+      "slug": "t-con-board-1779352276084",
+      "categoryId": "cmpf8dmfh0028dcv4a6mas7qo"
+    },
+    {
+      "id": "cmpdh6ugh000du0v4hmcje098",
+      "name": "T-Shirts",
+      "slug": "men-fashion-t-shirts",
+      "categoryId": "cmpdh6uf8000bu0v4mfc7njfw"
+    },
+    {
+      "id": "cmpf8rfbx002ydcv4jm34fjqe",
+      "name": "TV stand",
+      "slug": "tv-stand-1779352877660",
+      "categoryId": "cmpf8qx1l002xdcv4ohapmsm8"
+    },
+    {
+      "id": "cmpf777vj000ydcv4f4ut1hjm",
+      "name": "Thermistor/Temperature Sensor",
+      "slug": "thermistor-temperature-sensor-1779350255262",
+      "categoryId": "cmpf74cce000sdcv4erm98efp"
+    },
+    {
+      "id": "cmpf7tru2001rdcv45oe26a9g",
+      "name": "Timer",
+      "slug": "timer-1779351307561",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpdh6ucp0008u0v4if3d1f9p",
+      "name": "Tops",
+      "slug": "women-western-tops",
+      "categoryId": "cmpdh6ubi0006u0v4k90k4vo8"
+    },
+    {
+      "id": "cmpdh6w370023u0v42ul2e0xx",
+      "name": "Towel Rods",
+      "slug": "home-bathroom-fitting-towel-rods",
+      "categoryId": "cmpdh6vvr001yu0v43y20xj2y"
+    },
+    {
+      "id": "cmpdh6ulo000ku0v4blsg5dcu",
+      "name": "Toys",
+      "slug": "kids-toys",
+      "categoryId": "cmpdh6ujj000hu0v4fez0adx4"
+    },
+    {
+      "id": "cmpf7cgsi0015dcv4c1e0az8a",
+      "name": "Transformer",
+      "slug": "transformer-1779350500097",
+      "categoryId": "cmpf7beai0012dcv49cpvt2md"
+    },
+    {
+      "id": "cmpf8izxo002ldcv47e7efnmn",
+      "name": "Transformer",
+      "slug": "transformer-1779352484459",
+      "categoryId": "cmpf8i98w002idcv4djd8zb7e"
+    },
+    {
+      "id": "cmpez7q0m000pnwv4py0ilvig",
+      "name": "Trending Blouses",
+      "slug": "trending-blouses-1779336841846",
+      "categoryId": "cmpez6wih000nnwv44qicj9lq"
+    },
+    {
+      "id": "cmpez8s5j000snwv4tbuako4g",
+      "name": "Trending Gowns",
+      "slug": "trending-gowns-1779336891270",
+      "categoryId": "cmpez88o2000qnwv4l240u0i3"
+    },
+    {
+      "id": "cmpf8mu0c002pdcv4g88wcvse",
+      "name": "USB Port",
+      "slug": "usb-port-1779352663403",
+      "categoryId": "cmpf8m9g6002ndcv48gwygjqr"
+    },
+    {
+      "id": "cmpdh6w5s0024u0v4m2uk7j1s",
+      "name": "Vanity Accessories",
+      "slug": "home-bathroom-fitting-vanity-accessories",
+      "categoryId": "cmpdh6vvr001yu0v43y20xj2y"
+    },
+    {
+      "id": "cmpf8p40j002vdcv4pqknazyd",
+      "name": "Voice Mice",
+      "slug": "voice-mice-1779352769679",
+      "categoryId": "cmpf8o75j002sdcv47h4hcn92"
+    },
+    {
+      "id": "cmpf7gbe2001edcv4x4br2dox",
+      "name": "Wall Bracket",
+      "slug": "wall-bracket-1779350679720",
+      "categoryId": "cmpf7f665001adcv4eezailfh"
+    },
+    {
+      "id": "cmpf8rosh002zdcv4zpqvyqnc",
+      "name": "Wall Mount",
+      "slug": "wall-mount-1779352889917",
+      "categoryId": "cmpf8qx1l002xdcv4ohapmsm8"
+    },
+    {
+      "id": "cmpdh6uur000wu0v4r85s2gvv",
+      "name": "Watches",
+      "slug": "jewellery-accessories-watches",
+      "categoryId": "cmpdh6uru000su0v4ydjm5r87"
+    },
+    {
+      "id": "cmpf7se4k001ldcv4sdwlvr7a",
+      "name": "Water Inlet Valve",
+      "slug": "water-inlet-valve-1779351243139",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+    },
+    {
+      "id": "cmpf8n96r002qdcv4iffce8bx",
+      "name": "Wifi Module",
+      "slug": "wifi-module-1779352683074",
+      "categoryId": "cmpf8m9g6002ndcv48gwygjqr"
+    },
+    {
+      "id": "cmpdh6w8l0028u0v4lhem5t8h",
+      "name": "Wires",
+      "slug": "electric-fitting-wires",
+      "categoryId": "cmpdh6w6g0025u0v42mc7g7vr"
+    },
+    {
+      "id": "cmpf7c57q0013dcv415cg1uzh",
+      "name": "Wirring",
+      "slug": "wirring-1779350485092",
+      "categoryId": "cmpf7beai0012dcv49cpvt2md"
+    }
+  ],
+  "products": [
+    {
+      "id": "cmpfecq41003edcv4dno1qnf2",
+      "name": "T-SHIRT",
+      "slug": "t-shirt-1779362269487",
+      "description": "MEN T SHIRTS",
+      "price": 550,
+      "sku": "101910101021",
+      "images": [
+        "https://images.unsplash.com/photo-1503341504253-dff4815485f1"
+      ],
+      "inventory": 10,
+      "vendorId": "cmpfc7bdk0036dcv4enahqlhf",
+      "categoryId": "cmpdh6uf8000bu0v4mfc7njfw",
+      "subcategoryId": "cmpdh6ugh000du0v4hmcje098",
+      "createdAt": "2026-05-21T11:17:49.489+00:00",
+      "updatedAt": "2026-05-21T11:17:49.489+00:00",
+      "categoryName": "Men Fashion",
+      "categorySlug": "men-fashion",
+      "subcategoryName": "T-Shirts",
+      "subcategorySlug": "men-fashion-t-shirts",
+      "vendorStoreName": "TV Parts",
+      "vendorDescription": "Manufacturing of AC /Tv/ Freez/ Washing Machine Parts",
+      "category": {
+        "id": "cmpdh6uf8000bu0v4mfc7njfw",
+        "name": "Men Fashion",
+        "slug": "men-fashion"
+      },
+      "subcategory": {
+        "id": "cmpdh6ugh000du0v4hmcje098",
+        "name": "T-Shirts",
+        "slug": "men-fashion-t-shirts",
+        "categoryId": "cmpdh6uf8000bu0v4mfc7njfw"
+      },
+      "vendor": {
+        "id": "cmpfc7bdk0036dcv4enahqlhf",
+        "storeName": "TV Parts",
+        "description": "Manufacturing of AC /Tv/ Freez/ Washing Machine Parts"
+      }
+    },
+    {
+      "id": "cmpfe9g9l003cdcv4moy8izsl",
+      "name": "cotton saree",
+      "slug": "cotton-saree-1779362116757",
+      "description": "skdsalnflnwfbw",
+      "price": 650,
+      "sku": "101910101020",
+      "images": [
+        "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf"
+      ],
+      "inventory": 10,
+      "vendorId": "cmpfc7bdk0036dcv4enahqlhf",
+      "categoryId": "cmpeyxr12000anwv4mgji6ywz",
+      "subcategoryId": "cmpeyz32x000cnwv4njcdez3f",
+      "createdAt": "2026-05-21T11:15:16.761+00:00",
+      "updatedAt": "2026-05-21T11:15:16.761+00:00",
+      "categoryName": "Kurta Sets",
+      "categorySlug": "kurta-sets",
+      "subcategoryName": "Kurta Palazzo Sets",
+      "subcategorySlug": "kurta-palazzo-sets-1779336438871",
+      "vendorStoreName": "TV Parts",
+      "vendorDescription": "Manufacturing of AC /Tv/ Freez/ Washing Machine Parts",
+      "category": {
+        "id": "cmpeyxr12000anwv4mgji6ywz",
+        "name": "Kurta Sets",
+        "slug": "kurta-sets"
+      },
+      "subcategory": {
+        "id": "cmpeyz32x000cnwv4njcdez3f",
+        "name": "Kurta Palazzo Sets",
+        "slug": "kurta-palazzo-sets-1779336438871",
+        "categoryId": "cmpeyxr12000anwv4mgji6ywz"
+      },
+      "vendor": {
+        "id": "cmpfc7bdk0036dcv4enahqlhf",
+        "storeName": "TV Parts",
+        "description": "Manufacturing of AC /Tv/ Freez/ Washing Machine Parts"
+      }
+    },
+    {
+      "id": "cmpfcetlp0038dcv4292x2am9",
+      "name": "Capacitor",
+      "slug": "capacitor-1779359008092",
+      "description": "Washing Machine Capacitor",
+      "price": 32,
+      "sku": "101910101019",
+      "images": [
+        "https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?utm_source=chatgpt.com"
+      ],
+      "inventory": 10,
+      "vendorId": "cmpfc7bdk0036dcv4enahqlhf",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6",
+      "subcategoryId": "cmpdh6vub001xu0v4ncw5f9a1",
+      "createdAt": "2026-05-21T10:23:28.093+00:00",
+      "updatedAt": "2026-05-21T10:23:28.093+00:00",
+      "categoryName": "Washing Machine Parts",
+      "categorySlug": "washing-machine-parts",
+      "subcategoryName": "Control Panels",
+      "subcategorySlug": "washing-machine-parts-control-panels",
+      "vendorStoreName": "TV Parts",
+      "vendorDescription": "Manufacturing of AC /Tv/ Freez/ Washing Machine Parts",
+      "category": {
+        "id": "cmpdh6vnf001ru0v47kl0zbs6",
+        "name": "Washing Machine Parts",
+        "slug": "washing-machine-parts"
+      },
+      "subcategory": {
+        "id": "cmpdh6vub001xu0v4ncw5f9a1",
+        "name": "Control Panels",
+        "slug": "washing-machine-parts-control-panels",
+        "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+      },
+      "vendor": {
+        "id": "cmpfc7bdk0036dcv4enahqlhf",
+        "storeName": "TV Parts",
+        "description": "Manufacturing of AC /Tv/ Freez/ Washing Machine Parts"
+      }
+    },
+    {
+      "id": "cmpfc15zm0034dcv4j67k2gio",
+      "name": "PCB ",
+      "slug": "pcb-1779358370960",
+      "description": "PCB/Control board",
+      "price": 150,
+      "sku": "101910101018",
+      "images": [
+        "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?utm_source=chatgpt.com"
+      ],
+      "inventory": 10,
+      "vendorId": "cmpayf6g10001jgv42es4xgpc",
+      "categoryId": "cmpdh6vis001ku0v433whvryq",
+      "subcategoryId": "cmpdh6vjh001lu0v4u6gufs38",
+      "createdAt": "2026-05-21T10:12:50.962+00:00",
+      "updatedAt": "2026-05-21T10:12:50.962+00:00",
+      "categoryName": "AC Parts",
+      "categorySlug": "ac-parts",
+      "subcategoryName": "Compressors",
+      "subcategorySlug": "ac-parts-compressors",
+      "vendorStoreName": "avval enterprises",
+      "vendorDescription": "manufacturing and trading home and personal care items",
+      "category": {
+        "id": "cmpdh6vis001ku0v433whvryq",
+        "name": "AC Parts",
+        "slug": "ac-parts"
+      },
+      "subcategory": {
+        "id": "cmpdh6vjh001lu0v4u6gufs38",
+        "name": "Compressors",
+        "slug": "ac-parts-compressors",
+        "categoryId": "cmpdh6vis001ku0v433whvryq"
+      },
+      "vendor": {
+        "id": "cmpayf6g10001jgv42es4xgpc",
+        "storeName": "avval enterprises",
+        "description": "manufacturing and trading home and personal care items"
+      }
+    },
+    {
+      "id": "cmpfbx1qy0033dcv4e0fa585c",
+      "name": "Blower Fan",
+      "slug": "blower-fan-1779358178841",
+      "description": "Outdoor Blower Fan",
+      "price": 1200,
+      "sku": "101910101017",
+      "images": [
+        "https://images.unsplash.com/photo-1562408590-e32931084e23?utm_source=chatgpt.com"
+      ],
+      "inventory": 10,
+      "vendorId": "cmpayf6g10001jgv42es4xgpc",
+      "categoryId": "cmpdh6vis001ku0v433whvryq",
+      "subcategoryId": "cmpf6xc0c000hdcv4hoqqungb",
+      "createdAt": "2026-05-21T10:09:38.842+00:00",
+      "updatedAt": "2026-05-21T10:09:38.842+00:00",
+      "categoryName": "AC Parts",
+      "categorySlug": "ac-parts",
+      "subcategoryName": "Out Door Unit Parts",
+      "subcategorySlug": "out-door-unit-parts-1779349794050",
+      "vendorStoreName": "avval enterprises",
+      "vendorDescription": "manufacturing and trading home and personal care items",
+      "category": {
+        "id": "cmpdh6vis001ku0v433whvryq",
+        "name": "AC Parts",
+        "slug": "ac-parts"
+      },
+      "subcategory": {
+        "id": "cmpf6xc0c000hdcv4hoqqungb",
+        "name": "Out Door Unit Parts",
+        "slug": "out-door-unit-parts-1779349794050",
+        "categoryId": "cmpdh6vis001ku0v433whvryq"
+      },
+      "vendor": {
+        "id": "cmpayf6g10001jgv42es4xgpc",
+        "storeName": "avval enterprises",
+        "description": "manufacturing and trading home and personal care items"
+      }
+    },
+    {
+      "id": "cmpfbsiu40032dcv448ic60ux",
+      "name": "Drum & Tub ",
+      "slug": "drum-tub-1779357967706",
+      "description": "Washing machine tub",
+      "price": 1200,
+      "sku": "101910101016",
+      "images": [
+        "https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?utm_source=chatgpt.com"
+      ],
+      "inventory": 10,
+      "vendorId": "cmpayf6g10001jgv42es4xgpc",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6",
+      "subcategoryId": "cmpf7rg1x001idcv4fco2joiy",
+      "createdAt": "2026-05-21T10:06:07.708+00:00",
+      "updatedAt": "2026-05-21T10:06:07.708+00:00",
+      "categoryName": "Washing Machine Parts",
+      "categorySlug": "washing-machine-parts",
+      "subcategoryName": "Drum & Tub",
+      "subcategorySlug": "drum-tub-1779351198980",
+      "vendorStoreName": "avval enterprises",
+      "vendorDescription": "manufacturing and trading home and personal care items",
+      "category": {
+        "id": "cmpdh6vnf001ru0v47kl0zbs6",
+        "name": "Washing Machine Parts",
+        "slug": "washing-machine-parts"
+      },
+      "subcategory": {
+        "id": "cmpf7rg1x001idcv4fco2joiy",
+        "name": "Drum & Tub",
+        "slug": "drum-tub-1779351198980",
+        "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+      },
+      "vendor": {
+        "id": "cmpayf6g10001jgv42es4xgpc",
+        "storeName": "avval enterprises",
+        "description": "manufacturing and trading home and personal care items"
+      }
+    },
+    {
+      "id": "cmpfbpbt80031dcv42r2a00zl",
+      "name": "Washing Machine Motor",
+      "slug": "washing-machine-motor-1779357818451",
+      "description": "Semi Automatic Washing machine Motor",
+      "price": 3200,
+      "sku": "101910101015",
+      "images": [
+        " https://images.unsplash.com/photo-1562408590-e32931084e23?utm_source=chatgpt.com"
+      ],
+      "inventory": 10,
+      "vendorId": "cmpayf6g10001jgv42es4xgpc",
+      "categoryId": "cmpdh6vnf001ru0v47kl0zbs6",
+      "subcategoryId": "cmpf7r6u8001hdcv4nu3qkuci",
+      "createdAt": "2026-05-21T10:03:38.637+00:00",
+      "updatedAt": "2026-05-21T10:03:38.637+00:00",
+      "categoryName": "Washing Machine Parts",
+      "categorySlug": "washing-machine-parts",
+      "subcategoryName": "Motor",
+      "subcategorySlug": "motor-1779351187038",
+      "vendorStoreName": "avval enterprises",
+      "vendorDescription": "manufacturing and trading home and personal care items",
+      "category": {
+        "id": "cmpdh6vnf001ru0v47kl0zbs6",
+        "name": "Washing Machine Parts",
+        "slug": "washing-machine-parts"
+      },
+      "subcategory": {
+        "id": "cmpf7r6u8001hdcv4nu3qkuci",
+        "name": "Motor",
+        "slug": "motor-1779351187038",
+        "categoryId": "cmpdh6vnf001ru0v47kl0zbs6"
+      },
+      "vendor": {
+        "id": "cmpayf6g10001jgv42es4xgpc",
+        "storeName": "avval enterprises",
+        "description": "manufacturing and trading home and personal care items"
+      }
+    },
+    {
+      "id": "cmpezx57k000ynwv4xqq7l4dd",
+      "name": "Laptop",
+      "slug": "laptop-1779338027935",
+      "description": "New Laptop",
+      "price": 32000,
+      "sku": "101910101014",
+      "images": [
+        "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?utm_source=chatgpt.com"
+      ],
+      "inventory": 10,
+      "vendorId": "cmpayf6g10001jgv42es4xgpc",
+      "categoryId": "cmowb7cbq0001r8v4irm8ifem",
+      "subcategoryId": "cmpdh6v570018u0v47avklsnu",
+      "createdAt": "2026-05-21T04:33:47.936+00:00",
+      "updatedAt": "2026-05-21T04:33:47.936+00:00",
+      "categoryName": "Electronics",
+      "categorySlug": "electronics",
+      "subcategoryName": "Accessories",
+      "subcategorySlug": "electronics-accessories",
+      "vendorStoreName": "avval enterprises",
+      "vendorDescription": "manufacturing and trading home and personal care items",
+      "category": {
+        "id": "cmowb7cbq0001r8v4irm8ifem",
+        "name": "Electronics",
+        "slug": "electronics"
+      },
+      "subcategory": {
+        "id": "cmpdh6v570018u0v47avklsnu",
+        "name": "Accessories",
+        "slug": "electronics-accessories",
+        "categoryId": "cmowb7cbq0001r8v4irm8ifem"
+      },
+      "vendor": {
+        "id": "cmpayf6g10001jgv42es4xgpc",
+        "storeName": "avval enterprises",
+        "description": "manufacturing and trading home and personal care items"
+      }
+    },
+    {
+      "id": "cmpezuunp000xnwv4q4nhy96g",
+      "name": "Shoes",
+      "slug": "shoes-1779337920947",
+      "description": "Mens Shoes",
+      "price": 2599,
+      "sku": "101910101013",
+      "images": [
+        "https://images.unsplash.com/photo-1542291026-7eec264c27ff?utm_source=chatgpt.com"
+      ],
+      "inventory": 100,
+      "vendorId": "cmpayf6g10001jgv42es4xgpc",
+      "categoryId": "cmpdh6uf8000bu0v4mfc7njfw",
+      "subcategoryId": "cmpdh6uia000fu0v4nu3wka4w",
+      "createdAt": "2026-05-21T04:32:00.949+00:00",
+      "updatedAt": "2026-05-21T04:32:00.949+00:00",
+      "categoryName": "Men Fashion",
+      "categorySlug": "men-fashion",
+      "subcategoryName": "Footwear",
+      "subcategorySlug": "men-fashion-footwear",
+      "vendorStoreName": "avval enterprises",
+      "vendorDescription": "manufacturing and trading home and personal care items",
+      "category": {
+        "id": "cmpdh6uf8000bu0v4mfc7njfw",
+        "name": "Men Fashion",
+        "slug": "men-fashion"
+      },
+      "subcategory": {
+        "id": "cmpdh6uia000fu0v4nu3wka4w",
+        "name": "Footwear",
+        "slug": "men-fashion-footwear",
+        "categoryId": "cmpdh6uf8000bu0v4mfc7njfw"
+      },
+      "vendor": {
+        "id": "cmpayf6g10001jgv42es4xgpc",
+        "storeName": "avval enterprises",
+        "description": "manufacturing and trading home and personal care items"
+      }
+    },
+    {
+      "id": "cmpezry3q000wnwv4comglq4u",
+      "name": "Smartphone",
+      "slug": "smartphone-1779337785445",
+      "description": "Android Phone",
+      "price": 15000,
+      "sku": "101910101012",
+      "images": [
+        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?utm_source=chatgpt.com"
+      ],
+      "inventory": 100,
+      "vendorId": "cmpayf6g10001jgv42es4xgpc",
+      "categoryId": "cmowb7cbq0001r8v4irm8ifem",
+      "subcategoryId": "cmpdh6v1z0015u0v4ng3ujec9",
+      "createdAt": "2026-05-21T04:29:45.446+00:00",
+      "updatedAt": "2026-05-21T04:29:45.446+00:00",
+      "categoryName": "Electronics",
+      "categorySlug": "electronics",
+      "subcategoryName": "Mobiles",
+      "subcategorySlug": "electronics-mobiles",
+      "vendorStoreName": "avval enterprises",
+      "vendorDescription": "manufacturing and trading home and personal care items",
+      "category": {
+        "id": "cmowb7cbq0001r8v4irm8ifem",
+        "name": "Electronics",
+        "slug": "electronics"
+      },
+      "subcategory": {
+        "id": "cmpdh6v1z0015u0v4ng3ujec9",
+        "name": "Mobiles",
+        "slug": "electronics-mobiles",
+        "categoryId": "cmowb7cbq0001r8v4irm8ifem"
+      },
+      "vendor": {
+        "id": "cmpayf6g10001jgv42es4xgpc",
+        "storeName": "avval enterprises",
+        "description": "manufacturing and trading home and personal care items"
+      }
+    },
+    {
+      "id": "cmpc309zq0003z4v4qh3o81l7",
+      "name": "shampoo",
+      "slug": "shampoo-1779161814417",
+      "description": "natural hair shampoo",
+      "price": 599,
+      "sku": "101910101011",
+      "images": [
+        "https://images.unsplash.com/photo-1625772452859-1c03d5bf1137?utm_source=chatgpt.com"
+      ],
+      "inventory": 100,
+      "vendorId": "cmpayf6g10001jgv42es4xgpc",
+      "categoryId": "cmowb7c9m0000r8v4awk86h85",
+      "subcategoryId": null,
+      "createdAt": "2026-05-19T03:36:54.422+00:00",
+      "updatedAt": "2026-05-19T03:36:54.422+00:00",
+      "categoryName": "Fashion",
+      "categorySlug": "fashion",
+      "subcategoryName": null,
+      "subcategorySlug": null,
+      "vendorStoreName": "avval enterprises",
+      "vendorDescription": "manufacturing and trading home and personal care items",
+      "category": {
+        "id": "cmowb7c9m0000r8v4awk86h85",
+        "name": "Fashion",
+        "slug": "fashion"
+      },
+      "subcategory": null,
+      "vendor": {
+        "id": "cmpayf6g10001jgv42es4xgpc",
+        "storeName": "avval enterprises",
+        "description": "manufacturing and trading home and personal care items"
+      }
+    },
+    {
+      "id": "cmowb7cw40007r8v40leklwh1",
+      "name": "Bluetooth Earbuds",
+      "slug": "bluetooth-earbuds",
+      "description": "Wireless earbuds with excellent sound quality and noise cancellation.",
+      "price": 1299,
+      "sku": null,
+      "images": [
+        "https://via.placeholder.com/600x600/9333EA/FFFFFF?text=Earbuds"
+      ],
+      "inventory": 25,
+      "vendorId": "cmowb7cnx0003r8v4przegi69",
+      "categoryId": "cmowb7cbq0001r8v4irm8ifem",
+      "subcategoryId": null,
+      "createdAt": "2026-05-08T02:42:02.884+00:00",
+      "updatedAt": "2026-05-08T02:42:02.884+00:00",
+      "categoryName": "Electronics",
+      "categorySlug": "electronics",
+      "subcategoryName": null,
+      "subcategorySlug": null,
+      "vendorStoreName": "Sample Store",
+      "vendorDescription": "A sample vendor store for testing",
+      "category": {
+        "id": "cmowb7cbq0001r8v4irm8ifem",
+        "name": "Electronics",
+        "slug": "electronics"
+      },
+      "subcategory": null,
+      "vendor": {
+        "id": "cmowb7cnx0003r8v4przegi69",
+        "storeName": "Sample Store",
+        "description": "A sample vendor store for testing"
+      }
+    },
+    {
+      "id": "cmowb7cua0006r8v4rgn5fo1q",
+      "name": "Smart Watch",
+      "slug": "smart-watch",
+      "description": "Feature-packed smart watch with health tracking and notifications.",
+      "price": 1499,
+      "sku": null,
+      "images": [
+        "https://via.placeholder.com/600x600/0F766E/FFFFFF?text=Watch"
+      ],
+      "inventory": 20,
+      "vendorId": "cmowb7cnx0003r8v4przegi69",
+      "categoryId": "cmowb7cbq0001r8v4irm8ifem",
+      "subcategoryId": null,
+      "createdAt": "2026-05-08T02:42:02.818+00:00",
+      "updatedAt": "2026-05-08T02:42:02.818+00:00",
+      "categoryName": "Electronics",
+      "categorySlug": "electronics",
+      "subcategoryName": null,
+      "subcategorySlug": null,
+      "vendorStoreName": "Sample Store",
+      "vendorDescription": "A sample vendor store for testing",
+      "category": {
+        "id": "cmowb7cbq0001r8v4irm8ifem",
+        "name": "Electronics",
+        "slug": "electronics"
+      },
+      "subcategory": null,
+      "vendor": {
+        "id": "cmowb7cnx0003r8v4przegi69",
+        "storeName": "Sample Store",
+        "description": "A sample vendor store for testing"
+      }
+    },
+    {
+      "id": "cmowb7csg0005r8v45bziuvhd",
+      "name": "Blue Jeans",
+      "slug": "blue-jeans",
+      "description": "Classic blue jeans with a perfect fit for all occasions.",
+      "price": 1299,
+      "sku": null,
+      "images": [
+        "https://via.placeholder.com/600x600/1E40AF/FFFFFF?text=Jeans"
+      ],
+      "inventory": 30,
+      "vendorId": "cmowb7cnx0003r8v4przegi69",
+      "categoryId": "cmowb7c9m0000r8v4awk86h85",
+      "subcategoryId": null,
+      "createdAt": "2026-05-08T02:42:02.752+00:00",
+      "updatedAt": "2026-05-08T02:42:02.752+00:00",
+      "categoryName": "Fashion",
+      "categorySlug": "fashion",
+      "subcategoryName": null,
+      "subcategorySlug": null,
+      "vendorStoreName": "Sample Store",
+      "vendorDescription": "A sample vendor store for testing",
+      "category": {
+        "id": "cmowb7c9m0000r8v4awk86h85",
+        "name": "Fashion",
+        "slug": "fashion"
+      },
+      "subcategory": null,
+      "vendor": {
+        "id": "cmowb7cnx0003r8v4przegi69",
+        "storeName": "Sample Store",
+        "description": "A sample vendor store for testing"
+      }
+    },
+    {
+      "id": "cmowb7cqr0004r8v4nszjbhuw",
+      "name": "Stylish T-Shirt",
+      "slug": "stylish-t-shirt",
+      "description": "A comfortable and stylish t-shirt perfect for everyday wear.",
+      "price": 499,
+      "sku": null,
+      "images": [
+        "https://via.placeholder.com/600x600/FFB6C1/000000?text=T-Shirt"
+      ],
+      "inventory": 50,
+      "vendorId": "cmowb7cnx0003r8v4przegi69",
+      "categoryId": "cmowb7c9m0000r8v4awk86h85",
+      "subcategoryId": null,
+      "createdAt": "2026-05-08T02:42:02.691+00:00",
+      "updatedAt": "2026-05-08T02:42:02.691+00:00",
+      "categoryName": "Fashion",
+      "categorySlug": "fashion",
+      "subcategoryName": null,
+      "subcategorySlug": null,
+      "vendorStoreName": "Sample Store",
+      "vendorDescription": "A sample vendor store for testing",
+      "category": {
+        "id": "cmowb7c9m0000r8v4awk86h85",
+        "name": "Fashion",
+        "slug": "fashion"
+      },
+      "subcategory": null,
+      "vendor": {
+        "id": "cmowb7cnx0003r8v4przegi69",
+        "storeName": "Sample Store",
+        "description": "A sample vendor store for testing"
+      }
+    }
+  ]
+}

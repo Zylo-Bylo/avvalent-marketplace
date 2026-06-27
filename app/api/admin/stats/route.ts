@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import {
+  getLocalUserRole,
+  listLocalVendorsForAdmin,
+  shouldUseLocalSqliteAuth,
+} from '@/lib/local-sqlite-auth';
 
 export async function GET() {
   try {
@@ -17,7 +21,40 @@ export async function GET() {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Check if user is admin
+    if (shouldUseLocalSqliteAuth()) {
+      if (getLocalUserRole(String(data.userId)) !== 'ADMIN') {
+        return NextResponse.json({ error: 'Unauthorized - admin only' }, { status: 403 });
+      }
+
+      const vendors = listLocalVendorsForAdmin();
+      const totalProducts = vendors.reduce(
+        (sum, vendor) => sum + Number(vendor._count?.products || 0),
+        0
+      );
+      const totalOrders = vendors.reduce(
+        (sum, vendor) => sum + Number(vendor._count?.orders || 0),
+        0
+      );
+
+      return NextResponse.json({
+        stats: {
+          totalUsers: vendors.length + 1,
+          totalVendors: vendors.length,
+          pendingVendors: vendors.filter((vendor) => vendor.status === 'PENDING').length,
+          approvedVendors: vendors.filter((vendor) => vendor.status === 'APPROVED').length,
+          rejectedVendors: vendors.filter((vendor) => vendor.status === 'REJECTED').length,
+          inactiveVendors: vendors.filter((vendor) => vendor.status === 'INACTIVE').length,
+          pendingKyc: vendors.filter((vendor) =>
+            ['NOT_SUBMITTED', 'SUBMITTED'].includes(String(vendor.kycStatus))
+          ).length,
+          totalProducts,
+          totalOrders,
+          totalRevenue: 0,
+        },
+      });
+    }
+
+    const { prisma } = await import('@/lib/prisma');
     const user = await prisma.user.findUnique({
       where: { id: String(data.userId) },
     });

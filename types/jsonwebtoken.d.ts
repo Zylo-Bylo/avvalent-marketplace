@@ -4,12 +4,12 @@ declare module 'jsonwebtoken' {
   }
 
   export interface JwtPayload {
-    [key: string]: any;
+    [key: string]: unknown;
     exp?: number;
     iat?: number;
   }
 
-  export interface VerifyOptions {}
+  export type VerifyOptions = Record<string, unknown>;
 
   export function sign(payload: string | object | Buffer, secretOrPrivateKey: string, options?: SignOptions): string;
   export function verify(token: string, secretOrPublicKey: string, options?: VerifyOptions): JwtPayload | string;

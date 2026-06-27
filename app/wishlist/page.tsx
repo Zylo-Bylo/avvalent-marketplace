@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useWishlistStore } from "@/store/wishlist-store";
 
@@ -58,12 +59,14 @@ export default function WishlistPage() {
                 className="bg-white rounded-xl shadow p-4"
               >
 
-                <div className="h-40 overflow-hidden rounded mb-3">
+                <div className="relative h-40 overflow-hidden rounded mb-3">
 
-                  <img
-                    src={product.image}
+                  <Image
+                    src={product.image || "https://placehold.co/320x320/png?text=Product"}
                     alt={product.name}
-                    className="w-full h-full object-cover"
+                    fill
+                    sizes="(min-width: 768px) 25vw, 50vw"
+                    className="object-cover"
                   />
 
                 </div>

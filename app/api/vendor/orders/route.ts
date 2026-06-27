@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getOrderTrustSnapshot, ensureTrustTables } from '@/lib/trust';
 
 async function getApprovedVendor(userId: string) {
   const vendor = await prisma.vendor.findUnique({
@@ -47,6 +48,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
+    await ensureTrustTables();
+
     const orders = await prisma.order.findMany({
       where: { vendorId: result.vendor.id },
       include: {
@@ -76,8 +79,15 @@ export async function GET(request: NextRequest) {
 
     const total = await prisma.order.count({ where: { vendorId: result.vendor.id } });
 
+    const ordersWithTrust = await Promise.all(
+      orders.map(async (order) => ({
+        ...order,
+        trust: await getOrderTrustSnapshot(order.id),
+      })),
+    );
+
     return NextResponse.json({
-      orders,
+      orders: ordersWithTrust,
       total,
       hasMore: offset + limit < total,
     });

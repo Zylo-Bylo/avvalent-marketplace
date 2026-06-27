@@ -6,21 +6,9 @@ import {
   getFallbackProductById,
   shouldUseFallbackCatalog,
 } from '@/lib/fallback-catalog';
-import { adjustProductStock, ensureInventoryTables, ensureProductInventory } from '@/lib/inventory';
+import { adjustProductStock, ensureProductInventory } from '@/lib/inventory';
 import { calculateMarketplacePricing } from '@/lib/pricing';
-
-let inventorySetupPromise: Promise<void> | null = null;
-
-function ensureInventoryReady() {
-  if (!inventorySetupPromise) {
-    inventorySetupPromise = ensureInventoryTables().catch((error) => {
-      inventorySetupPromise = null;
-      throw error;
-    });
-  }
-
-  return inventorySetupPromise;
-}
+import type { ProductVariantRow } from '@/lib/variants';
 
 async function getProductManager() {
   const cookieStore = await cookies();
@@ -65,11 +53,20 @@ export async function GET(
   try {
     const { id } = await params;
 
-    await ensureInventoryReady();
-
     const product = await prisma.product.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        price: true,
+        mrp: true,
+        discountPercent: true,
+        discountAmount: true,
+        shippingCharge: true,
+        sku: true,
+        inventory: true,
+        images: true,
         category: {
           select: {
             id: true,
@@ -102,7 +99,23 @@ export async function GET(
             reviews: true,
           },
         },
-        inventories: true,
+        inventories: {
+          take: 1,
+          select: {
+            currentStock: true,
+            reservedStock: true,
+            availableStock: true,
+            lowStockThreshold: true,
+            criticalStockThreshold: true,
+            minimumOrderQuantity: true,
+            maximumOrderQuantity: true,
+            restockDate: true,
+            stockStatus: true,
+            allowBackorder: true,
+            isPreOrder: true,
+            bulkPricingTiers: true,
+          },
+        },
       },
     });
 
@@ -110,7 +123,41 @@ export async function GET(
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ product });
+    const variants = await prisma.productVariant.findMany({
+      where: { productId: product.id },
+      orderBy: [{ numericSize: 'asc' }, { sizeLabel: 'asc' }, { color: 'asc' }],
+      select: {
+        id: true,
+        productId: true,
+        sizeLabel: true,
+        numericSize: true,
+        color: true,
+        sku: true,
+        stockQuantity: true,
+        price: true,
+        vendorPrice: true,
+        mrp: true,
+        imageUrl: true,
+        status: true,
+        lowStockThreshold: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }) as ProductVariantRow[];
+
+    return NextResponse.json(
+      {
+        product: {
+          ...product,
+          variants,
+        },
+      },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+      },
+    );
   } catch (error) {
     console.error('Product fetch error:', error);
     if (shouldUseFallbackCatalog(error)) {

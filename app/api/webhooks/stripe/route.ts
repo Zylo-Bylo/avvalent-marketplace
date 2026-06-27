@@ -1,8 +1,70 @@
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
+import { sendOrderConfirmationEmail } from '@/lib/email';
 import { prisma } from '@/lib/prisma';
+import { sendOrderWhatsAppNotification } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
+
+function getBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'https://zylo-buylo.com'
+  ).replace(/\/$/, '');
+}
+
+async function notifyOrders(orderIds: string[]) {
+  const orders = await prisma.order.findMany({
+    where: { id: { in: orderIds } },
+    include: {
+      user: { select: { name: true, email: true } },
+      items: {
+        include: {
+          product: { select: { name: true } },
+        },
+      },
+    },
+  });
+
+  await Promise.all(
+    orders.map(async (order) => {
+      const items = order.items.map((item) => ({
+        name: item.product?.name || item.productId,
+        quantity: item.quantity,
+        price: item.price,
+      }));
+
+      try {
+        await sendOrderConfirmationEmail({
+          to: order.user.email,
+          customerName: order.user.name,
+          orderId: order.id,
+          totalAmount: order.totalAmount,
+          paymentMethod: order.paymentMethod,
+          status: order.status,
+          orderUrl: `${getBaseUrl()}/order/${order.id}`,
+          items,
+        });
+      } catch (error) {
+        console.error('Stripe webhook order email failed:', error);
+      }
+
+      if (order.shippingPhone) {
+        try {
+          await sendOrderWhatsAppNotification({
+            to: order.shippingPhone,
+            customerName: order.user.name,
+            orderId: order.id,
+            totalAmount: order.totalAmount,
+          });
+        } catch (error) {
+          console.error('Stripe webhook WhatsApp failed:', error);
+        }
+      }
+    }),
+  );
+}
 
 export async function POST(request: Request) {
   const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -35,10 +97,14 @@ export async function POST(request: Request) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.orderId;
+    const orderIds = String(session.metadata?.orderIds || orderId || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
     const paymentStatus = session.payment_status;
     const paymentIntent = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
 
-    if (!orderId) {
+    if (!orderIds.length) {
       return NextResponse.json({ error: 'Order metadata missing' }, { status: 400 });
     }
 
@@ -48,14 +114,19 @@ export async function POST(request: Request) {
 
     const updatedOrder = await prisma.order.updateMany({
       where: {
-        id: orderId,
+        id: { in: orderIds },
         status: 'PENDING',
       },
       data: {
         status: 'PAID',
         paymentId: paymentIntent ?? undefined,
+        statusNote: 'Payment received. Vendor can now prepare shipment.',
       },
     });
+
+    if (updatedOrder.count > 0) {
+      await notifyOrders(orderIds);
+    }
 
     return NextResponse.json({ status: 'success', updated: updatedOrder.count }, { status: 200 });
   }

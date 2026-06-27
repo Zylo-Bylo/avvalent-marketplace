@@ -30,7 +30,11 @@ function slugify(value: string) {
 export async function GET() {
   try {
     if (cachedCategories && cachedCategories.expiresAt > Date.now()) {
-      return NextResponse.json(cachedCategories.payload);
+      return NextResponse.json(cachedCategories.payload, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      });
     }
 
     const categories = await prisma.category.findMany({
@@ -58,7 +62,7 @@ export async function GET() {
 
     return NextResponse.json(cachedCategories.payload, {
       headers: {
-        'Cache-Control': 'private, max-age=60',
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
       },
     });
   } catch (error) {

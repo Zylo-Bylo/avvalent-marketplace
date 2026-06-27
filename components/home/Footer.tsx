@@ -22,6 +22,9 @@ const footerSections = [
     links: [
       { href: '/about', label: 'About Us' },
       { href: '/terms', label: 'Terms' },
+      { href: '/cod-policy', label: 'COD Policy' },
+      { href: '/return-policy', label: 'Return Policy' },
+      { href: '/vendor-agreement', label: 'Vendor Agreement' },
       { href: '/privacy', label: 'Privacy' },
     ],
   },
@@ -68,6 +71,15 @@ export default function Footer() {
             </Link>
             <Link href="/terms" className="transition hover:text-white">
               Terms
+            </Link>
+            <Link href="/cod-policy" className="transition hover:text-white">
+              COD Policy
+            </Link>
+            <Link href="/return-policy" className="transition hover:text-white">
+              Return Policy
+            </Link>
+            <Link href="/vendor-agreement" className="transition hover:text-white">
+              Vendor Agreement
             </Link>
             <Link href="/contact" className="transition hover:text-white">
               Contact
