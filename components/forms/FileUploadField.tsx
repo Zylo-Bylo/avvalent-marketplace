@@ -27,33 +27,82 @@ export default function FileUploadField({
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
 
+  async function readError(response: Response, fallback: string) {
+    const text = await response.text().catch(() => "");
+
+    if (!text) {
+      return fallback;
+    }
+
+    try {
+      const data = JSON.parse(text) as { error?: string };
+      return data.error || fallback;
+    } catch {
+      return text.slice(0, 180) || fallback;
+    }
+  }
+
   async function upload(file: File) {
     setUploading(true);
     setMessage("");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("purpose", purpose);
-
-      const response = await fetch("/api/uploads", {
+      const signResponse = await fetch("/api/uploads/sign", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          mimeType: file.type,
+          size: file.size,
+          purpose,
+        }),
       });
-      const data = await response.json();
 
-      if (!response.ok) {
-        setMessage(data.error || "Upload failed.");
+      if (!signResponse.ok) {
+        setMessage(await readError(signResponse, "Upload sign failed."));
         return;
       }
 
-      onUploaded(data.url);
+      const signedUpload = (await signResponse.json()) as {
+        signedUrl?: string;
+        url?: string;
+      };
+
+      if (!signedUpload.signedUrl || !signedUpload.url) {
+        setMessage("Upload sign response is invalid.");
+        return;
+      }
+
+      const uploadData = new FormData();
+      uploadData.append("cacheControl", "3600");
+      uploadData.append("", file);
+
+      const uploadResponse = await fetch(signedUpload.signedUrl, {
+        method: "PUT",
+        headers: {
+          "x-upsert": "false",
+        },
+        body: uploadData,
+      });
+
+      if (!uploadResponse.ok) {
+        setMessage(await readError(uploadResponse, "Upload failed."));
+        return;
+      }
+
+      onUploaded(signedUpload.url);
       setMessage("Uploaded");
       if (inputRef.current) {
         inputRef.current.value = "";
       }
-    } catch {
-      setMessage("Upload service is not responding.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Upload failed: ${error.message}`
+          : "Upload service is not responding.",
+      );
     } finally {
       setUploading(false);
     }
