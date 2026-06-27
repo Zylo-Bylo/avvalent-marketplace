@@ -20,39 +20,141 @@ type Category = {
   subcategories?: Subcategory[];
 };
 
+type FormState = {
+  name: string;
+  email: string;
+  password: string;
+  storeName: string;
+  description: string;
+  mobile: string;
+  businessCategory: string;
+  categoryId: string;
+  subcategoryId: string;
+  businessAddress: string;
+  gstNumber: string;
+  panNumber: string;
+  aadhaarNumber: string;
+  bankDetails: string;
+  upiId: string;
+  panCardUrl: string;
+  aadhaarUrl: string;
+  gstCertificateUrl: string;
+  bankProofUrl: string;
+  vendorAgreementAccepted: boolean;
+};
+
+type DocumentState = {
+  panCardFile: File | null;
+  aadhaarFile: File | null;
+  gstCertificateFile: File | null;
+  bankProofFile: File | null;
+};
+
+const steps = [
+  "Mobile OTP",
+  "Account & Store",
+  "GST / KYC",
+  "Bank Details",
+  "Documents & Agreement",
+];
+
+const initialForm: FormState = {
+  name: "",
+  email: "",
+  password: "",
+  storeName: "",
+  description: "",
+  mobile: "",
+  businessCategory: "",
+  categoryId: "",
+  subcategoryId: "",
+  businessAddress: "",
+  gstNumber: "",
+  panNumber: "",
+  aadhaarNumber: "",
+  bankDetails: "",
+  upiId: "",
+  panCardUrl: "",
+  aadhaarUrl: "",
+  gstCertificateUrl: "",
+  bankProofUrl: "",
+  vendorAgreementAccepted: false,
+};
+
+const initialDocuments: DocumentState = {
+  panCardFile: null,
+  aadhaarFile: null,
+  gstCertificateFile: null,
+  bankProofFile: null,
+};
+
+function cleanMobile(value: string) {
+  return value.replace(/\D/g, "").slice(0, 10);
+}
+
+function isValidMobile(value: string) {
+  return cleanMobile(value).length === 10;
+}
+
+function DocumentPicker({
+  label,
+  helper,
+  file,
+  required,
+  onChange,
+}: {
+  label: string;
+  helper: string;
+  file: File | null;
+  required?: boolean;
+  onChange: (file: File | null) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-bold text-slate-950">
+            {label} {required && <span className="text-pink-600">*</span>}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p>
+          {file && (
+            <p className="mt-2 rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-green-700">
+              Selected: {file.name}
+            </p>
+          )}
+        </div>
+        <label className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-slate-950 px-4 py-2 text-sm font-bold text-white">
+          Choose file
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={(event) => onChange(event.target.files?.[0] || null)}
+            className="sr-only"
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 export default function VendorRegisterPage() {
   const router = useRouter();
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    storeName: "",
-    description: "",
-    mobile: "",
-    businessCategory: "",
-    categoryId: "",
-    subcategoryId: "",
-    businessAddress: "",
-    gstNumber: "",
-    panNumber: "",
-    aadhaarNumber: "",
-    bankDetails: "",
-    upiId: "",
-    panCardUrl: "",
-    aadhaarUrl: "",
-    gstCertificateUrl: "",
-    bankProofUrl: "",
-    vendorAgreementAccepted: false,
-  });
+  const [form, setForm] = useState<FormState>(initialForm);
+  const [documents, setDocuments] = useState<DocumentState>(initialDocuments);
+  const [sentOtp, setSentOtp] = useState("");
+  const [otpInput, setOtpInput] = useState("");
+  const [mobileVerified, setMobileVerified] = useState(false);
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.id === form.categoryId),
-    [categories, form.categoryId]
+    [categories, form.categoryId],
   );
   const subcategoryOptions = selectedCategory?.subcategories || [];
 
@@ -72,7 +174,7 @@ export default function VendorRegisterPage() {
         }
       } catch {
         if (isActive) {
-          setError("Could not load business categories. You can try again in a moment.");
+          setError("Could not load business categories. Please refresh and try again.");
         }
       } finally {
         if (isActive) {
@@ -88,82 +190,194 @@ export default function VendorRegisterPage() {
     };
   }, []);
 
-  function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) {
-    const target = e.target;
-    const { name, value } = target;
-
-    setForm((currentForm) => {
-      if (name === "categoryId") {
-        const category = categories.find((item) => item.id === value);
-
-        return {
-          ...currentForm,
-          categoryId: value,
-          subcategoryId: "",
-          businessCategory: category?.name || "",
-        };
-      }
-
-      if (name === "subcategoryId") {
-        const subcategory = subcategoryOptions.find((item) => item.id === value);
-        const categoryName = selectedCategory?.name || currentForm.businessCategory;
-
-        return {
-          ...currentForm,
-          subcategoryId: value,
-          businessCategory:
-            subcategory && categoryName
-              ? `${categoryName} > ${subcategory.name}`
-              : categoryName,
-        };
-      }
-
-      return {
-        ...currentForm,
-        [name]:
-          target instanceof HTMLInputElement && target.type === "checkbox"
-            ? target.checked
-            : value,
-      };
-    });
+  function setField(name: keyof FormState, value: string | boolean) {
+    setForm((currentForm) => ({ ...currentForm, [name]: value }));
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
+  function handleChange(
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) {
+    const target = event.target;
+    const { name, value } = target;
 
-    if (!form.name || !form.email || !form.password || !form.storeName) {
-      setError("Please fill name, email, password and store name.");
+    if (name === "mobile") {
+      setMobileVerified(false);
+      setSentOtp("");
+      setOtpInput("");
+      setField("mobile", cleanMobile(value));
       return;
     }
 
-    if (!form.vendorAgreementAccepted) {
-      setError("Please accept the Zylo-Buylo vendor agreement before registration.");
+    if (name === "categoryId") {
+      const category = categories.find((item) => item.id === value);
+      setForm((currentForm) => ({
+        ...currentForm,
+        categoryId: value,
+        subcategoryId: "",
+        businessCategory: category?.name || "",
+      }));
       return;
+    }
+
+    if (name === "subcategoryId") {
+      const subcategory = subcategoryOptions.find((item) => item.id === value);
+      const categoryName = selectedCategory?.name || form.businessCategory;
+      setForm((currentForm) => ({
+        ...currentForm,
+        subcategoryId: value,
+        businessCategory:
+          subcategory && categoryName ? `${categoryName} > ${subcategory.name}` : categoryName,
+      }));
+      return;
+    }
+
+    setField(
+      name as keyof FormState,
+      target instanceof HTMLInputElement && target.type === "checkbox" ? target.checked : value,
+    );
+  }
+
+  function sendMobileOtp() {
+    setError("");
+    setNotice("");
+
+    if (!isValidMobile(form.mobile)) {
+      setError("Please enter a valid 10 digit mobile number.");
+      return;
+    }
+
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    setSentOtp(otp);
+    setOtpInput("");
+    setMobileVerified(false);
+    setNotice(
+      `OTP sent to ${form.mobile}. Setup mode OTP: ${otp}. Connect SMS/WhatsApp gateway later for real delivery.`,
+    );
+  }
+
+  function verifyMobileOtp() {
+    setError("");
+
+    if (!sentOtp) {
+      setError("Please send OTP first.");
+      return;
+    }
+
+    if (otpInput.trim() !== sentOtp) {
+      setError("Invalid mobile OTP.");
+      return;
+    }
+
+    setMobileVerified(true);
+    setNotice("Mobile number verified. Continue vendor registration.");
+  }
+
+  function validateStep(targetStep = step) {
+    if (targetStep === 0 && !mobileVerified) {
+      return "Mobile OTP verification is required.";
+    }
+
+    if (
+      targetStep === 1 &&
+      (!form.name || !form.email || !form.password || !form.storeName || !form.categoryId)
+    ) {
+      return "Please fill name, email, password, store name and business category.";
+    }
+
+    if (targetStep === 2 && (!form.businessAddress || !form.panNumber || !form.aadhaarNumber)) {
+      return "Business address, PAN and Aadhaar details are required.";
+    }
+
+    if (targetStep === 3 && !form.bankDetails) {
+      return "Bank details are required for vendor payouts.";
+    }
+
+    if (targetStep === 4) {
+      if (!documents.panCardFile && !form.panCardUrl) {
+        return "PAN card document upload is required.";
+      }
+
+      if (!documents.aadhaarFile && !form.aadhaarUrl) {
+        return "Aadhaar document upload is required.";
+      }
+
+      if (!documents.bankProofFile && !form.bankProofUrl) {
+        return "Bank proof upload is required.";
+      }
+
+      if (form.gstNumber && !documents.gstCertificateFile && !form.gstCertificateUrl) {
+        return "GST certificate upload is required when GST number is provided.";
+      }
+
+      if (!form.vendorAgreementAccepted) {
+        return "Please accept the Zylo-Buylo vendor agreement before registration.";
+      }
+    }
+
+    return "";
+  }
+
+  function goNext() {
+    const message = validateStep();
+    setError(message);
+    setNotice("");
+
+    if (message) {
+      return;
+    }
+
+    setStep((currentStep) => Math.min(currentStep + 1, steps.length - 1));
+  }
+
+  function goBack() {
+    setError("");
+    setNotice("");
+    setStep((currentStep) => Math.max(currentStep - 1, 0));
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+
+    for (let index = 0; index < steps.length; index += 1) {
+      const message = validateStep(index);
+      if (message) {
+        setStep(index);
+        setError(message);
+        return;
+      }
     }
 
     setLoading(true);
 
     try {
+      const payload = new FormData();
+      Object.entries(form).forEach(([key, value]) => {
+        payload.append(key, typeof value === "boolean" ? String(value) : value);
+      });
+      payload.append("mobileVerified", String(mobileVerified));
+
+      Object.entries(documents).forEach(([key, file]) => {
+        if (file) {
+          payload.append(key, file);
+        }
+      });
+
       const response = await fetch("/api/vendor/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: payload,
       });
 
       const text = await response.text();
       const data = text ? JSON.parse(text) : {};
 
       if (!response.ok) {
-        setError(data.error || "Vendor registration failed");
+        setError(data.error || "Vendor registration failed.");
         return;
       }
 
-      router.push(
-        `/vendor/approval-pending?email=${encodeURIComponent(form.email)}`
-      );
+      router.push(`/vendor/approval-pending?email=${encodeURIComponent(form.email)}`);
       router.refresh();
     } catch {
       setError("Vendor registration service is not responding. Restart server and try again.");
@@ -173,267 +387,444 @@ export default function VendorRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-slate-100">
       <Navbar />
 
-      <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="rounded-2xl bg-white p-6 shadow">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Register as Vendor
-          </h1>
-          <p className="mt-2 text-gray-600">
-            Create your vendor account and go directly to your dashboard to add
-            products.
-          </p>
-
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <input
-              type="text"
-              name="name"
-              placeholder="Your Name"
-              value={form.name}
-              onChange={handleChange}
-              className="w-full rounded-xl border p-3"
-              required
-            />
-
-            <input
-              type="email"
-              name="email"
-              placeholder="Email"
-              value={form.email}
-              onChange={handleChange}
-              className="w-full rounded-xl border p-3"
-              required
-            />
-
-            <div className="flex rounded-xl border bg-white">
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                placeholder="Password"
-                value={form.password}
-                onChange={handleChange}
-                className="w-full rounded-xl p-3 outline-none"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((visible) => !visible)}
-                className="px-3 text-sm font-semibold text-pink-600"
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-            <p className="text-xs text-gray-500">
-              Use 8+ characters with uppercase, lowercase, number and special character.
-            </p>
-
-            <input
-              type="text"
-              name="storeName"
-              placeholder="Store Name"
-              value={form.storeName}
-              onChange={handleChange}
-              className="w-full rounded-xl border p-3"
-              required
-            />
-
-            <textarea
-              name="description"
-              placeholder="Store Description"
-              value={form.description}
-              onChange={handleChange}
-              className="h-28 w-full rounded-xl border p-3"
-            />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <input
-                name="mobile"
-                placeholder="Mobile number"
-                value={form.mobile}
-                onChange={handleChange}
-                className="w-full rounded-xl border p-3"
-              />
-              <select
-                name="categoryId"
-                value={form.categoryId}
-                onChange={handleChange}
-                disabled={categoriesLoading}
-                className="w-full rounded-xl border p-3"
-              >
-                <option value="">
-                  {categoriesLoading ? "Loading categories..." : "Select business category"}
-                </option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                name="subcategoryId"
-                value={form.subcategoryId}
-                onChange={handleChange}
-                disabled={!form.categoryId || subcategoryOptions.length === 0}
-                className="w-full rounded-xl border p-3 disabled:bg-gray-100 disabled:text-gray-500"
-              >
-                <option value="">
-                  {!form.categoryId
-                    ? "Select category first"
-                    : subcategoryOptions.length
-                      ? "Select subcategory"
-                      : "No subcategories"}
-                </option>
-                {subcategoryOptions.map((subcategory) => (
-                  <option key={subcategory.id} value={subcategory.id}>
-                    {subcategory.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                name="gstNumber"
-                placeholder="GST number"
-                value={form.gstNumber}
-                onChange={handleChange}
-                className="w-full rounded-xl border p-3"
-              />
-              <input
-                name="panNumber"
-                placeholder="PAN number"
-                value={form.panNumber}
-                onChange={handleChange}
-                className="w-full rounded-xl border p-3"
-              />
-              <input
-                name="aadhaarNumber"
-                placeholder="Aadhaar number"
-                value={form.aadhaarNumber}
-                onChange={handleChange}
-                className="w-full rounded-xl border p-3"
-              />
-              <input
-                name="upiId"
-                placeholder="UPI ID"
-                value={form.upiId}
-                onChange={handleChange}
-                className="w-full rounded-xl border p-3"
-              />
-            </div>
-
-            <textarea
-              name="businessAddress"
-              placeholder="Business address"
-              value={form.businessAddress}
-              onChange={handleChange}
-              className="h-24 w-full rounded-xl border p-3"
-            />
-
-            <textarea
-              name="bankDetails"
-              placeholder="Bank details"
-              value={form.bankDetails}
-              onChange={handleChange}
-              className="h-24 w-full rounded-xl border p-3"
-            />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <input
-                name="panCardUrl"
-                placeholder="PAN card document URL"
-                value={form.panCardUrl}
-                onChange={handleChange}
-                className="w-full rounded-xl border p-3"
-              />
-              <input
-                name="aadhaarUrl"
-                placeholder="Aadhaar document URL"
-                value={form.aadhaarUrl}
-                onChange={handleChange}
-                className="w-full rounded-xl border p-3"
-              />
-              <input
-                name="gstCertificateUrl"
-                placeholder="GST certificate URL"
-                value={form.gstCertificateUrl}
-                onChange={handleChange}
-                className="w-full rounded-xl border p-3"
-              />
-              <input
-                name="bankProofUrl"
-                placeholder="Bank proof URL"
-                value={form.bankProofUrl}
-                onChange={handleChange}
-                className="w-full rounded-xl border p-3"
-              />
-            </div>
-
-            <div className="rounded-2xl border border-pink-100 bg-pink-50 p-4 text-sm text-gray-800">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-bold text-gray-950">Zylo-Buylo Vendor Agreement</p>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-pink-700">
-                  Version {VENDOR_AGREEMENT_VERSION}
-                </span>
-              </div>
-              <p className="mt-2 text-xs leading-5 text-gray-700">
-                This is an electronic agreement. By accepting it, you confirm that your vendor
-                information, products, dispatch, COD payout and return handling will follow
-                Zylo-Buylo marketplace rules.
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        <div className="rounded-3xl border border-pink-100 bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-pink-600">
+                Vendor onboarding
               </p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 leading-6">
-                <li>Business, KYC, GST, PAN, bank and UPI details must be true and verifiable.</li>
-                <li>Product title, images, brand, SKU, size, color, stock, HSN, GST, MRP and price must be correct.</li>
-                <li>Restricted or certified products need valid compliance documents such as BIS, FSSAI, safety, warranty or brand authorization where applicable.</li>
-                <li>Packaging and labels must show required declarations such as MRP, net quantity, manufacturer/packer/importer, country of origin and expiry/best-before where applicable.</li>
-                <li>Fake brand, copied listing, duplicate SKU misuse, wrong category or wrong dispatch may lead to account action.</li>
-                <li>Courier name, tracking number, packed product proof and shipping label proof must be uploaded where required.</li>
-                <li>COD payout is released only after delivery, cash collection and reconciliation.</li>
-                <li>Only genuine return reasons are eligible after delivery OTP/open-box/customer verification.</li>
-                <li>Vendor is responsible for legal claims, customer loss, penalties, recalls or payout adjustments caused by vendor-side violations.</li>
-              </ul>
-              <label className="mt-3 flex gap-3 rounded-xl bg-white p-3 font-semibold">
-                <input
-                  type="checkbox"
-                  name="vendorAgreementAccepted"
-                  checked={form.vendorAgreementAccepted}
-                  onChange={handleChange}
-                  className="mt-1 h-4 w-4"
-                />
-                <span>
-                  I have read and accept the Zylo-Buylo Vendor Agreement, product quality rules,
-                  dispatch rules, COD payout rules, return rules and account policy rules.
-                  <Link href="/vendor-agreement" className="ml-1 text-pink-600 underline">
-                    Read full agreement
-                  </Link>
-                </span>
-              </label>
-            </div>
-
-            {error && (
-              <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
-                {error}
+              <h1 className="mt-2 text-3xl font-black text-slate-950">
+                Register as Vendor
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                Start with mobile OTP, then complete store, GST/KYC, bank and document verification.
+                Admin approval will happen after submitted documents are checked.
               </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-pink-600 p-3 font-semibold text-white disabled:opacity-60"
-            >
-              {loading ? "Registering..." : "Register Vendor"}
-            </button>
-          </form>
-
-          <p className="mt-5 text-center text-gray-600">
-            Already registered?
+            </div>
             <Link
               href="/login?role=vendor&next=/vendor/dashboard"
-              className="ml-2 font-semibold text-pink-600"
+              className="rounded-2xl border border-pink-200 px-5 py-3 text-sm font-bold text-pink-700"
             >
-              Vendor Login
+              Already registered? Vendor Login
             </Link>
-          </p>
+          </div>
+
+          <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
+            {steps.map((label, index) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => {
+                  if (index <= step) {
+                    setStep(index);
+                    setError("");
+                    setNotice("");
+                  }
+                }}
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold ${
+                  index === step
+                    ? "bg-pink-600 text-white"
+                    : index < step
+                      ? "bg-green-50 text-green-700"
+                      : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {index + 1}. {label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        <form onSubmit={handleSubmit} className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+            {step === 0 && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-950">Mobile OTP Verification</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Vendor registration starts from mobile verification. This mobile number will be
+                    used for order, payout and support communication.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                  <input
+                    name="mobile"
+                    inputMode="numeric"
+                    placeholder="Enter 10 digit mobile number"
+                    value={form.mobile}
+                    onChange={handleChange}
+                    className="w-full rounded-2xl border border-slate-300 p-4 font-semibold outline-none focus:border-pink-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={sendMobileOtp}
+                    className="rounded-2xl bg-slate-950 px-6 py-4 font-bold text-white"
+                  >
+                    Send OTP
+                  </button>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                  <input
+                    inputMode="numeric"
+                    placeholder="Enter OTP"
+                    value={otpInput}
+                    onChange={(event) => setOtpInput(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className="w-full rounded-2xl border border-slate-300 p-4 font-semibold outline-none focus:border-pink-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={verifyMobileOtp}
+                    className="rounded-2xl bg-pink-600 px-6 py-4 font-bold text-white"
+                  >
+                    Verify OTP
+                  </button>
+                </div>
+
+                {mobileVerified && (
+                  <div className="rounded-2xl bg-green-50 p-4 text-sm font-bold text-green-700">
+                    Mobile verified successfully.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {step === 1 && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-950">Account & Store Details</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    These details create the vendor login and store profile.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Owner name *"
+                    value={form.name}
+                    onChange={handleChange}
+                    className="rounded-2xl border border-slate-300 p-4 outline-none focus:border-pink-500"
+                  />
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="Email *"
+                    value={form.email}
+                    onChange={handleChange}
+                    className="rounded-2xl border border-slate-300 p-4 outline-none focus:border-pink-500"
+                  />
+                  <div className="flex rounded-2xl border border-slate-300 bg-white focus-within:border-pink-500">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      placeholder="Password *"
+                      value={form.password}
+                      onChange={handleChange}
+                      className="w-full rounded-2xl p-4 outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      className="px-4 text-sm font-bold text-pink-600"
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    name="storeName"
+                    placeholder="Store / company name *"
+                    value={form.storeName}
+                    onChange={handleChange}
+                    className="rounded-2xl border border-slate-300 p-4 outline-none focus:border-pink-500"
+                  />
+                  <select
+                    name="categoryId"
+                    value={form.categoryId}
+                    onChange={handleChange}
+                    disabled={categoriesLoading}
+                    className="rounded-2xl border border-slate-300 p-4 outline-none focus:border-pink-500 disabled:bg-slate-100"
+                  >
+                    <option value="">
+                      {categoriesLoading ? "Loading categories..." : "Select business category *"}
+                    </option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    name="subcategoryId"
+                    value={form.subcategoryId}
+                    onChange={handleChange}
+                    disabled={!form.categoryId || subcategoryOptions.length === 0}
+                    className="rounded-2xl border border-slate-300 p-4 outline-none focus:border-pink-500 disabled:bg-slate-100"
+                  >
+                    <option value="">
+                      {!form.categoryId
+                        ? "Select category first"
+                        : subcategoryOptions.length
+                          ? "Select subcategory"
+                          : "No subcategories"}
+                    </option>
+                    {subcategoryOptions.map((subcategory) => (
+                      <option key={subcategory.id} value={subcategory.id}>
+                        {subcategory.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <textarea
+                  name="description"
+                  placeholder="Store description"
+                  value={form.description}
+                  onChange={handleChange}
+                  className="h-28 w-full rounded-2xl border border-slate-300 p-4 outline-none focus:border-pink-500"
+                />
+
+                <p className="text-xs text-slate-500">
+                  Password should use 8+ characters with uppercase, lowercase, number and special character.
+                </p>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-950">GST & KYC Details</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Add legal identity and business address. GST is optional for non-GST sellers, but
+                    GST certificate is required if GST number is filled.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <input
+                    name="gstNumber"
+                    placeholder="GST number, if applicable"
+                    value={form.gstNumber}
+                    onChange={handleChange}
+                    className="rounded-2xl border border-slate-300 p-4 uppercase outline-none focus:border-pink-500"
+                  />
+                  <input
+                    name="panNumber"
+                    placeholder="PAN number *"
+                    value={form.panNumber}
+                    onChange={handleChange}
+                    className="rounded-2xl border border-slate-300 p-4 uppercase outline-none focus:border-pink-500"
+                  />
+                  <input
+                    name="aadhaarNumber"
+                    placeholder="Aadhaar number *"
+                    value={form.aadhaarNumber}
+                    onChange={handleChange}
+                    className="rounded-2xl border border-slate-300 p-4 outline-none focus:border-pink-500"
+                  />
+                  <input
+                    value={form.mobile}
+                    readOnly
+                    className="rounded-2xl border border-green-200 bg-green-50 p-4 font-bold text-green-800"
+                  />
+                </div>
+
+                <textarea
+                  name="businessAddress"
+                  placeholder="Full business address *"
+                  value={form.businessAddress}
+                  onChange={handleChange}
+                  className="h-28 w-full rounded-2xl border border-slate-300 p-4 outline-none focus:border-pink-500"
+                />
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-950">Bank & Payout Details</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    This account will be used for online order payouts and COD reconciliation.
+                  </p>
+                </div>
+
+                <textarea
+                  name="bankDetails"
+                  placeholder="Bank account details: account holder, bank name, account number, IFSC, branch *"
+                  value={form.bankDetails}
+                  onChange={handleChange}
+                  className="h-36 w-full rounded-2xl border border-slate-300 p-4 outline-none focus:border-pink-500"
+                />
+                <input
+                  name="upiId"
+                  placeholder="UPI ID optional"
+                  value={form.upiId}
+                  onChange={handleChange}
+                  className="w-full rounded-2xl border border-slate-300 p-4 outline-none focus:border-pink-500"
+                />
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-950">Documents & Agreement</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Upload document files directly. PAN, Aadhaar and bank proof are mandatory.
+                  </p>
+                </div>
+
+                <div className="grid gap-4">
+                  <DocumentPicker
+                    label="PAN card"
+                    helper="Upload clear PAN card image or PDF."
+                    file={documents.panCardFile}
+                    required
+                    onChange={(file) => setDocuments((current) => ({ ...current, panCardFile: file }))}
+                  />
+                  <DocumentPicker
+                    label="Aadhaar"
+                    helper="Upload front/back combined PDF or clear image."
+                    file={documents.aadhaarFile}
+                    required
+                    onChange={(file) => setDocuments((current) => ({ ...current, aadhaarFile: file }))}
+                  />
+                  {form.gstNumber && (
+                    <DocumentPicker
+                      label="GST certificate"
+                      helper="Required because GST number is entered."
+                      file={documents.gstCertificateFile}
+                      required
+                      onChange={(file) =>
+                        setDocuments((current) => ({ ...current, gstCertificateFile: file }))
+                      }
+                    />
+                  )}
+                  <DocumentPicker
+                    label="Bank proof"
+                    helper="Cancelled cheque, passbook or bank letter."
+                    file={documents.bankProofFile}
+                    required
+                    onChange={(file) => setDocuments((current) => ({ ...current, bankProofFile: file }))}
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-pink-100 bg-pink-50 p-4 text-sm text-slate-800">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-black text-slate-950">Zylo-Buylo Vendor Agreement</p>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-pink-700">
+                      Version {VENDOR_AGREEMENT_VERSION}
+                    </span>
+                  </div>
+                  <ul className="mt-3 list-disc space-y-1 pl-5 leading-6">
+                    <li>Business, KYC, GST, PAN, bank and UPI details must be true and verifiable.</li>
+                    <li>Product title, images, brand, SKU, size, color, stock, HSN, GST, MRP and price must be correct.</li>
+                    <li>Fake brand, copied listing, duplicate SKU misuse, wrong category or wrong dispatch may lead to account action.</li>
+                    <li>COD payout is released only after delivery, cash collection and reconciliation.</li>
+                    <li>Only genuine return reasons are eligible after delivery OTP/open-box/customer verification.</li>
+                  </ul>
+                  <label className="mt-4 flex gap-3 rounded-2xl bg-white p-4 font-bold">
+                    <input
+                      type="checkbox"
+                      name="vendorAgreementAccepted"
+                      checked={form.vendorAgreementAccepted}
+                      onChange={handleChange}
+                      className="mt-1 h-4 w-4"
+                    />
+                    <span>
+                      I accept Zylo-Buylo vendor agreement, product quality, dispatch, COD payout,
+                      return and legal responsibility rules.
+                      <Link href="/vendor-agreement" className="ml-1 text-pink-600 underline">
+                        Read full agreement
+                      </Link>
+                    </span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {(error || notice) && (
+              <div
+                className={`mt-6 rounded-2xl p-4 text-sm font-bold ${
+                  error ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
+                }`}
+              >
+                {error || notice}
+              </div>
+            )}
+
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={step === 0 || loading}
+                className="rounded-2xl border border-slate-300 px-6 py-3 font-bold text-slate-900 disabled:opacity-40"
+              >
+                Back
+              </button>
+
+              {step < steps.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="rounded-2xl bg-pink-600 px-7 py-3 font-bold text-white"
+                >
+                  Continue
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-2xl bg-pink-600 px-7 py-3 font-bold text-white disabled:opacity-60"
+                >
+                  {loading ? "Submitting..." : "Submit for Approval"}
+                </button>
+              )}
+            </div>
+          </section>
+
+          <aside className="space-y-4">
+            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h3 className="font-black text-slate-950">Registration checklist</h3>
+              <div className="mt-4 space-y-3 text-sm">
+                {[
+                  ["Mobile verified", mobileVerified],
+                  ["Store details", Boolean(form.name && form.email && form.storeName)],
+                  ["Business KYC", Boolean(form.businessAddress && form.panNumber && form.aadhaarNumber)],
+                  ["Bank details", Boolean(form.bankDetails)],
+                  ["Documents", Boolean(documents.panCardFile && documents.aadhaarFile && documents.bankProofFile)],
+                  ["Agreement", form.vendorAgreementAccepted],
+                ].map(([label, done]) => (
+                  <div key={String(label)} className="flex items-center justify-between gap-3">
+                    <span className="text-slate-600">{label}</span>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        done ? "bg-green-50 text-green-700" : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {done ? "Done" : "Due"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
+              <h3 className="font-black">Important</h3>
+              <p className="mt-2">
+                Admin will approve the vendor only after checking business details, KYC documents,
+                bank proof and agreement acceptance.
+              </p>
+            </div>
+          </aside>
+        </form>
       </main>
     </div>
   );
