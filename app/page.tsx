@@ -1358,8 +1358,8 @@ export default function HomePage() {
                   ))}
                 </div>
               </div>
-              <div className="relative z-0 flex h-full items-center justify-center px-5 py-0 pl-0">
-                <div className={`relative h-[210px] w-full max-w-[720px] overflow-hidden rounded-[24px] border border-white/70 bg-white/60 shadow-[0_18px_44px_rgba(15,23,42,0.16)] lg:h-[230px] ${baseHero.panel}`}>
+              <div className="relative z-0 flex h-full items-start justify-center px-5 pb-5 pl-0 pt-8">
+                <div className={`relative h-[235px] w-full max-w-[720px] overflow-hidden rounded-[24px] border border-white/70 bg-white/60 shadow-[0_18px_44px_rgba(15,23,42,0.16)] lg:h-[250px] ${baseHero.panel}`}>
                   <SmartBannerMedia
                     key={activeHeroSlide}
                     src={activeHeroMedia.image}
