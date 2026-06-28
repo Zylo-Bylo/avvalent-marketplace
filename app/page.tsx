@@ -930,9 +930,7 @@ export default function HomePage() {
                 }}
                 onClick={() => {
                   setActiveTreeSlug(category.slug);
-                  setTreeMenuOpen((open) =>
-                    activeTreeSlug === category.slug ? !open : true,
-                  );
+                  setTreeMenuOpen(true);
                 }}
                 className={`shrink-0 py-2 text-left ${
                   activeTreeSlug === category.slug && treeMenuOpen
@@ -952,18 +950,27 @@ export default function HomePage() {
           </div>
 
           {treeMenuOpen && activeTreeCategory && (
-            <div className="absolute left-1/2 top-full z-50 w-[min(1180px,calc(100vw-32px))] -translate-x-1/2 border border-[#d5d9d9] bg-white text-[#111827] shadow-2xl">
+            <div className="absolute left-1/2 top-full z-50 max-h-[72vh] w-[min(1180px,calc(100vw-16px))] -translate-x-1/2 overflow-y-auto rounded-b-2xl border border-[#d5d9d9] bg-white text-[#111827] shadow-2xl md:w-[min(1180px,calc(100vw-32px))] md:rounded-none">
               <div className="grid md:grid-cols-[260px_minmax(0,1fr)]">
                 <aside className="bg-[#f7fafa] p-4">
-                  <p className="mb-3 text-sm font-bold">Shop by department</p>
-                  <div className="grid gap-1">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-sm font-bold">Shop by department</p>
+                    <button
+                      type="button"
+                      onClick={() => setTreeMenuOpen(false)}
+                      className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#6b145d] shadow-sm md:hidden"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto md:grid md:gap-1 md:overflow-visible">
                     {applianceCategoryTree.map((category) => (
                       <button
                         key={category.slug}
                         type="button"
                         onMouseEnter={() => setActiveTreeSlug(category.slug)}
                         onClick={() => setActiveTreeSlug(category.slug)}
-                        className={`rounded px-3 py-2 text-left text-sm font-semibold ${
+                        className={`shrink-0 rounded px-3 py-2 text-left text-sm font-semibold md:w-full ${
                           activeTreeSlug === category.slug
                             ? "bg-[#232f3e] text-white"
                             : "hover:bg-[#e3e6e6]"
@@ -974,13 +981,13 @@ export default function HomePage() {
                     ))}
                   </div>
                 </aside>
-                <div className="grid gap-4 p-5 md:grid-cols-4">
+                <div className="grid gap-4 p-4 md:grid-cols-4 md:p-5">
                   {activeTreeCategory.groups.map((group) => (
-                    <div key={group.slug}>
-                      <p className="mb-2 text-sm font-bold text-[#111827]">
+                    <div key={group.slug} className="rounded-xl border border-[#eef0f4] bg-white p-3 md:border-0 md:p-0">
+                      <p className="mb-2 text-sm font-black text-[#111827]">
                         {group.name}
                       </p>
-                      <div className="grid gap-1">
+                      <div className="grid grid-cols-2 gap-1 md:grid-cols-1">
                         {group.parts.map((item) => (
                           <Link
                             key={item.slug}
@@ -989,7 +996,8 @@ export default function HomePage() {
                               group.slug,
                               item.slug,
                             )}
-                            className="rounded py-1 text-sm text-[#565959] hover:text-[#c45500]"
+                            onClick={() => setTreeMenuOpen(false)}
+                            className="rounded bg-[#f8f9ff] px-2 py-2 text-xs font-semibold text-[#565959] hover:text-[#c45500] md:bg-transparent md:px-0 md:py-1 md:text-sm"
                           >
                             {item.name}
                           </Link>
