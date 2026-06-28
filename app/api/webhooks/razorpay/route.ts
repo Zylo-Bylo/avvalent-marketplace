@@ -1,70 +1,9 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
-import { sendOrderConfirmationEmail } from '@/lib/email';
+import { notifyOrderPlaced } from '@/lib/order-notifications';
 import { prisma } from '@/lib/prisma';
-import { sendOrderWhatsAppNotification } from '@/lib/whatsapp';
 
 export const runtime = 'nodejs';
-
-function getBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'https://zylo-buylo.com'
-  ).replace(/\/$/, '');
-}
-
-async function notifyOrders(orderIds: string[]) {
-  const orders = await prisma.order.findMany({
-    where: { id: { in: orderIds } },
-    include: {
-      user: { select: { name: true, email: true } },
-      items: {
-        include: {
-          product: { select: { name: true } },
-        },
-      },
-    },
-  });
-
-  await Promise.all(
-    orders.map(async (order) => {
-      const items = order.items.map((item) => ({
-        name: item.product?.name || item.productId,
-        quantity: item.quantity,
-        price: item.price,
-      }));
-
-      try {
-        await sendOrderConfirmationEmail({
-          to: order.user.email,
-          customerName: order.user.name,
-          orderId: order.id,
-          totalAmount: order.totalAmount,
-          paymentMethod: order.paymentMethod,
-          status: order.status,
-          orderUrl: `${getBaseUrl()}/order/${order.id}`,
-          items,
-        });
-      } catch (error) {
-        console.error('Razorpay webhook order email failed:', error);
-      }
-
-      if (order.shippingPhone) {
-        try {
-          await sendOrderWhatsAppNotification({
-            to: order.shippingPhone,
-            customerName: order.user.name,
-            orderId: order.id,
-            totalAmount: order.totalAmount,
-          });
-        } catch (error) {
-          console.error('Razorpay webhook WhatsApp failed:', error);
-        }
-      }
-    }),
-  );
-}
 
 export async function POST(request: Request) {
   const razorpayWebhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
@@ -123,7 +62,7 @@ export async function POST(request: Request) {
     });
 
     if (updated.count > 0) {
-      await notifyOrders(orderIds);
+      await notifyOrderPlaced(orderIds, 'Razorpay webhook order');
     }
 
     return NextResponse.json({ status: 'success' }, { status: 200 });

@@ -569,11 +569,7 @@ export default function AdminCategoriesPage() {
     setTemplateSpecFields((fields) =>
       fields.map((field, fieldIndex) => {
         if (fieldIndex !== index) return field;
-        const next = { ...field, ...updates };
-        if (updates.label !== undefined) {
-          next.name = slugFieldKey(updates.label) || field.name;
-        }
-        return next;
+        return { ...field, ...updates };
       }),
     );
   }
@@ -754,6 +750,25 @@ export default function AdminCategoriesPage() {
               </div>
             </div>
 
+            <div className="mt-5 grid gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 md:grid-cols-4">
+              <div>
+                <p className="font-bold">1. Select</p>
+                <p>Choose exact category and subcategory, e.g. Bags & Footwear / Women Footwear.</p>
+              </div>
+              <div>
+                <p className="font-bold">2. Smart Default</p>
+                <p>Load a matching starter template, then edit options as needed.</p>
+              </div>
+              <div>
+                <p className="font-bold">3. Add Fields</p>
+                <p>Use dropdown fields for sizes, material, type, weight, age group and other specs.</p>
+              </div>
+              <div>
+                <p className="font-bold">4. Save</p>
+                <p>Vendor upload will show only this saved template for the selected category path.</p>
+              </div>
+            </div>
+
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <select
                 value={templateCategoryId}
@@ -785,6 +800,12 @@ export default function AdminCategoriesPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs font-semibold text-slate-600">
+              {templateSubcategoryId
+                ? "You are editing an exact subcategory template. Vendors selecting this subcategory will see these fields first."
+                : "You are editing a whole-category fallback template. Use this only for common fields; create separate subcategory templates when Bags, Footwear, Toys, Diapers, etc. need different fields."}
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-2">

@@ -313,6 +313,33 @@ export async function POST(request: Request) {
     console.error('Product creation error:', error);
     const message = error instanceof Error ? error.message : 'Unknown product creation error';
     const lowerMessage = message.toLowerCase();
+    const errorCode =
+      typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code?: unknown }).code || '')
+        : '';
+
+    if (errorCode === 'P2002' || lowerMessage.includes('unique constraint failed')) {
+      const target =
+        typeof error === 'object' && error !== null && 'meta' in error
+          ? (error as { meta?: { target?: unknown } }).meta?.target
+          : undefined;
+      const targetText = Array.isArray(target) ? target.join(', ') : String(target || '');
+
+      if (targetText.toLowerCase().includes('sku') || lowerMessage.includes('sku')) {
+        return NextResponse.json(
+          {
+            error:
+              'SKU already exists. The system can auto-generate variant SKUs, but please change the main SKU or click Auto-fix SKUs and submit again.',
+          },
+          { status: 400 },
+        );
+      }
+
+      return NextResponse.json(
+        { error: 'Duplicate product data found. Please change the repeated unique value and submit again.' },
+        { status: 400 },
+      );
+    }
 
     if (
       lowerMessage.includes('unique') &&

@@ -2,12 +2,11 @@ import Razorpay from 'razorpay';
 import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import { verifyCheckoutAuthToken } from '@/lib/checkout-auth-token';
-import { sendOrderConfirmationEmail } from '@/lib/email';
 import { signOrderAccessToken } from '@/lib/order-access-token';
+import { notifyOrderPlaced } from '@/lib/order-notifications';
 import { getMarketplaceUpiId } from '@/lib/payment-settings';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/session-cookies';
-import { sendOrderWhatsAppNotification } from '@/lib/whatsapp';
 import {
   reduceStockForOrder,
   reserveStockForOrder,
@@ -35,18 +34,8 @@ interface CartItem {
 const PAYMENT_METHODS = ['COD', 'UPI', 'RAZORPAY', 'STRIPE'] as const;
 const DEFAULT_MAX_COD_AMOUNT = 10000;
 
-type CreatedOrder = Awaited<ReturnType<typeof prisma.order.create>>;
-
 function isPaymentMethod(value: string): value is (typeof PAYMENT_METHODS)[number] {
   return PAYMENT_METHODS.includes(value as (typeof PAYMENT_METHODS)[number]);
-}
-
-function getBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'https://zylo-buylo.com'
-  ).replace(/\/$/, '');
 }
 
 function getMaxCodAmount() {
@@ -57,63 +46,6 @@ function getMaxCodAmount() {
 function hasValidIndianPhone(value: string) {
   const digits = String(value || '').replace(/\D/g, '');
   return digits.length >= 10 && digits.length <= 12;
-}
-
-async function notifyCustomerOrderPlaced(input: {
-  order: CreatedOrder;
-  customer: { name: string; email: string } | null;
-  phone: string;
-  items: CartItem[];
-  products: Array<{
-    id: string;
-    name: string;
-    price: number;
-    mrp?: number | null;
-    vendorPrice?: number | null;
-    platformCommissionAmount?: number | null;
-    packagingCharge?: number | null;
-    shippingCharge?: number | null;
-    vendorPayout?: number | null;
-  }>;
-}) {
-  const orderItems = input.items.map((item) => {
-    const product = input.products.find(
-      (currentProduct) => currentProduct.id === String(item.productId || item.id),
-    );
-    return {
-      name: product?.name || item.name,
-      quantity: item.quantity,
-      price: product?.price || item.price,
-    };
-  });
-
-  if (input.customer?.email) {
-    try {
-      await sendOrderConfirmationEmail({
-        to: input.customer.email,
-        customerName: input.customer.name,
-        orderId: input.order.id,
-        totalAmount: input.order.totalAmount,
-        paymentMethod: input.order.paymentMethod,
-        status: input.order.status,
-        orderUrl: `${getBaseUrl()}/order/${input.order.id}`,
-        items: orderItems,
-      });
-    } catch (error) {
-      console.error('Order confirmation email failed:', error);
-    }
-  }
-
-  try {
-    await sendOrderWhatsAppNotification({
-      to: input.phone,
-      customerName: input.customer?.name,
-      orderId: input.order.id,
-      totalAmount: input.order.totalAmount,
-    });
-  } catch (error) {
-    console.error('Order WhatsApp notification failed:', error);
-  }
 }
 
 export async function POST(request: Request) {
@@ -367,17 +299,7 @@ export async function POST(request: Request) {
     }
 
     if (paymentMethod === 'COD') {
-      await Promise.all(
-        createdOrders.map((createdOrder) =>
-          notifyCustomerOrderPlaced({
-            order: createdOrder,
-            customer,
-            phone,
-            items: vendorGroups.get(createdOrder.vendorId || '') || items,
-            products,
-          })
-        )
-      );
+      await notifyOrderPlaced(orderIds, 'COD order');
 
       return NextResponse.json(
         {
@@ -393,17 +315,7 @@ export async function POST(request: Request) {
     }
 
     if (paymentMethod === 'UPI') {
-      await Promise.all(
-        createdOrders.map((createdOrder) =>
-          notifyCustomerOrderPlaced({
-            order: createdOrder,
-            customer,
-            phone,
-            items: vendorGroups.get(createdOrder.vendorId || '') || items,
-            products,
-          })
-        )
-      );
+      await notifyOrderPlaced(orderIds, 'UPI order');
 
       return NextResponse.json(
         {

@@ -53,97 +53,96 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const product = await prisma.product.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        price: true,
-        mrp: true,
-        discountPercent: true,
-        discountAmount: true,
-        shippingCharge: true,
-        sku: true,
-        inventory: true,
-        images: true,
-        category: {
-          select: {
-            id: true,
-            name: true,
+    const [product, variants] = await Promise.all([
+      prisma.product.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          mrp: true,
+          discountPercent: true,
+          discountAmount: true,
+          shippingCharge: true,
+          sku: true,
+          inventory: true,
+          images: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        subcategory: {
-          select: {
-            id: true,
-            name: true,
+          subcategory: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        vendor: {
-          select: {
-            id: true,
-            storeName: true,
-            description: true,
-            logoUrl: true,
-            businessCategory: true,
-            _count: {
-              select: {
-                products: true,
-                orders: true,
+          vendor: {
+            select: {
+              id: true,
+              storeName: true,
+              description: true,
+              logoUrl: true,
+              businessCategory: true,
+              _count: {
+                select: {
+                  products: true,
+                  orders: true,
+                },
               },
             },
           },
-        },
-        _count: {
-          select: {
-            reviews: true,
+          _count: {
+            select: {
+              reviews: true,
+            },
+          },
+          inventories: {
+            take: 1,
+            select: {
+              currentStock: true,
+              reservedStock: true,
+              availableStock: true,
+              lowStockThreshold: true,
+              criticalStockThreshold: true,
+              minimumOrderQuantity: true,
+              maximumOrderQuantity: true,
+              restockDate: true,
+              stockStatus: true,
+              allowBackorder: true,
+              isPreOrder: true,
+              bulkPricingTiers: true,
+            },
           },
         },
-        inventories: {
-          take: 1,
-          select: {
-            currentStock: true,
-            reservedStock: true,
-            availableStock: true,
-            lowStockThreshold: true,
-            criticalStockThreshold: true,
-            minimumOrderQuantity: true,
-            maximumOrderQuantity: true,
-            restockDate: true,
-            stockStatus: true,
-            allowBackorder: true,
-            isPreOrder: true,
-            bulkPricingTiers: true,
-          },
+      }),
+      prisma.productVariant.findMany({
+        where: { productId: id },
+        orderBy: [{ numericSize: 'asc' }, { sizeLabel: 'asc' }, { color: 'asc' }],
+        select: {
+          id: true,
+          productId: true,
+          sizeLabel: true,
+          numericSize: true,
+          color: true,
+          sku: true,
+          stockQuantity: true,
+          price: true,
+          vendorPrice: true,
+          mrp: true,
+          imageUrl: true,
+          status: true,
+          lowStockThreshold: true,
         },
-      },
-    });
+      }) as Promise<ProductVariantRow[]>,
+    ]);
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
-
-    const variants = await prisma.productVariant.findMany({
-      where: { productId: product.id },
-      orderBy: [{ numericSize: 'asc' }, { sizeLabel: 'asc' }, { color: 'asc' }],
-      select: {
-        id: true,
-        productId: true,
-        sizeLabel: true,
-        numericSize: true,
-        color: true,
-        sku: true,
-        stockQuantity: true,
-        price: true,
-        vendorPrice: true,
-        mrp: true,
-        imageUrl: true,
-        status: true,
-        lowStockThreshold: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    }) as ProductVariantRow[];
 
     return NextResponse.json(
       {

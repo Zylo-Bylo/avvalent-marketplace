@@ -802,6 +802,55 @@ function getVariantOptionValues(
   return Array.from(new Set(values.filter(Boolean)));
 }
 
+function normalizeSkuToken(value: string) {
+  return value
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toUpperCase();
+}
+
+function buildVariantSku(baseSku: string, variant: VariantFormRow, index: number) {
+  const parts = [
+    normalizeSkuToken(baseSku),
+    normalizeSkuToken(variant.sku),
+    normalizeSkuToken(variant.sizeLabel),
+    normalizeSkuToken(variant.numericSize),
+    normalizeSkuToken(variant.color),
+  ].filter(Boolean);
+
+  return parts.length ? parts.join("-") : `VARIANT-${index + 1}`;
+}
+
+function prepareUniqueVariantRows(rows: VariantFormRow[], baseSku: string) {
+  const used = new Map<string, number>();
+
+  return rows.map((row, index) => {
+    const rawSku = normalizeSkuToken(row.sku) || buildVariantSku(baseSku, row, index);
+    const count = used.get(rawSku) || 0;
+    used.set(rawSku, count + 1);
+
+    return {
+      ...row,
+      sku: count === 0 ? rawSku : `${rawSku}-${count + 1}`,
+    };
+  });
+}
+
+function getDuplicateVariantSkus(rows: VariantFormRow[]) {
+  const counts = new Map<string, number>();
+
+  rows.forEach((row) => {
+    const sku = normalizeSkuToken(row.sku);
+    if (!sku) return;
+    counts.set(sku, (counts.get(sku) || 0) + 1);
+  });
+
+  return Array.from(counts.entries())
+    .filter(([, count]) => count > 1)
+    .map(([sku]) => sku);
+}
+
 export default function ProductUploadPage() {
   const router = useRouter();
   const [mode, setMode] = useState<UploadMode>("home");
@@ -959,6 +1008,10 @@ export default function ProductUploadPage() {
   const variantConfig = useMemo(
     () => managedTemplate?.variantConfig || getCategoryVariantConfig(categoryContext),
     [categoryContext, managedTemplate?.variantConfig],
+  );
+  const duplicateVariantSkus = useMemo(
+    () => getDuplicateVariantSkus(variants),
+    [variants],
   );
   const specTemplate = useMemo(
     () => managedTemplate?.specTemplate || getSpecTemplate(categoryContext),
@@ -1225,6 +1278,10 @@ export default function ProductUploadPage() {
     );
   }
 
+  function autoFixVariantSkus() {
+    setVariants((currentRows) => prepareUniqueVariantRows(currentRows, form.sku));
+  }
+
   function removeVariantRow(id: string) {
     setVariants((currentRows) =>
       currentRows.length === 1
@@ -1345,8 +1402,13 @@ export default function ProductUploadPage() {
       return;
     }
 
+    const preparedVariants = prepareUniqueVariantRows(validVariants, form.sku);
+    if (duplicateVariantSkus.length > 0) {
+      setVariants((currentRows) => prepareUniqueVariantRows(currentRows, form.sku));
+    }
+
     setLoading(true);
-    const totalVariantStock = validVariants.reduce(
+    const totalVariantStock = preparedVariants.reduce(
       (sum, variant) => sum + Number(variant.stockQuantity || 0),
       0,
     );
@@ -1395,7 +1457,7 @@ export default function ProductUploadPage() {
           : undefined,
         codCharge: Number(form.codCharge || 0),
         inventory: form.stock ? Number(form.stock) : totalVariantStock,
-        variants: validVariants.map((variant) => ({
+        variants: preparedVariants.map((variant) => ({
           sizeLabel: variant.sizeLabel || fallbackVariantSize,
           numericSize: variant.numericSize,
           color: variant.color || form.color,
@@ -2170,6 +2232,9 @@ export default function ProductUploadPage() {
                         <button type="button" onClick={addVariantRow} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white">
                           Add Variant Row
                         </button>
+                        <button type="button" onClick={autoFixVariantSkus} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-800">
+                          Auto-fix SKUs
+                        </button>
                       </div>
                     </div>
                     <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50 p-4 text-sm text-slate-700">
@@ -2181,6 +2246,11 @@ export default function ProductUploadPage() {
                         Customer Price = buyer ko dikhne wala variant selling price. Vendor Payout = is variant par vendor ko milne wali amount. Blank chhodne par final pricing page ka default use hoga.
                       </p>
                     </div>
+                    {duplicateVariantSkus.length > 0 && (
+                      <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+                        Duplicate variant SKU found: {duplicateVariantSkus.join(", ")}. Click Auto-fix SKUs or edit SKU suffixes before submit.
+                      </div>
+                    )}
                     <div className="mt-4 overflow-x-auto">
                       <table className="w-full min-w-[1180px] border-collapse text-sm">
                         <thead>
@@ -2191,7 +2261,7 @@ export default function ProductUploadPage() {
                               variantConfig.colorHeading,
                               variantConfig.skuHeading,
                               "Stock",
-                              "Customer Price",
+                              "Customer Price (Buyer Pays)",
                               "Vendor Payout",
                               "MRP",
                               "Variant Image",
@@ -2253,16 +2323,16 @@ export default function ProductUploadPage() {
                                             }
                                             className="w-full rounded-lg border bg-white p-2 text-xs"
                                           >
-                                            <option value="">{placeholder}</option>
+                                            <option value="">Pick from uploaded product images</option>
                                             {images.map((image, imageIndex) => (
                                               <option key={`${image}-${imageIndex}`} value={image}>
-                                                Product image {imageIndex + 1}
+                                                {imageIndex === 0 ? "Front image" : `Product image ${imageIndex + 1}`}
                                               </option>
                                             ))}
                                           </select>
 
                                           <FileUploadField
-                                            label="Upload variant image"
+                                            label="Upload color/variant image"
                                             purpose="product"
                                             accept="image/*"
                                             onUploaded={(url) =>

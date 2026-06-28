@@ -2,10 +2,9 @@ import Razorpay from 'razorpay';
 import Stripe from 'stripe';
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
-import { sendOrderConfirmationEmail } from '@/lib/email';
+import { notifyOrderPlaced } from '@/lib/order-notifications';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/session-cookies';
-import { sendOrderWhatsAppNotification } from '@/lib/whatsapp';
 import { convertReservedStockToSold } from '@/lib/inventory';
 
 interface ConfirmPayload {
@@ -16,75 +15,6 @@ interface ConfirmPayload {
   razorpayPaymentId?: string;
   razorpayOrderId?: string;
   razorpaySignature?: string;
-}
-
-function getBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    'https://zylo-buylo.com'
-  ).replace(/\/$/, '');
-}
-
-async function notifyPaidOrders(orderIds: string[]) {
-  const orders = await prisma.order.findMany({
-    where: { id: { in: orderIds } },
-    include: {
-      user: {
-        select: {
-          name: true,
-          email: true,
-        },
-      },
-      items: {
-        include: {
-          product: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  await Promise.all(
-    orders.map(async (order) => {
-      const items = order.items.map((item) => ({
-        name: item.product?.name || item.productId,
-        quantity: item.quantity,
-        price: item.price,
-      }));
-
-      try {
-        await sendOrderConfirmationEmail({
-          to: order.user.email,
-          customerName: order.user.name,
-          orderId: order.id,
-          totalAmount: order.totalAmount,
-          paymentMethod: order.paymentMethod,
-          status: order.status,
-          orderUrl: `${getBaseUrl()}/order/${order.id}`,
-          items,
-        });
-      } catch (error) {
-        console.error('Paid order confirmation email failed:', error);
-      }
-
-      if (order.shippingPhone) {
-        try {
-          await sendOrderWhatsAppNotification({
-            to: order.shippingPhone,
-            customerName: order.user.name,
-            orderId: order.id,
-            totalAmount: order.totalAmount,
-          });
-        } catch (error) {
-          console.error('Paid order WhatsApp notification failed:', error);
-        }
-      }
-    }),
-  );
 }
 
 async function getAuthenticatedUserId() {
@@ -217,7 +147,7 @@ export async function POST(request: Request) {
       });
       if (updated.count > 0) {
         await convertReservedStockToSold(targetOrderIds);
-        await notifyPaidOrders(targetOrderIds);
+        await notifyOrderPlaced(targetOrderIds, 'Razorpay paid order');
       }
       const updatedOrder = await prisma.order.findUnique({
         where: { id: order.id },
@@ -285,7 +215,7 @@ export async function POST(request: Request) {
       });
       if (updated.count > 0) {
         await convertReservedStockToSold(targetOrderIds);
-        await notifyPaidOrders(targetOrderIds);
+        await notifyOrderPlaced(targetOrderIds, 'Stripe paid order');
       }
       const updatedOrder = await prisma.order.findUnique({
         where: { id: order.id },
