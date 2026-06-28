@@ -741,7 +741,7 @@ export default function HomePage() {
           >
             <select
               aria-label="Search category"
-              className="hidden border-r border-[#e8d9e6] bg-[#f8f9ff] px-3 text-sm text-[#111827] outline-none sm:block"
+              className="w-[104px] shrink-0 border-r border-[#e8d9e6] bg-[#f8f9ff] px-2 text-xs font-bold text-[#111827] outline-none sm:w-36 sm:px-3 sm:text-sm"
               value={selectedCategoryId}
               onChange={(event) => chooseCategory(event.target.value)}
             >

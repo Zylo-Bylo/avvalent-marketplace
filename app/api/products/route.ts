@@ -115,6 +115,52 @@ export async function GET(request: NextRequest) {
               mode: 'insensitive',
             },
           },
+          {
+            sku: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          },
+          {
+            category: {
+              is: {
+                name: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          },
+          {
+            category: {
+              is: {
+                slug: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          },
+          {
+            subcategory: {
+              is: {
+                name: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          },
+          {
+            vendor: {
+              is: {
+                storeName: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          },
         ],
       });
     }
