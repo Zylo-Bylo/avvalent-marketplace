@@ -653,6 +653,46 @@ export async function restoreStockForOrder(orderId: string, input?: { resellable
   await restoreVariantStockForOrder(orderId);
 }
 
+export async function releaseReservedStockForOrder(orderId: string, input?: { reason?: string }) {
+  await ensureInventorySchema();
+
+  const reservations = await prisma.$queryRaw<
+    Array<{ id: string; productId: string; quantity: number }>
+  >`
+    SELECT "id", "productId", "quantity" FROM "StockReservation"
+    WHERE "orderId" = ${orderId} AND "status" = 'RESERVED'
+  `;
+
+  for (const reservation of reservations) {
+    const inventory = await ensureProductInventory(reservation.productId);
+    const oldReserved = toInt(inventory.reservedStock);
+    const nextReserved = Math.max(0, oldReserved - toInt(reservation.quantity));
+
+    await prisma.$executeRaw`
+      UPDATE "Inventory"
+      SET "reservedStock" = ${nextReserved}, "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "id" = ${inventory.id}
+    `;
+    await prisma.$executeRaw`
+      UPDATE "StockReservation"
+      SET "status" = 'RELEASED', "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "id" = ${reservation.id}
+    `;
+
+    await writeInventoryStatus({ ...inventory, reservedStock: nextReserved });
+    await createMovement({
+      productId: inventory.productId,
+      vendorId: inventory.vendorId,
+      type: 'RESERVATION_RELEASED',
+      quantity: reservation.quantity,
+      oldStock: oldReserved,
+      newStock: nextReserved,
+      reason: input?.reason || 'Checkout reservation released before payment.',
+      orderId,
+    });
+  }
+}
+
 export async function adjustProductStock(input: {
   productId: string;
   quantity: number;

@@ -14,6 +14,7 @@ import {
   validateStrongPassword,
 } from '@/lib/security';
 import { getVendorAgreementMetadata } from '@/lib/legal-policy';
+import { verifyVendorMobileOtpToken } from '@/lib/mobile-otp';
 import {
   ALLOWED_UPLOAD_MIME_TYPES,
   getUploadClient,
@@ -73,6 +74,7 @@ async function parseVendorRegisterRequest(request: NextRequest) {
     description: formValue(formData, 'description'),
     mobile: formValue(formData, 'mobile'),
     mobileVerified: formBoolean(formData, 'mobileVerified'),
+    mobileOtpToken: formValue(formData, 'mobileOtpToken'),
     businessCategory: formValue(formData, 'businessCategory'),
     categoryId: formValue(formData, 'categoryId'),
     subcategoryId: formValue(formData, 'subcategoryId'),
@@ -191,6 +193,7 @@ export async function POST(request: NextRequest) {
   const storeName = bodyText(body.storeName);
   const description = bodyText(body.description);
   const mobile = bodyText(body.mobile);
+  const mobileOtpToken = bodyText(body.mobileOtpToken);
   const businessCategory = bodyText(body.businessCategory);
   const categoryId = bodyText(body.categoryId);
   const subcategoryId = bodyText(body.subcategoryId);
@@ -204,7 +207,9 @@ export async function POST(request: NextRequest) {
   const aadhaarUrl = bodyText(body.aadhaarUrl);
   const gstCertificateUrl = bodyText(body.gstCertificateUrl);
   const bankProofUrl = bodyText(body.bankProofUrl);
-  const mobileVerified = bodyBoolean(body.mobileVerified);
+  const mobileVerified =
+    bodyBoolean(body.mobileVerified) &&
+    verifyVendorMobileOtpToken(mobileOtpToken, mobile);
   const vendorAgreementAccepted = bodyBoolean(body.vendorAgreementAccepted);
 
   if (!name || !email || !password || !storeName) {

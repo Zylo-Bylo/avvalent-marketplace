@@ -8,6 +8,7 @@ import { getMarketplaceUpiId } from '@/lib/payment-settings';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/session-cookies';
 import {
+  releaseReservedStockForOrder,
   reduceStockForOrder,
   reserveStockForOrder,
   validateCartStock,
@@ -46,6 +47,31 @@ function getMaxCodAmount() {
 function hasValidIndianPhone(value: string) {
   const digits = String(value || '').replace(/\D/g, '');
   return digits.length >= 10 && digits.length <= 12;
+}
+
+async function cancelPendingOnlineOrders(orderIds: string[], reason: string) {
+  if (!orderIds.length) {
+    return;
+  }
+
+  await prisma.order.updateMany({
+    where: {
+      id: { in: orderIds },
+      status: 'PENDING',
+    },
+    data: {
+      status: 'CANCELLED',
+      statusNote: reason,
+    },
+  });
+
+  await Promise.all(
+    orderIds.map((orderId) =>
+      releaseReservedStockForOrder(orderId, {
+        reason,
+      }),
+    ),
+  );
 }
 
 export async function POST(request: Request) {
@@ -352,6 +378,10 @@ export async function POST(request: Request) {
         });
       } catch (error: any) {
         console.error('Razorpay order creation failed:', error);
+        await cancelPendingOnlineOrders(
+          orderIds,
+          'Razorpay order could not be created. Stock reservation released.',
+        );
         return NextResponse.json(
           {
             errorCode:
@@ -390,31 +420,44 @@ export async function POST(request: Request) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       const stripe = new Stripe(stripeSecretKey, { apiVersion: '2022-11-15' });
 
-      const session = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        payment_method_types: ['card'],
-        success_url: `${baseUrl}/order/${order.id}?placed=1&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/cart`,
-        metadata: {
-          orderId: order.id,
-          orderIds: orderIds.join(','),
-        },
-        line_items: items.map((item: CartItem) => {
-          const product = products.find((p) => p.id === String(item.productId || item.id));
-          const variant = variants.find((entry) => entry.id === item.variantId);
+      let session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          payment_method_types: ['card'],
+          success_url: `${baseUrl}/order/${order.id}?placed=1&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${baseUrl}/cart`,
+          metadata: {
+            orderId: order.id,
+            orderIds: orderIds.join(','),
+          },
+          line_items: items.map((item: CartItem) => {
+            const product = products.find((p) => p.id === String(item.productId || item.id));
+            const variant = variants.find((entry) => entry.id === item.variantId);
 
-          return {
-            price_data: {
-              currency: 'INR',
-              product_data: {
-                name: product?.name || item.name,
+            return {
+              price_data: {
+                currency: 'INR',
+                product_data: {
+                  name: product?.name || item.name,
+                },
+                unit_amount: Math.round((variant?.price || product?.price || 0) * 100),
               },
-              unit_amount: Math.round((variant?.price || product?.price || 0) * 100),
-            },
-            quantity: item.quantity,
-          };
-        }),
-      });
+              quantity: item.quantity,
+            };
+          }),
+        });
+      } catch (error) {
+        console.error('Stripe checkout session creation failed:', error);
+        await cancelPendingOnlineOrders(
+          orderIds,
+          'Stripe checkout could not be created. Stock reservation released.',
+        );
+        return NextResponse.json(
+          { error: 'Could not create Stripe checkout. Please try again.' },
+          { status: 502 },
+        );
+      }
 
       return NextResponse.json(
         {

@@ -150,6 +150,9 @@ export default function VendorRegisterPage() {
   const [documents, setDocuments] = useState<DocumentState>(initialDocuments);
   const [sentOtp, setSentOtp] = useState("");
   const [otpInput, setOtpInput] = useState("");
+  const [mobileOtpToken, setMobileOtpToken] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
   const [mobileVerified, setMobileVerified] = useState(false);
 
   const selectedCategory = useMemo(
@@ -203,6 +206,7 @@ export default function VendorRegisterPage() {
     if (name === "mobile") {
       setMobileVerified(false);
       setSentOtp("");
+      setMobileOtpToken("");
       setOtpInput("");
       setField("mobile", cleanMobile(value));
       return;
@@ -237,7 +241,7 @@ export default function VendorRegisterPage() {
     );
   }
 
-  function sendMobileOtp() {
+  async function sendMobileOtp() {
     setError("");
     setNotice("");
 
@@ -246,16 +250,40 @@ export default function VendorRegisterPage() {
       return;
     }
 
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    setSentOtp(otp);
-    setOtpInput("");
-    setMobileVerified(false);
-    setNotice(
-      `OTP sent to ${form.mobile}. Setup mode OTP: ${otp}. Connect SMS/WhatsApp gateway later for real delivery.`,
-    );
+    setOtpSending(true);
+
+    try {
+      const response = await fetch("/api/vendor/mobile-otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile: form.mobile }),
+      });
+      const data = await response.json();
+
+      setSentOtp(data.devOtp || "sent");
+      setOtpInput("");
+      setMobileOtpToken("");
+      setMobileVerified(false);
+
+      if (!response.ok) {
+        setSentOtp("");
+        setError(data.error || "Could not send OTP. Please try again.");
+        return;
+      }
+
+      setNotice(
+        data.devOtp
+          ? `${data.message} Setup mode OTP: ${data.devOtp}`
+          : data.message || `OTP sent to ${form.mobile}.`,
+      );
+    } catch {
+      setError("Mobile OTP service is not responding. Please try again.");
+    } finally {
+      setOtpSending(false);
+    }
   }
 
-  function verifyMobileOtp() {
+  async function verifyMobileOtp() {
     setError("");
 
     if (!sentOtp) {
@@ -263,13 +291,34 @@ export default function VendorRegisterPage() {
       return;
     }
 
-    if (otpInput.trim() !== sentOtp) {
-      setError("Invalid mobile OTP.");
+    if (!otpInput.trim()) {
+      setError("Please enter OTP.");
       return;
     }
 
-    setMobileVerified(true);
-    setNotice("Mobile number verified. Continue vendor registration.");
+    setOtpVerifying(true);
+
+    try {
+      const response = await fetch("/api/vendor/mobile-otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile: form.mobile, otp: otpInput }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Invalid mobile OTP.");
+        return;
+      }
+
+      setMobileOtpToken(data.mobileOtpToken || "");
+      setMobileVerified(true);
+      setNotice("Mobile number verified. Continue vendor registration.");
+    } catch {
+      setError("Mobile OTP verification service is not responding. Please try again.");
+    } finally {
+      setOtpVerifying(false);
+    }
   }
 
   function validateStep(targetStep = step) {
@@ -357,6 +406,7 @@ export default function VendorRegisterPage() {
         payload.append(key, typeof value === "boolean" ? String(value) : value);
       });
       payload.append("mobileVerified", String(mobileVerified));
+      payload.append("mobileOtpToken", mobileOtpToken);
 
       Object.entries(documents).forEach(([key, file]) => {
         if (file) {
@@ -463,9 +513,10 @@ export default function VendorRegisterPage() {
                   <button
                     type="button"
                     onClick={sendMobileOtp}
-                    className="rounded-2xl bg-slate-950 px-6 py-4 font-bold text-white"
+                    disabled={otpSending}
+                    className="rounded-2xl bg-slate-950 px-6 py-4 font-bold text-white disabled:opacity-60"
                   >
-                    Send OTP
+                    {otpSending ? "Sending..." : "Send OTP"}
                   </button>
                 </div>
 
@@ -480,9 +531,10 @@ export default function VendorRegisterPage() {
                   <button
                     type="button"
                     onClick={verifyMobileOtp}
-                    className="rounded-2xl bg-pink-600 px-6 py-4 font-bold text-white"
+                    disabled={otpVerifying}
+                    className="rounded-2xl bg-pink-600 px-6 py-4 font-bold text-white disabled:opacity-60"
                   >
-                    Verify OTP
+                    {otpVerifying ? "Verifying..." : "Verify OTP"}
                   </button>
                 </div>
 

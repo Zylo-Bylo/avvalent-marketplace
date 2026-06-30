@@ -16,6 +16,8 @@ type OrderItem = {
   variantSku?: string | null;
   quantity: number;
   price: number;
+  mrp?: number | null;
+  shippingCharge?: number | null;
   product?: {
     id: string;
     name: string;
@@ -46,6 +48,10 @@ type Order = {
   createdAt: string;
   vendor?: {
     storeName: string;
+  } | null;
+  user?: {
+    name: string;
+    email: string;
   } | null;
   items: OrderItem[];
 };
@@ -196,6 +202,185 @@ function statusIndex(status: string) {
     return 0;
   }
   return Math.max(0, timeline.findIndex((item) => item.key === status));
+}
+
+function money(value: number | null | undefined) {
+  return `Rs. ${Number(value || 0).toFixed(2)}`;
+}
+
+function getOrderShortId(orderId: string) {
+  return orderId.slice(-8).toUpperCase();
+}
+
+function getProductImage(item: OrderItem) {
+  return item.product?.images?.[0] || 'https://placehold.co/96x96/png?text=Product';
+}
+
+function OrderConfirmationPanel({ order }: { order: Order }) {
+  const itemCount = order.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  const shippingTotal = order.items.reduce(
+    (sum, item) => sum + Number(item.shippingCharge || 0) * Number(item.quantity || 0),
+    0,
+  );
+  const firstName =
+    order.shippingName?.split(' ').filter(Boolean)[0] ||
+    order.user?.name?.split(' ').filter(Boolean)[0] ||
+    'Customer';
+  const paymentText =
+    order.paymentMethod === 'COD'
+      ? 'Cash on Delivery'
+      : order.paymentMethod === 'RAZORPAY'
+        ? 'Razorpay'
+        : order.paymentMethod;
+
+  return (
+    <section className="mb-8 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="space-y-4 p-5 sm:p-8">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-blue-500 text-2xl font-bold text-blue-600">
+              ✓
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Confirmation #{getOrderShortId(order.id)}
+              </p>
+              <h1 className="mt-1 text-2xl font-semibold text-slate-950 sm:text-3xl">
+                Thank you, {firstName}!
+              </h1>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 p-5">
+            <h2 className="text-lg font-semibold text-slate-950">
+              Your order is confirmed
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              You will receive order, shipping and delivery updates on your registered
+              contact details.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 p-5">
+            <h2 className="text-lg font-semibold text-slate-950">Order updates</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Track dispatch proof, courier details, delivery OTP and return status
+              from this page.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <a
+                href={`/order/${order.id}/receipt`}
+                className="rounded-xl border border-blue-200 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+              >
+                View order receipt
+              </a>
+              <a
+                href="/orders"
+                className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                My orders
+              </a>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 p-5">
+            <h2 className="text-lg font-semibold text-slate-950">Order details</h2>
+            <div className="mt-4 grid gap-5 text-sm text-slate-700 sm:grid-cols-2">
+              <div>
+                <p className="font-semibold text-slate-950">Contact information</p>
+                <p className="mt-2">{order.shippingPhone || 'Phone not saved'}</p>
+                <p>{order.user?.email || 'Email updates enabled after login'}</p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-950">Payment method</p>
+                <p className="mt-2">
+                  {paymentText} · {money(order.totalAmount)}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {order.paymentId || 'Payment reference pending'}
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-950">Shipping address</p>
+                <p className="mt-2">{order.shippingName || order.user?.name || 'Customer'}</p>
+                <p>{order.shippingAddress || 'Address not saved'}</p>
+                <p>
+                  {[order.shippingCity, order.shippingState, order.shippingZipCode]
+                    .filter(Boolean)
+                    .join(', ')}
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-950">Seller</p>
+                <p className="mt-2">{order.vendor?.storeName || 'Zylo-Buylo vendor'}</p>
+                <p className="text-xs text-slate-500">
+                  Courier: {order.carrier || 'Will be updated after dispatch'}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Tracking: {order.trackingNumber || 'Will be updated soon'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside className="border-t border-slate-200 bg-slate-50 p-5 sm:p-8 lg:border-l lg:border-t-0">
+          <div className="space-y-4">
+            {order.items.map((item) => (
+              <div key={item.id} className="flex gap-4">
+                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={getProductImage(item)}
+                    alt={item.product?.name || 'Product'}
+                    className="h-full w-full object-cover"
+                  />
+                  <span className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black text-xs font-bold text-white">
+                    {item.quantity}
+                  </span>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-2 text-sm font-medium text-slate-950">
+                    {item.product?.name || 'Product'}
+                  </p>
+                  {(item.sizeLabel || item.numericSize || item.variantColor) && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      {[item.sizeLabel, item.numericSize, item.variantColor]
+                        .filter(Boolean)
+                        .join(' / ')}
+                    </p>
+                  )}
+                </div>
+                <p className="shrink-0 text-sm font-semibold text-slate-950">
+                  {money(item.price * item.quantity)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 space-y-3 border-t border-slate-200 pt-5 text-sm">
+            <div className="flex justify-between text-slate-600">
+              <span>
+                Subtotal · {itemCount} {itemCount === 1 ? 'item' : 'items'}
+              </span>
+              <span>{money(order.totalAmount)}</span>
+            </div>
+            <div className="flex justify-between text-slate-600">
+              <span>Shipping</span>
+              <span>{shippingTotal > 0 ? money(shippingTotal) : 'FREE / Included'}</span>
+            </div>
+            <div className="flex items-end justify-between border-t border-slate-200 pt-4">
+              <div>
+                <p className="text-lg font-semibold text-slate-950">Total</p>
+                <p className="text-xs text-slate-500">Inclusive of applicable taxes</p>
+              </div>
+              <p className="text-xl font-bold text-slate-950">{money(order.totalAmount)}</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
 }
 
 export default function OrderPage() {
@@ -572,8 +757,8 @@ export default function OrderPage() {
     <div className="min-h-screen bg-slate-50">
       <Navbar />
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+        {placed && <OrderConfirmationPanel order={order} />}
         <div className="rounded-3xl bg-white p-6 shadow-xl md:p-8">
-          {thankYouBanner}
           {showUpiInstructions && (
             <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-900">
               <h2 className="text-xl font-bold">UPI payment pending</h2>
