@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import Navbar from '@/components/navbar/Navbar';
 import FileUploadField from '@/components/forms/FileUploadField';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -216,6 +217,29 @@ function getProductImage(item: OrderItem) {
   return item.product?.images?.[0] || 'https://placehold.co/96x96/png?text=Product';
 }
 
+function getPaymentLabel(paymentMethod: string) {
+  const labels: Record<string, string> = {
+    COD: 'Cash on Delivery',
+    UPI: 'UPI Transfer',
+    RAZORPAY: 'Razorpay',
+    STRIPE: 'Stripe',
+  };
+
+  return labels[paymentMethod] || paymentMethod;
+}
+
+function getOrderAddress(order: Order) {
+  const cityLine = [order.shippingCity, order.shippingState, order.shippingZipCode]
+    .filter(Boolean)
+    .join(', ');
+
+  return [
+    order.shippingName || order.user?.name || 'Customer',
+    order.shippingAddress || '',
+    cityLine,
+  ].filter(Boolean);
+}
+
 function OrderConfirmationPanel({ order }: { order: Order }) {
   const itemCount = order.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
   const shippingTotal = order.items.reduce(
@@ -226,20 +250,17 @@ function OrderConfirmationPanel({ order }: { order: Order }) {
     order.shippingName?.split(' ').filter(Boolean)[0] ||
     order.user?.name?.split(' ').filter(Boolean)[0] ||
     'Customer';
-  const paymentText =
-    order.paymentMethod === 'COD'
-      ? 'Cash on Delivery'
-      : order.paymentMethod === 'RAZORPAY'
-        ? 'Razorpay'
-        : order.paymentMethod;
+  const paymentText = getPaymentLabel(order.paymentMethod);
+  const addressLines = getOrderAddress(order);
+  const hasTracking = Boolean(order.carrier || order.trackingNumber);
 
   return (
     <section className="mb-8 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-xl">
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_430px]">
         <div className="space-y-4 p-5 sm:p-8">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-blue-500 text-2xl font-bold text-blue-600">
-              ✓
+              OK
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -251,35 +272,23 @@ function OrderConfirmationPanel({ order }: { order: Order }) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 p-5">
-            <h2 className="text-lg font-semibold text-slate-950">
-              Your order is confirmed
-            </h2>
-            <p className="mt-2 text-sm text-slate-600">
-              You will receive order, shipping and delivery updates on your registered
-              contact details.
-            </p>
-          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
+              <h2 className="text-lg font-semibold text-green-950">
+                Your order is confirmed
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-green-800">
+                We saved your order successfully. Shipping and delivery updates will
+                appear here as soon as the vendor dispatches the package.
+              </p>
+            </div>
 
-          <div className="rounded-2xl border border-slate-200 p-5">
-            <h2 className="text-lg font-semibold text-slate-950">Order updates</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Track dispatch proof, courier details, delivery OTP and return status
-              from this page.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <a
-                href={`/order/${order.id}/receipt`}
-                className="rounded-xl border border-blue-200 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-              >
-                View order receipt
-              </a>
-              <a
-                href="/orders"
-                className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                My orders
-              </a>
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+              <h2 className="text-lg font-semibold text-blue-950">Order updates</h2>
+              <p className="mt-2 text-sm leading-6 text-blue-800">
+                Dispatch proof, courier details, delivery OTP and return status are
+                tracked from this page.
+              </p>
             </div>
           </div>
 
@@ -302,29 +311,60 @@ function OrderConfirmationPanel({ order }: { order: Order }) {
               </div>
               <div>
                 <p className="font-semibold text-slate-950">Shipping address</p>
-                <p className="mt-2">{order.shippingName || order.user?.name || 'Customer'}</p>
-                <p>{order.shippingAddress || 'Address not saved'}</p>
-                <p>
-                  {[order.shippingCity, order.shippingState, order.shippingZipCode]
-                    .filter(Boolean)
-                    .join(', ')}
-                </p>
+                <div className="mt-2 space-y-1">
+                  {addressLines.map((line) => (
+                    <p key={line}>{line}</p>
+                  ))}
+                </div>
               </div>
               <div>
-                <p className="font-semibold text-slate-950">Seller</p>
+                <p className="font-semibold text-slate-950">Delivery details</p>
                 <p className="mt-2">{order.vendor?.storeName || 'Zylo-Buylo vendor'}</p>
                 <p className="text-xs text-slate-500">
                   Courier: {order.carrier || 'Will be updated after dispatch'}
                 </p>
                 <p className="text-xs text-slate-500">
-                  Tracking: {order.trackingNumber || 'Will be updated soon'}
+                  Tracking ID: {order.trackingNumber || 'Will be updated soon'}
                 </p>
               </div>
             </div>
           </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Link
+              href={`/order/${order.id}/receipt`}
+              className="rounded-xl bg-slate-950 px-5 py-3 text-center text-sm font-bold text-white hover:bg-slate-800"
+            >
+              Download / View Receipt
+            </Link>
+            <Link
+              href="/orders"
+              className="rounded-xl border border-slate-300 px-5 py-3 text-center text-sm font-bold text-slate-800 hover:bg-slate-50"
+            >
+              My Orders
+            </Link>
+            <Link
+              href="/products"
+              className="rounded-xl border border-pink-200 px-5 py-3 text-center text-sm font-bold text-pink-700 hover:bg-pink-50"
+            >
+              Continue Shopping
+            </Link>
+          </div>
         </div>
 
         <aside className="border-t border-slate-200 bg-slate-50 p-5 sm:p-8 lg:border-l lg:border-t-0">
+          <div className="mb-5 rounded-2xl bg-white p-4 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+              Order status
+            </p>
+            <p className="mt-2 text-lg font-black text-slate-950">{order.status}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              {hasTracking
+                ? `${order.carrier || 'Courier'} - ${order.trackingNumber || 'Tracking pending'}`
+                : 'Courier and tracking ID will be shown after dispatch.'}
+            </p>
+          </div>
+
           <div className="space-y-4">
             {order.items.map((item) => (
               <div key={item.id} className="flex gap-4">
@@ -348,6 +388,11 @@ function OrderConfirmationPanel({ order }: { order: Order }) {
                       {[item.sizeLabel, item.numericSize, item.variantColor]
                         .filter(Boolean)
                         .join(' / ')}
+                    </p>
+                  )}
+                  {(item.variantSku || item.product?.sku) && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      SKU: {item.variantSku || item.product?.sku}
                     </p>
                   )}
                 </div>

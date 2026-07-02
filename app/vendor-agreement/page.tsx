@@ -187,8 +187,8 @@ export default function VendorAgreementPage() {
             <p className="font-bold text-slate-950">Vendor confirmation statement</p>
             <p className="mt-2">
               When a vendor selects the agreement checkbox during registration, the vendor confirms:
-              "I have read and accept the Zylo-Buylo Vendor Agreement, product quality rules,
-              dispatch rules, COD payout rules, return rules and account policy rules."
+              &quot;I have read and accept the Zylo-Buylo Vendor Agreement, product quality rules,
+              dispatch rules, COD payout rules, return rules and account policy rules.&quot;
             </p>
           </div>
 
