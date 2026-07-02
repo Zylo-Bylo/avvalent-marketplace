@@ -8,6 +8,15 @@ import {
   updateLocalVendorStatus,
 } from '@/lib/local-sqlite-auth';
 
+function isPrismaNotFoundError(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2025'
+  );
+}
+
 async function requireAdmin() {
   const cookieStore = await cookies();
   const token = cookieStore.get('auth_token')?.value;
@@ -58,42 +67,52 @@ export async function PATCH(
           ? 'REJECTED'
           : undefined;
 
-  const vendor = shouldUseLocalSqliteAuth()
-    ? updateLocalVendorStatus({
-        vendorId: id,
-        status,
-        kycStatus: nextKycStatus,
-        rejectionReason,
-      })
-    : await (async () => {
-        const { prisma } = await import('@/lib/prisma');
-        return prisma.vendor.update({
-          where: { id },
-          data: {
-            status,
-            ...(nextKycStatus && { kycStatus: nextKycStatus }),
-            rejectionReason: status === 'REJECTED' ? rejectionReason || 'Rejected by admin' : null,
-            approvedAt: status === 'APPROVED' ? new Date() : null,
-          },
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                emailVerified: true,
-                createdAt: true,
-              },
-            },
-            _count: {
-              select: {
-                products: true,
-                orders: true,
-              },
+  let vendor;
+
+  if (shouldUseLocalSqliteAuth()) {
+    vendor = updateLocalVendorStatus({
+      vendorId: id,
+      status,
+      kycStatus: nextKycStatus,
+      rejectionReason,
+    });
+  } else {
+    try {
+      const { prisma } = await import('@/lib/prisma');
+      vendor = await prisma.vendor.update({
+        where: { id },
+        data: {
+          status,
+          ...(nextKycStatus && { kycStatus: nextKycStatus }),
+          rejectionReason: status === 'REJECTED' ? rejectionReason || 'Rejected by admin' : null,
+          approvedAt: status === 'APPROVED' ? new Date() : null,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              emailVerified: true,
+              createdAt: true,
             },
           },
-        });
-      })();
+          _count: {
+            select: {
+              products: true,
+              orders: true,
+            },
+          },
+        },
+      });
+    } catch (error) {
+      if (isPrismaNotFoundError(error)) {
+        return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
+      }
+
+      throw error;
+    }
+  }
 
   if (!vendor) {
     return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
