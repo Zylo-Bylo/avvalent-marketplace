@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import Navbar from "@/components/navbar/Navbar";
 import FileUploadField from "@/components/forms/FileUploadField";
 import {
@@ -124,9 +125,21 @@ function BannerMediaPreview({
 
   return (
     <div className={`relative h-full w-full overflow-hidden bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.94),rgba(255,245,250,0.82)_48%,rgba(107,20,93,0.12))] ${className}`}>
-      <img src={src} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-20 blur-xl" />
+      <Image
+        src={src}
+        alt=""
+        fill
+        sizes="(min-width: 768px) 50vw, 100vw"
+        className="absolute inset-0 scale-110 object-cover opacity-20 blur-xl"
+      />
       <div className="absolute inset-0 bg-gradient-to-br from-white/70 via-transparent to-[#6b145d]/10" />
-      <img src={src} alt={alt} className={mediaBaseClass} />
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(min-width: 768px) 50vw, 100vw"
+        className={mediaBaseClass}
+      />
     </div>
   );
 }

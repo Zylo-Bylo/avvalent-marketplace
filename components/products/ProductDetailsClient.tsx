@@ -213,12 +213,6 @@ function getSellerMetric(seed: string, min: number, range: number) {
   return min + (total % range);
 }
 
-function getVariantLabel(variant: NonNullable<Product["variants"]>[number]) {
-  return [variant.sizeLabel, variant.numericSize].filter(Boolean).join(" / ") ||
-    variant.color ||
-    "Default";
-}
-
 function getVariantSizeLabel(
   variant: NonNullable<Product["variants"]>[number],
   fallbackSize = "",
@@ -299,7 +293,7 @@ export default function ProductDetailsClient({
     ? `${product.category?.name || "Product"} / ${product.subcategory.name}`
     : product?.category?.name || "Product";
   const inventoryRecord = product?.inventories?.[0];
-  const variants = product?.variants || [];
+  const variants = useMemo(() => product?.variants || [], [product?.variants]);
   const selectedVariant = variants.find((variant) => variant.id === selectedVariantId) || null;
   const hasVariants = variants.length > 0;
   const colorOptions = useMemo(() => {
@@ -377,7 +371,6 @@ export default function ProductDetailsClient({
     ["Fitment", parsedDescription.details["Compatibility / fitment"]],
     ["Return policy", parsedDescription.details["Return policy"]],
   ].filter(([, value]) => value);
-  const hasDeal = Boolean(product?.mrp && product.mrp > product.price);
   const currentPrice = Number(selectedVariant?.price || product?.price || 0);
   const currentMrp = Number(selectedVariant?.mrp || product?.mrp || 0);
   const currentDiscount =

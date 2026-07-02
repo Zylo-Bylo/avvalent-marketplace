@@ -81,85 +81,12 @@ const promoShortcuts = [
   { title: "Bulk Buy", text: "Stock-ready products for repeat orders", href: "/products?bulk=true" },
 ];
 
-const brandShortcuts = [
-  { name: "Samsung", slug: "samsung" },
-  { name: "LG", slug: "lg" },
-  { name: "Whirlpool", slug: "whirlpool" },
-  { name: "IFB", slug: "ifb" },
-  { name: "Haier", slug: "haier" },
-  { name: "Bajaj", slug: "bajaj" },
-  { name: "Boat", slug: "boat" },
-  { name: "Noise", slug: "noise" },
-];
-
-const quickShopLinks = [
-  { title: "Under Rs. 199", href: "/products?maxPrice=199" },
-  { title: "Under Rs. 499", href: "/products?maxPrice=499" },
-  { title: "Best Deals", href: "/products?offer=true" },
-  { title: "New Today", href: "/products?sort=new" },
-  { title: "Spare Parts", href: "/products?category=ac-parts" },
-  { title: "Bulk Buy", href: "/products?bulk=true" },
-];
-
 const trendingShortcuts = [
   { title: "Trending Fashion", category: "fashion" },
   { title: "Trending Electronics", category: "electronics" },
   { title: "Trending Beauty", category: "beauty" },
   { title: "Trending Home Products", category: "home-kitchen" },
   { title: "Trending Spare Parts", category: "ac-parts" },
-];
-
-const topUtilityLinks = [
-  { title: "Track Order", text: "Delivery progress", href: "/orders" },
-  { title: "Contact", text: "Help and support", href: "/profile" },
-  { title: "Best Sellers", text: "Top products", href: "/products?sort=popular" },
-  { title: "Free Gifts", text: "Offers and deals", href: "/products?offer=true" },
-  { title: "Bulk Purchase", text: "Vendor stock", href: "/products?bulk=true" },
-];
-
-const heroSlides = [
-  {
-    eyebrow: "Zylo-Buylo marketplace sale",
-    title: "Shop smart, sell easy",
-    highlight: "Trusted vendors. Better prices.",
-    text: "Fashion, beauty, electronics, home products and appliance parts from verified sellers.",
-    primaryLabel: "Shop now",
-    primaryHref: "/products",
-    secondaryLabel: "Become a seller",
-    secondaryHref: "/supplier",
-    image: "/hero-marketplace-visual.png",
-    imageAlt: "Zylo-Buylo marketplace shopping",
-    theme: "bg-[#fff6fb]",
-    panel: "bg-[#fff0f6]",
-  },
-  {
-    eyebrow: "Best deals today",
-    title: "Up to 70% off",
-    highlight: "Deals, gifts and fast checkout",
-    text: "Discover daily offers, discount products, gifting picks and best-price marketplace items.",
-    primaryLabel: "Shop deals",
-    primaryHref: "/products?offer=true",
-    secondaryLabel: "New arrivals",
-    secondaryHref: "/products?sort=new",
-    image: "/hero-banner.png",
-    imageAlt: "Zylo-Buylo deals and gifts",
-    theme: "bg-[#fff8ec]",
-    panel: "bg-[#2a140c]",
-  },
-  {
-    eyebrow: "Top seller highlights",
-    title: "Grow your business online",
-    highlight: "Sell products across India",
-    text: "Vendor tools, product catalog, stock management, payments and delivery workflow in one place.",
-    primaryLabel: "Become vendor",
-    primaryHref: "/vendor/register",
-    secondaryLabel: "View products",
-    secondaryHref: "/products?sort=popular",
-    image: "/hero-marketplace-visual.png",
-    imageAlt: "Zylo-Buylo vendor marketplace",
-    theme: "bg-[#f4f9ff]",
-    panel: "bg-[#eef6ff]",
-  },
 ];
 
 function priceLabel(price: number) {
@@ -230,7 +157,15 @@ function AdminManagedMedia({
     );
   }
 
-  return <img src={src} alt={alt} className={className} loading="lazy" />;
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      sizes="(min-width: 768px) 50vw, 100vw"
+      className={className}
+    />
+  );
 }
 
 function SmartBannerMedia({

@@ -98,20 +98,6 @@ function fieldsFromText(value: string): TemplateField[] {
   }).filter((field) => field.name && field.label);
 }
 
-function fieldsToText(fields: TemplateField[]) {
-  return fields
-    .map((field) =>
-      [
-        field.name,
-        field.label,
-        field.placeholder,
-        (field.options || []).join(", "),
-        field.multiline ? "multiline" : "",
-      ].join(" | "),
-    )
-    .join("\n");
-}
-
 function variantRowsFromText(value: string): VariantExample[] {
   return linesToList(value).map((line) => {
     const [
@@ -134,22 +120,6 @@ function variantRowsFromText(value: string): VariantExample[] {
       mrp,
     };
   }).filter((row) => row.sizeLabel || row.numericSize || row.color);
-}
-
-function variantRowsToText(rows: VariantExample[]) {
-  return rows
-    .map((row) =>
-      [
-        row.sizeLabel,
-        row.numericSize,
-        row.color,
-        row.sku,
-        row.stockQuantity,
-        row.price,
-        row.mrp,
-      ].join(" | "),
-    )
-    .join("\n");
 }
 
 function resolveTemplateFamily(value: string) {
