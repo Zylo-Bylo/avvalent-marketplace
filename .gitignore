@@ -23,6 +23,7 @@
 /prisma/.generated/
 build-output.txt
 dev.db
+dev.db.backup-*
 *.db
 *.db-journal
 .local-auth.json
@@ -30,6 +31,8 @@ dev.db
 # misc
 .DS_Store
 *.pem
+/.npm-cache/
+/.tmp/
 
 # debug
 npm-debug.log*
