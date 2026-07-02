@@ -133,6 +133,27 @@ export async function PUT(request: NextRequest) {
   };
 
   const name = toNullableString(body.name);
+  const storeName = toNullableString(body.storeName) || 'Vendor Store';
+  const description = toNullableString(body.description);
+  const logoUrl = toNullableString(body.logoUrl);
+  const mobile = toNullableString(body.mobile);
+  const businessCategory = toNullableString(body.businessCategory);
+  const businessAddress = toNullableString(body.businessAddress);
+  const gstNumber = toNullableString(body.gstNumber);
+  const panNumber = toNullableString(body.panNumber);
+  const aadhaarNumber = toNullableString(body.aadhaarNumber);
+  const bankDetails = toNullableString(body.bankDetails);
+  const upiId = toNullableString(body.upiId);
+  const documentsKyc = toNullableString(body.documentsKyc);
+  const panCardUrl = toNullableString(body.panCardUrl);
+  const aadhaarUrl = toNullableString(body.aadhaarUrl);
+  const gstCertificateUrl = toNullableString(body.gstCertificateUrl);
+  const bankProofUrl = toNullableString(body.bankProofUrl);
+  const workingHours = toNullableString(body.workingHours);
+  const deliveryArea = toNullableString(body.deliveryArea);
+  const hasKycDocument = Boolean(
+    panCardUrl || aadhaarUrl || gstCertificateUrl || bankProofUrl || documentsKyc,
+  );
 
   const [updatedUser, updatedVendor] = await prisma.$transaction([
     prisma.user.update({
@@ -148,18 +169,18 @@ export async function PUT(request: NextRequest) {
     prisma.vendor.update({
       where: { id: user.vendorProfile.id },
       data: {
-        storeName: toNullableString(body.storeName) || 'Vendor Store',
-        description: toNullableString(body.description),
-        logoUrl: toNullableString(body.logoUrl),
-        mobile: toNullableString(body.mobile),
-        businessCategory: toNullableString(body.businessCategory),
-        businessAddress: toNullableString(body.businessAddress),
-        gstNumber: toNullableString(body.gstNumber),
-        panNumber: toNullableString(body.panNumber),
-        aadhaarNumber: toNullableString(body.aadhaarNumber),
-        bankDetails: toNullableString(body.bankDetails),
-        upiId: toNullableString(body.upiId),
-        documentsKyc: toNullableString(body.documentsKyc),
+        storeName,
+        description,
+        logoUrl,
+        mobile,
+        businessCategory,
+        businessAddress,
+        gstNumber,
+        panNumber,
+        aadhaarNumber,
+        bankDetails,
+        upiId,
+        documentsKyc,
         metadata: {
           ...(
             user.vendorProfile.metadata &&
@@ -168,18 +189,15 @@ export async function PUT(request: NextRequest) {
               ? (user.vendorProfile.metadata as Record<string, unknown>)
               : {}
           ),
-          business_category: toNullableString(body.businessCategory),
+          business_category: businessCategory,
         },
-        panCardUrl: toNullableString(body.panCardUrl),
-        aadhaarUrl: toNullableString(body.aadhaarUrl),
-        gstCertificateUrl: toNullableString(body.gstCertificateUrl),
-        bankProofUrl: toNullableString(body.bankProofUrl),
-        kycStatus:
-          body.panCardUrl || body.aadhaarUrl || body.gstCertificateUrl || body.bankProofUrl || body.documentsKyc
-            ? 'SUBMITTED'
-            : undefined,
-        workingHours: toNullableString(body.workingHours),
-        deliveryArea: toNullableString(body.deliveryArea),
+        panCardUrl,
+        aadhaarUrl,
+        gstCertificateUrl,
+        bankProofUrl,
+        kycStatus: hasKycDocument ? 'SUBMITTED' : undefined,
+        workingHours,
+        deliveryArea,
       },
       select: vendorSelect,
     }),
