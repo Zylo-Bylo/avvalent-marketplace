@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "backup/**",
+    "coverage/**",
     ".generated/**",
     "prisma/.generated/**",
     "tsconfig.tsbuildinfo",
