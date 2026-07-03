@@ -16,6 +16,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
           select: {
             storeName: true,
             description: true,
+            status: true,
           },
         },
         category: {
@@ -36,7 +37,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       },
     });
 
-    if (!product) {
+    if (!product || product.vendor?.status !== 'APPROVED') {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 

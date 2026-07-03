@@ -87,6 +87,7 @@ export async function GET(
               description: true,
               logoUrl: true,
               businessCategory: true,
+              status: true,
               _count: {
                 select: {
                   products: true,
@@ -140,7 +141,7 @@ export async function GET(
       }) as Promise<ProductVariantRow[]>,
     ]);
 
-    if (!product) {
+    if (!product || product.vendor?.status !== 'APPROVED') {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 

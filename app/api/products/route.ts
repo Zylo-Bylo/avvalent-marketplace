@@ -64,7 +64,13 @@ export async function GET(request: NextRequest) {
 
     await ensureInventoryReady();
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = {
+      vendor: {
+        is: {
+          status: 'APPROVED',
+        },
+      },
+    };
     const andFilters: Record<string, unknown>[] = [];
 
     if (bulkOnly) {
