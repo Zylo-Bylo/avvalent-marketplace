@@ -22,6 +22,10 @@ async function getVendor() {
     return { error: 'Vendor access required', status: 403 as const };
   }
 
+  if (user.vendorProfile.status !== 'APPROVED') {
+    return { error: 'Vendor account is pending admin approval.', status: 403 as const };
+  }
+
   return { vendor: user.vendorProfile };
 }
 
