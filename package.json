@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "node scripts/prisma-schema.mjs generate && next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint --cache --cache-location .eslintcache",
     "test": "vitest run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest run --coverage",
