@@ -16,7 +16,6 @@ import {
 import {
   getVariantsForProducts,
   validateVariantCartStock,
-  ensureVariantSchema,
 } from '@/lib/variants';
 
 interface CartItem {
@@ -171,8 +170,6 @@ export async function POST(request: Request) {
       }
     }
 
-    await ensureVariantSchema();
-
     const productIds = Array.from(
       new Set(items.map((item) => String(item.productId || item.id))),
     );
@@ -211,7 +208,9 @@ export async function POST(request: Request) {
     }
 
     const vendorGroups = new Map<string, CartItem[]>();
-    const variants = await getVariantsForProducts(productIds);
+    const variants = items.some((item) => item.variantId)
+      ? await getVariantsForProducts(productIds)
+      : [];
 
     items.forEach((item) => {
       const productId = String(item.productId || item.id);

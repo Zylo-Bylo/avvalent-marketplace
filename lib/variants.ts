@@ -129,7 +129,9 @@ async function addOrderItemColumn(name: string, definition: string) {
   }
 }
 
-export async function ensureVariantSchema() {
+let ensureVariantSchemaPromise: Promise<void> | null = null;
+
+async function ensureVariantSchemaUncached() {
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "ProductVariant" (
       "id" TEXT PRIMARY KEY,
@@ -187,6 +189,17 @@ export async function ensureVariantSchema() {
   await addOrderItemColumn('numericSize', 'TEXT');
   await addOrderItemColumn('variantColor', 'TEXT');
   await addOrderItemColumn('variantSku', 'TEXT');
+}
+
+export function ensureVariantSchema() {
+  if (!ensureVariantSchemaPromise) {
+    ensureVariantSchemaPromise = ensureVariantSchemaUncached().catch((error) => {
+      ensureVariantSchemaPromise = null;
+      throw error;
+    });
+  }
+
+  return ensureVariantSchemaPromise;
 }
 
 export function normalizeVariants(
@@ -335,10 +348,11 @@ export async function replaceProductVariants(
 }
 
 export async function getVariantsForProducts(productIds: string[]) {
-  await ensureVariantSchema();
   if (productIds.length === 0) {
     return [];
   }
+
+  await ensureVariantSchema();
 
   return prisma.$queryRaw<ProductVariantRow[]>`
     SELECT * FROM "ProductVariant"
@@ -404,11 +418,12 @@ export async function adjustVariantStock(input: {
 }
 
 export async function validateVariantCartStock(items: CartVariantItem[]) {
-  await ensureVariantSchema();
   const variantItems = items.filter((item) => item.variantId);
   if (variantItems.length === 0) {
     return { ok: true as const };
   }
+
+  await ensureVariantSchema();
 
   const variantIds = Array.from(
     new Set(variantItems.map((item) => String(item.variantId))),
@@ -441,11 +456,16 @@ export async function validateVariantCartStock(items: CartVariantItem[]) {
 }
 
 export async function reduceVariantStockForOrder(orderId: string) {
-  await ensureVariantSchema();
   const items = await prisma.orderItem.findMany({
     where: { orderId },
     select: { variantId: true, quantity: true },
   });
+
+  if (!items.some((item) => item.variantId)) {
+    return;
+  }
+
+  await ensureVariantSchema();
 
   for (const item of items) {
     if (!item.variantId) continue;

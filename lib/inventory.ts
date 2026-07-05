@@ -142,7 +142,9 @@ export function getStockSignal(inventory?: Partial<InventoryRow> | null) {
   return { status: 'IN_STOCK' as const, label: 'In Stock', tone: 'green', canBuy: true };
 }
 
-export async function ensureInventorySchema() {
+let ensureInventorySchemaPromise: Promise<void> | null = null;
+
+async function ensureInventorySchemaUncached() {
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "Inventory" (
       "id" TEXT PRIMARY KEY,
@@ -205,6 +207,17 @@ export async function ensureInventorySchema() {
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockMovement_vendorId_idx" ON "StockMovement" ("vendorId")`);
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockReservation_orderId_idx" ON "StockReservation" ("orderId")`);
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockReservation_status_idx" ON "StockReservation" ("status")`);
+}
+
+export function ensureInventorySchema() {
+  if (!ensureInventorySchemaPromise) {
+    ensureInventorySchemaPromise = ensureInventorySchemaUncached().catch((error) => {
+      ensureInventorySchemaPromise = null;
+      throw error;
+    });
+  }
+
+  return ensureInventorySchemaPromise;
 }
 
 export async function ensureInventoryTables() {
@@ -307,32 +320,7 @@ export async function ensureProductInventory(
   productId: string,
   productInput?: { id: string; vendorId: string; sku?: string | null; inventory: number } | null,
 ) {
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "Inventory" (
-      "id" TEXT PRIMARY KEY,
-      "productId" TEXT NOT NULL UNIQUE,
-      "vendorId" TEXT NOT NULL,
-      "sku" TEXT,
-      "mpn" TEXT,
-      "currentStock" INTEGER NOT NULL DEFAULT 0,
-      "reservedStock" INTEGER NOT NULL DEFAULT 0,
-      "availableStock" INTEGER NOT NULL DEFAULT 0,
-      "lowStockThreshold" INTEGER NOT NULL DEFAULT 10,
-      "criticalStockThreshold" INTEGER NOT NULL DEFAULT 3,
-      "minimumOrderQuantity" INTEGER NOT NULL DEFAULT 1,
-      "maximumOrderQuantity" INTEGER,
-      "restockDate" TIMESTAMP,
-      "stockStatus" TEXT NOT NULL DEFAULT 'IN_STOCK',
-      "allowBackorder" BOOLEAN NOT NULL DEFAULT false,
-      "isPreOrder" BOOLEAN NOT NULL DEFAULT false,
-      "bulkPricingTiers" JSONB,
-      "lastLowStockAlertAt" TIMESTAMP,
-      "lastCriticalStockAlertAt" TIMESTAMP,
-      "lastStockUpdatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  await ensureInventorySchema();
 
   const current = await prisma.$queryRaw<InventoryRow[]>`
     SELECT * FROM "Inventory" WHERE "productId" = ${productId} LIMIT 1
@@ -373,7 +361,7 @@ export async function ensureProductInventory(
 }
 
 export async function releaseExpiredReservations() {
-  await ensureInventoryTables();
+  await ensureInventorySchema();
   const reservations = await prisma.$queryRaw<
     Array<{ id: string; productId: string; quantity: number }>
   >`
@@ -561,7 +549,7 @@ export async function convertReservedStockToSold(orderIds: string[]) {
         reason: 'Order payment confirmed.',
         orderId: order.id,
       });
-      await maybeSendStockAlerts(updated, item.product?.name || item.productId);
+      maybeSendStockAlertsInBackground(updated, item.product?.name || item.productId);
     }
     await reduceVariantStockForOrder(order.id);
   }
@@ -609,7 +597,7 @@ export async function reduceStockForOrder(orderId: string) {
       reason: 'Order confirmed.',
       orderId,
     });
-    await maybeSendStockAlerts(updated, item.product?.name || item.productId);
+    maybeSendStockAlertsInBackground(updated, item.product?.name || item.productId);
   }
   await reduceVariantStockForOrder(orderId);
 }
@@ -890,4 +878,10 @@ async function maybeSendStockAlerts(inventory: InventoryRow, productName: string
       UPDATE "Inventory" SET "lastLowStockAlertAt" = CURRENT_TIMESTAMP WHERE "id" = ${inventory.id}
     `;
   }
+}
+
+function maybeSendStockAlertsInBackground(inventory: InventoryRow, productName: string) {
+  void maybeSendStockAlerts(inventory, productName).catch((error) => {
+    console.warn('Inventory stock alert skipped:', error);
+  });
 }
