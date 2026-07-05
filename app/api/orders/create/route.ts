@@ -74,6 +74,12 @@ async function cancelPendingOnlineOrders(orderIds: string[], reason: string) {
   );
 }
 
+function notifyOrderPlacedInBackground(orderIds: string[], source: string) {
+  void notifyOrderPlaced(orderIds, source).catch((error) => {
+    console.error(`${source} notification failed:`, error);
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const session =
@@ -296,13 +302,13 @@ export async function POST(request: Request) {
       createdOrders.push(order);
     }
 
-    for (const createdOrder of createdOrders) {
-      if (paymentMethod === 'COD') {
-        await reduceStockForOrder(createdOrder.id);
-      } else {
-        await reserveStockForOrder(createdOrder.id);
-      }
-    }
+    await Promise.all(
+      createdOrders.map((createdOrder) =>
+        paymentMethod === 'COD'
+          ? reduceStockForOrder(createdOrder.id)
+          : reserveStockForOrder(createdOrder.id),
+      ),
+    );
 
     const order = createdOrders[0];
     const orderIds = createdOrders.map((createdOrder) => createdOrder.id);
@@ -325,7 +331,7 @@ export async function POST(request: Request) {
     }
 
     if (paymentMethod === 'COD') {
-      await notifyOrderPlaced(orderIds, 'COD order');
+      notifyOrderPlacedInBackground(orderIds, 'COD order');
 
       return NextResponse.json(
         {
@@ -341,7 +347,7 @@ export async function POST(request: Request) {
     }
 
     if (paymentMethod === 'UPI') {
-      await notifyOrderPlaced(orderIds, 'UPI order');
+      notifyOrderPlacedInBackground(orderIds, 'UPI order');
 
       return NextResponse.json(
         {
