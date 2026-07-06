@@ -12,6 +12,7 @@ import {
   calculateMarketplacePricing,
   formatRupees,
 } from "@/lib/pricing";
+import { parseBulkProductCsv } from "@/lib/bulk-product-csv";
 
 type Category = {
   id: string;
@@ -74,6 +75,27 @@ type VariantFieldConfig = {
   availableSizesPlaceholder: string;
   brandMappingPlaceholder: string;
   examples: VariantExample[];
+};
+
+type BulkProductRow = {
+  rowNumber: number;
+  name: string;
+  description: string;
+  categoryName: string;
+  subcategoryName: string;
+  brand: string;
+  sku: string;
+  mrp: string;
+  vendorPrice: string;
+  stock: string;
+  color: string;
+  sizeLabel: string;
+  numericSize: string;
+  variantSku: string;
+  imageUrls: string[];
+  status: "READY" | "ERROR" | "CREATED";
+  message: string;
+  productId?: string;
 };
 
 type SpecField = {
@@ -146,6 +168,7 @@ const blockedImageTypes = [
 
 const bulkTemplateHeaders = [
   "Product Name",
+  "Description",
   "Category",
   "Subcategory",
   "Brand",
@@ -863,6 +886,10 @@ export default function ProductUploadPage() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [bulkRows, setBulkRows] = useState<BulkProductRow[]>([]);
+  const [bulkFileName, setBulkFileName] = useState("");
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
   const [managedTemplate, setManagedTemplate] = useState<ManagedUploadTemplate | null>(null);
 
@@ -1366,6 +1393,205 @@ export default function ProductUploadPage() {
     link.click();
   }
 
+  function normalizeBulkLookup(value: string) {
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function splitBulkImages(value: string) {
+    return value
+      .split(/[|\n;]/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function findBulkCategory(name: string) {
+    const normalized = normalizeBulkLookup(name);
+    return categories.find(
+      (category) => normalizeBulkLookup(category.name) === normalized,
+    );
+  }
+
+  function findBulkSubcategory(category: Category, name: string) {
+    const normalized = normalizeBulkLookup(name);
+    return (category.subcategories || []).find(
+      (subcategory) => normalizeBulkLookup(subcategory.name) === normalized,
+    );
+  }
+
+  function validateBulkRow(row: BulkProductRow) {
+    const category = findBulkCategory(row.categoryName);
+    const subcategory = category && row.subcategoryName
+      ? findBulkSubcategory(category, row.subcategoryName)
+      : undefined;
+
+    if (!row.name) return "Product Name is required.";
+    if (!row.vendorPrice || Number(row.vendorPrice) <= 0) {
+      return "Vendor Price must be greater than 0.";
+    }
+    if (!row.stock || Number(row.stock) <= 0) {
+      return "Stock must be greater than 0.";
+    }
+    if (!row.categoryName || !category) {
+      return "Category must match an existing category name.";
+    }
+    if ((category.subcategories || []).length > 0 && !subcategory) {
+      return "Subcategory must match this category.";
+    }
+    if (row.imageUrls.length === 0) {
+      return "At least one Image URL is required.";
+    }
+
+    return "";
+  }
+
+  async function handleBulkCsvFile(file: File | null) {
+    setBulkMessage("");
+    setError("");
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setError("Please upload a CSV file. Excel upload can be connected later.");
+      return;
+    }
+
+    const text = await file.text();
+    const parsedRows = parseBulkProductCsv(text).map(({ rowNumber, row }) => {
+      const bulkRow: BulkProductRow = {
+        rowNumber,
+        name: row["product name"] || "",
+        description: row.description || "",
+        categoryName: row.category || "",
+        subcategoryName: row.subcategory || "",
+        brand: row.brand || "",
+        sku: row.sku || "",
+        mrp: row.mrp || "",
+        vendorPrice: row["vendor price"] || "",
+        stock: row.stock || "",
+        color: row.color || "",
+        sizeLabel: row["size label"] || "",
+        numericSize: row["numeric size"] || "",
+        variantSku: row["variant sku"] || "",
+        imageUrls: splitBulkImages(row["image urls"] || ""),
+        status: "READY",
+        message: "",
+      };
+      const message = validateBulkRow(bulkRow);
+      return {
+        ...bulkRow,
+        status: message ? "ERROR" as const : "READY" as const,
+        message,
+      };
+    });
+
+    setBulkRows(parsedRows);
+    setBulkFileName(file.name);
+    setBulkMessage(
+      parsedRows.length
+        ? `${parsedRows.length} rows loaded. Fix error rows before submit.`
+        : "No product rows found in CSV.",
+    );
+  }
+
+  async function submitBulkProducts() {
+    setError("");
+    setBulkMessage("");
+
+    const readyRows = bulkRows.filter((row) => row.status === "READY");
+    if (readyRows.length === 0) {
+      setError("No valid bulk rows are ready to submit.");
+      return;
+    }
+
+    setBulkSubmitting(true);
+
+    const nextRows = [...bulkRows];
+    let createdCount = 0;
+
+    for (const row of readyRows) {
+      const rowIndex = nextRows.findIndex((entry) => entry.rowNumber === row.rowNumber);
+      const category = findBulkCategory(row.categoryName);
+      const subcategory = category && row.subcategoryName
+        ? findBulkSubcategory(category, row.subcategoryName)
+        : undefined;
+
+      if (!category || ((category.subcategories || []).length > 0 && !subcategory)) {
+        nextRows[rowIndex] = {
+          ...row,
+          status: "ERROR",
+          message: "Category or subcategory no longer matches.",
+        };
+        setBulkRows([...nextRows]);
+        continue;
+      }
+
+      const variantSku =
+        row.variantSku ||
+        [row.sku, row.sizeLabel || row.numericSize || "STD", row.color]
+          .filter(Boolean)
+          .join("-");
+      const response = await fetch("/api/products/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: row.name,
+          description: row.description || row.name,
+          brand: row.brand,
+          sku: row.sku,
+          mrp: Number(row.mrp || row.vendorPrice),
+          vendorPrice: Number(row.vendorPrice),
+          inventory: Number(row.stock),
+          categoryId: category.id,
+          subcategoryId: subcategory?.id,
+          images: row.imageUrls,
+          color: row.color,
+          size: row.sizeLabel,
+          variants: [
+            {
+              sizeLabel: row.sizeLabel || "Standard",
+              numericSize: row.numericSize,
+              color: row.color,
+              sku: variantSku,
+              stockQuantity: Number(row.stock),
+              vendorPrice: Number(row.vendorPrice),
+              mrp: Number(row.mrp || row.vendorPrice),
+              imageUrl: row.imageUrls[0] || "",
+              lowStockThreshold: 3,
+            },
+          ],
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        nextRows[rowIndex] = {
+          ...row,
+          status: "ERROR",
+          message: data.error || "Product could not be created.",
+        };
+      } else {
+        createdCount += 1;
+        nextRows[rowIndex] = {
+          ...row,
+          status: "CREATED",
+          message: "Created",
+          productId: data.id,
+        };
+      }
+
+      setBulkRows([...nextRows]);
+    }
+
+    setBulkSubmitting(false);
+    setBulkMessage(`${createdCount} products created from ${readyRows.length} valid rows.`);
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
@@ -1750,9 +1976,9 @@ export default function ProductUploadPage() {
             </button>
             <h2 className="mt-4 text-2xl font-black">Bulk Catalog Upload</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Bulk upload structure is ready. Use this template to prepare
-              product data. In the next step we can connect Excel validation,
-              image ZIP upload and bulk product creation.
+              Upload a CSV with one product per row. Category and subcategory
+              names must match the marketplace categories already configured by
+              admin.
             </p>
             <div className="mt-5 grid gap-4 md:grid-cols-3">
               <button
@@ -1763,18 +1989,89 @@ export default function ProductUploadPage() {
                 Download CSV Template
               </button>
               <label className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-600">
-                Upload Excel/CSV
-                <input type="file" accept=".csv,.xlsx,.xls" className="hidden" />
+                Upload CSV
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(event) => handleBulkCsvFile(event.target.files?.[0] || null)}
+                />
               </label>
-              <label className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-600">
-                Upload Image ZIP
-                <input type="file" accept=".zip" className="hidden" />
-              </label>
+              <button
+                type="button"
+                onClick={submitBulkProducts}
+                disabled={bulkSubmitting || bulkRows.every((row) => row.status !== "READY")}
+                className="rounded-xl bg-pink-600 px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {bulkSubmitting ? "Creating products..." : "Submit Valid Rows"}
+              </button>
             </div>
-            <p className="mt-4 rounded-xl bg-yellow-50 p-4 text-sm font-semibold text-yellow-800">
-              Bulk submit is intentionally not publishing products yet. This
-              prevents accidental bad listings until validation rules are added.
+            <p className="mt-4 rounded-xl bg-blue-50 p-4 text-sm font-semibold text-blue-800">
+              Use pipe-separated image URLs in the Image URLs column. Example:
+              https://example.com/front.jpg | https://example.com/side.jpg
             </p>
+            {bulkFileName && (
+              <p className="mt-4 text-sm font-bold text-slate-700">
+                Loaded: {bulkFileName}
+              </p>
+            )}
+            {bulkMessage && (
+              <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700">
+                {bulkMessage}
+              </p>
+            )}
+            {bulkRows.length > 0 && (
+              <div className="mt-5 overflow-x-auto rounded-xl border">
+                <table className="min-w-[900px] w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                    <tr>
+                      <th className="p-3">Row</th>
+                      <th className="p-3">Product</th>
+                      <th className="p-3">Category</th>
+                      <th className="p-3">Price / Stock</th>
+                      <th className="p-3">Images</th>
+                      <th className="p-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bulkRows.map((row) => (
+                      <tr key={row.rowNumber} className="border-t">
+                        <td className="p-3 font-bold">{row.rowNumber}</td>
+                        <td className="p-3">
+                          <p className="font-bold text-slate-900">{row.name || "-"}</p>
+                          <p className="text-xs text-slate-500">{row.sku || "No SKU"}</p>
+                        </td>
+                        <td className="p-3">
+                          <p>{row.categoryName || "-"}</p>
+                          <p className="text-xs text-slate-500">{row.subcategoryName || "No subcategory"}</p>
+                        </td>
+                        <td className="p-3">
+                          <p>Vendor: Rs. {row.vendorPrice || "0"}</p>
+                          <p className="text-xs text-slate-500">Stock: {row.stock || "0"}</p>
+                        </td>
+                        <td className="p-3">{row.imageUrls.length}</td>
+                        <td className="p-3">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-black ${
+                              row.status === "CREATED"
+                                ? "bg-green-100 text-green-700"
+                                : row.status === "ERROR"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
+                            {row.status}
+                          </span>
+                          {row.message && (
+                            <p className="mt-1 max-w-xs text-xs text-slate-500">{row.message}</p>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
         )}
 
