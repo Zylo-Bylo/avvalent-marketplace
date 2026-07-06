@@ -168,7 +168,7 @@ export function shouldUseLocalSqliteAuth() {
 }
 
 function openLocalDatabase() {
-  return new Database(DEFAULT_SQLITE_PATH, { readonly: true, fileMustExist: true });
+  return new Database(DEFAULT_SQLITE_PATH, { fileMustExist: true });
 }
 
 function localId(prefix: string) {
