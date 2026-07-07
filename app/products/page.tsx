@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import MobileNavbar from "@/components/MobileNavbar";
+import { getFashionCategoryHref } from "@/lib/categoryFilters";
 import { useCartStore } from "@/store/cart-store";
 
 type Product = {
@@ -129,10 +130,19 @@ export default function ProductsPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const queryCategory = params.get("category") || "";
+    const categoryListingHref = getFashionCategoryHref(queryCategory);
+
+    if (categoryListingHref) {
+      params.delete("category");
+      const query = params.toString();
+      router.replace(query ? `${categoryListingHref}?${query}` : categoryListingHref);
+      return;
+    }
 
     setSearch(params.get("search") || "");
     setCategoryId(params.get("categoryId") || "");
-    setCategorySlug(params.get("category") || "");
+    setCategorySlug(queryCategory);
     setSubcategoryId(params.get("subcategoryId") || "");
     setMinPrice(params.get("minPrice") || "");
     setMaxPrice(params.get("maxPrice") || "");
@@ -143,7 +153,7 @@ export default function ProductsPage() {
     setFeaturedOnly(params.get("featured") === "true");
     setShowOutOfStock(params.get("includeOutOfStock") === "true");
     setFiltersHydrated(true);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     let isActive = true;

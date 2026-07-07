@@ -41,6 +41,22 @@ const brandAliases: Record<string, string[]> = {
   noise: ['noise'],
 };
 
+const supportsInsensitiveMode =
+  process.env.DATABASE_URL?.startsWith('postgresql://') ||
+  process.env.DATABASE_URL?.startsWith('postgres://');
+
+function textEquals(value: string) {
+  return supportsInsensitiveMode
+    ? { equals: value, mode: 'insensitive' as const }
+    : { equals: value };
+}
+
+function textContains(value: string) {
+  return supportsInsensitiveMode
+    ? { contains: value, mode: 'insensitive' as const }
+    : { contains: value };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -88,8 +104,8 @@ export async function GET(request: NextRequest) {
       const categoryMatches = categoryAliases[categoryKey] || [category];
       where.category = {
         OR: categoryMatches.flatMap((categoryMatch) => [
-          { name: { equals: categoryMatch, mode: 'insensitive' } },
-          { slug: { equals: categoryMatch, mode: 'insensitive' } },
+          { name: textEquals(categoryMatch) },
+          { slug: textEquals(categoryMatch) },
         ]),
       };
     }
@@ -111,59 +127,44 @@ export async function GET(request: NextRequest) {
         OR: [
           {
             name: {
-              contains: search,
-              mode: 'insensitive',
+              ...textContains(search),
             },
           },
           {
             description: {
-              contains: search,
-              mode: 'insensitive',
+              ...textContains(search),
             },
           },
           {
             sku: {
-              contains: search,
-              mode: 'insensitive',
+              ...textContains(search),
             },
           },
           {
             category: {
               is: {
-                name: {
-                  contains: search,
-                  mode: 'insensitive',
-                },
+                name: textContains(search),
               },
             },
           },
           {
             category: {
               is: {
-                slug: {
-                  contains: search,
-                  mode: 'insensitive',
-                },
+                slug: textContains(search),
               },
             },
           },
           {
             subcategory: {
               is: {
-                name: {
-                  contains: search,
-                  mode: 'insensitive',
-                },
+                name: textContains(search),
               },
             },
           },
           {
             vendor: {
               is: {
-                storeName: {
-                  contains: search,
-                  mode: 'insensitive',
-                },
+                storeName: textContains(search),
               },
             },
           },
@@ -178,23 +179,18 @@ export async function GET(request: NextRequest) {
         OR: brandMatches.flatMap((brandMatch) => [
           {
             name: {
-              contains: brandMatch,
-              mode: 'insensitive',
+              ...textContains(brandMatch),
             },
           },
           {
             description: {
-              contains: brandMatch,
-              mode: 'insensitive',
+              ...textContains(brandMatch),
             },
           },
           {
             vendor: {
               is: {
-                storeName: {
-                  contains: brandMatch,
-                  mode: 'insensitive',
-                },
+                storeName: textContains(brandMatch),
               },
             },
           },
