@@ -41,6 +41,5 @@ export async function POST(request: NextRequest) {
       ? 'OTP sent. Check your email.'
       : 'OTP generated. Connect an email provider before production to send this automatically.',
     emailSent,
-    ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}),
   });
 }

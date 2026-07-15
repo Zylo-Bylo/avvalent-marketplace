@@ -7,6 +7,7 @@ import { sendSms } from '@/lib/sms';
 const OTP_PURPOSE = 'vendor_registration';
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 5;
+const OTP_RESEND_COOLDOWN_MINUTES = 2;
 
 type MobileOtpRow = {
   id: string;
@@ -16,6 +17,7 @@ type MobileOtpRow = {
   attempts: number;
   expiresAt: Date | string;
   verifiedAt: Date | string | null;
+  createdAt?: Date | string;
 };
 
 function cleanMobile(value: string) {
@@ -24,6 +26,15 @@ function cleanMobile(value: string) {
 
 function getOtpHash(mobile: string, otp: string, purpose: string) {
   return hashToken(`${mobile}:${otp}:${purpose}`);
+}
+
+function isWithinCooldown(value: Date | string | null | undefined) {
+  if (!value) return false;
+  const date = value instanceof Date ? value : new Date(value);
+  return (
+    !Number.isNaN(date.getTime()) &&
+    Date.now() - date.getTime() < OTP_RESEND_COOLDOWN_MINUTES * 60 * 1000
+  );
 }
 
 export function normalizeMobileNumber(value: string) {
@@ -63,6 +74,23 @@ export async function createAndSendVendorMobileOtp(rawMobile: string) {
     return { ok: false as const, error: 'Please enter a valid 10 digit mobile number.' };
   }
 
+  const recentRows = await prisma.$queryRaw<MobileOtpRow[]>`
+    SELECT * FROM "vendor_mobile_otp"
+    WHERE "mobile" = ${mobile}
+      AND "purpose" = ${OTP_PURPOSE}
+      AND "verifiedAt" IS NULL
+      AND "expiresAt" > CURRENT_TIMESTAMP
+    ORDER BY "createdAt" DESC
+    LIMIT 1
+  `;
+
+  if (isWithinCooldown(recentRows[0]?.createdAt)) {
+    return {
+      ok: false as const,
+      error: `Please wait ${OTP_RESEND_COOLDOWN_MINUTES} minutes before requesting another OTP.`,
+    };
+  }
+
   const otp = createOtp();
   const otpHash = getOtpHash(mobile, otp, OTP_PURPOSE);
   const id = randomUUID();
@@ -88,7 +116,6 @@ export async function createAndSendVendorMobileOtp(rawMobile: string) {
     smsSent: sms.sent,
     provider: sms.provider,
     smsError: sms.error,
-    devOtp: process.env.NODE_ENV !== 'production' ? otp : undefined,
   };
 }
 

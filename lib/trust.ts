@@ -1,5 +1,11 @@
 import { randomInt, randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { hashToken, minutesFromNow } from '@/lib/security';
+
+const DELIVERY_OTP_PURPOSE = 'delivery_verification';
+const DELIVERY_OTP_EXPIRY_MINUTES = 15;
+const DELIVERY_OTP_MAX_ATTEMPTS = 5;
+const DELIVERY_OTP_RESEND_COOLDOWN_MINUTES = 2;
 
 export const SIZE_REQUIRED_KEYWORDS = [
   'men',
@@ -74,6 +80,16 @@ export function createDeliveryOtp() {
   return String(randomInt(100000, 999999));
 }
 
+function createDeliveryOtpHash(orderId: string, otp: string) {
+  return hashToken(`${orderId}:${otp}:${DELIVERY_OTP_PURPOSE}`);
+}
+
+function isPast(value: Date | string | null | undefined) {
+  if (!value) return false;
+  const date = value instanceof Date ? value : new Date(value);
+  return !Number.isNaN(date.getTime()) && date.getTime() <= Date.now();
+}
+
 export function createTrustId() {
   return randomUUID();
 }
@@ -145,13 +161,25 @@ export async function ensureTrustTables() {
     CREATE TABLE IF NOT EXISTS "delivery_otp" (
       "id" TEXT PRIMARY KEY,
       "orderId" TEXT NOT NULL UNIQUE,
-      "otp" TEXT NOT NULL,
+      "otpHash" TEXT,
       "verified" BOOLEAN NOT NULL DEFAULT false,
+      "attempts" INTEGER NOT NULL DEFAULT 0,
       "verifiedAt" TIMESTAMP,
       "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      "expiresAt" TIMESTAMP
+      "expiresAt" TIMESTAMP,
+      "resendAvailableAt" TIMESTAMP
     )
   `);
+
+  await prisma.$executeRawUnsafe(
+    'ALTER TABLE "delivery_otp" ADD COLUMN IF NOT EXISTS "otpHash" TEXT',
+  ).catch(() => undefined);
+  await prisma.$executeRawUnsafe(
+    'ALTER TABLE "delivery_otp" ADD COLUMN IF NOT EXISTS "attempts" INTEGER NOT NULL DEFAULT 0',
+  ).catch(() => undefined);
+  await prisma.$executeRawUnsafe(
+    'ALTER TABLE "delivery_otp" ADD COLUMN IF NOT EXISTS "resendAvailableAt" TIMESTAMP',
+  ).catch(() => undefined);
 
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "open_box_verification" (
@@ -254,7 +282,18 @@ export async function getOrderTrustSnapshot(orderId: string): Promise<TrustSnaps
         ORDER BY "createdAt" DESC
       `,
       prisma.$queryRaw<Array<Record<string, unknown>>>`
-        SELECT * FROM "delivery_otp" WHERE "orderId" = ${orderId} LIMIT 1
+        SELECT
+          "id",
+          "orderId",
+          "verified",
+          "attempts",
+          "verifiedAt",
+          "createdAt",
+          "expiresAt",
+          "resendAvailableAt"
+        FROM "delivery_otp"
+        WHERE "orderId" = ${orderId}
+        LIMIT 1
       `,
       prisma.$queryRaw<Array<Record<string, unknown>>>`
         SELECT * FROM "open_box_verification" WHERE "orderId" = ${orderId} LIMIT 1
@@ -381,16 +420,60 @@ export async function saveDispatchProof(input: {
     `;
   }
 
-  const otpRows = await prisma.$queryRaw<Array<{ id: string }>>`
-    SELECT "id" FROM "delivery_otp"
+  const otpRows = await prisma.$queryRaw<Array<{
+    id: string;
+    otpHash: string | null;
+    verified: boolean;
+    expiresAt: Date | string | null;
+    resendAvailableAt: Date | string | null;
+  }>>`
+    SELECT "id", "otpHash", "verified", "expiresAt", "resendAvailableAt" FROM "delivery_otp"
     WHERE "orderId" = ${input.orderId}
     LIMIT 1
   `;
 
-  if (!otpRows[0]) {
+  const otpRecord = otpRows[0];
+  const needsOtpRefresh =
+    !otpRecord || otpRecord.verified || !otpRecord.otpHash || isPast(otpRecord.expiresAt);
+  const resendAllowed = !otpRecord?.resendAvailableAt || isPast(otpRecord.resendAvailableAt);
+
+  if (needsOtpRefresh && resendAllowed) {
+    const otp = createDeliveryOtp();
+    const otpHash = createDeliveryOtpHash(input.orderId, otp);
+    const expiresAt = minutesFromNow(DELIVERY_OTP_EXPIRY_MINUTES);
+    const resendAvailableAt = minutesFromNow(DELIVERY_OTP_RESEND_COOLDOWN_MINUTES);
+
     await prisma.$executeRaw`
-      INSERT INTO "delivery_otp" ("id", "orderId", "otp")
-      VALUES (${createTrustId()}, ${input.orderId}, ${createDeliveryOtp()})
+      INSERT INTO "delivery_otp" (
+        "id",
+        "orderId",
+        "otpHash",
+        "verified",
+        "attempts",
+        "verifiedAt",
+        "expiresAt",
+        "resendAvailableAt",
+        "createdAt"
+      )
+      VALUES (
+        ${otpRecord?.id || createTrustId()},
+        ${input.orderId},
+        ${otpHash},
+        false,
+        0,
+        null,
+        ${expiresAt},
+        ${resendAvailableAt},
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT ("orderId") DO UPDATE SET
+        "otpHash" = EXCLUDED."otpHash",
+        "verified" = false,
+        "attempts" = 0,
+        "verifiedAt" = null,
+        "expiresAt" = EXCLUDED."expiresAt",
+        "resendAvailableAt" = EXCLUDED."resendAvailableAt",
+        "createdAt" = CURRENT_TIMESTAMP
     `;
   }
 
@@ -404,6 +487,64 @@ export async function saveDispatchProof(input: {
       openBoxEligible: Boolean(input.openBoxEligible),
     },
   );
+}
+
+export async function verifyDeliveryOtpForOrder(orderId: string, rawOtp: string) {
+  await ensureTrustTables();
+
+  const otp = String(rawOtp || '').trim();
+  const rows = await prisma.$queryRaw<Array<{
+    id: string;
+    otpHash: string | null;
+    verified: boolean;
+    attempts: number;
+    expiresAt: Date | string | null;
+  }>>`
+    SELECT "id", "otpHash", "verified", "attempts", "expiresAt"
+    FROM "delivery_otp"
+    WHERE "orderId" = ${orderId}
+    LIMIT 1
+  `;
+  const record = rows[0];
+
+  if (!record) {
+    return { ok: false as const, error: 'Delivery OTP is not generated for this order.' };
+  }
+
+  if (record.verified) {
+    return { ok: true as const, alreadyVerified: true };
+  }
+
+  if (!otp) {
+    return { ok: false as const, error: 'Enter the customer delivery OTP before delivery completion.' };
+  }
+
+  if (isPast(record.expiresAt)) {
+    return { ok: false as const, error: 'Delivery OTP expired. Regenerate dispatch verification.' };
+  }
+
+  if (Number(record.attempts || 0) >= DELIVERY_OTP_MAX_ATTEMPTS) {
+    return { ok: false as const, error: 'Too many incorrect delivery OTP attempts.' };
+  }
+
+  if (!record.otpHash || record.otpHash !== createDeliveryOtpHash(orderId, otp)) {
+    await prisma.$executeRaw`
+      UPDATE "delivery_otp"
+      SET "attempts" = "attempts" + 1
+      WHERE "orderId" = ${orderId}
+    `;
+    return { ok: false as const, error: 'Correct customer delivery OTP is required before delivery completion.' };
+  }
+
+  await prisma.$executeRaw`
+    UPDATE "delivery_otp"
+    SET "verified" = true,
+        "verifiedAt" = CURRENT_TIMESTAMP,
+        "otpHash" = ${hashToken(randomUUID())}
+    WHERE "orderId" = ${orderId}
+  `;
+
+  return { ok: true as const, alreadyVerified: false };
 }
 
 export function calculateReturnRisk(input: {

@@ -31,6 +31,5 @@ export async function POST(request: Request) {
     smsSent: result.smsSent,
     provider: result.provider,
     ...(result.smsError ? { smsError: result.smsError } : {}),
-    ...(result.devOtp ? { devOtp: result.devOtp } : {}),
   });
 }

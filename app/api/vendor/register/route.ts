@@ -430,6 +430,5 @@ export async function POST(request: NextRequest) {
         ? 'Vendor account created. Check your email for the OTP, then wait for admin approval.'
         : 'Vendor account created. Email verification is skipped until email delivery is configured. Wait for admin approval.',
     emailSent,
-    ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}),
   }, { status: 201 });
 }

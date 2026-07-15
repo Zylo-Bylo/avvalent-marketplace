@@ -8,6 +8,7 @@ import {
   ensureTrustTables,
   getOrderTrustSnapshot,
   logVendorProtection,
+  verifyDeliveryOtpForOrder,
 } from '@/lib/trust';
 
 export const runtime = 'nodejs';
@@ -89,26 +90,14 @@ export async function PATCH(
 
   if (action === 'verify-delivery-otp') {
     const otp = typeof body.otp === 'string' ? body.otp.trim() : '';
-    const rows = await prisma.$queryRaw<Array<{ id: string; otp: string }>>`
-      SELECT "id", "otp" FROM "delivery_otp"
-      WHERE "orderId" = ${id}
-      LIMIT 1
-    `;
-    const record = rows[0];
+    const verification = await verifyDeliveryOtpForOrder(id, otp);
 
-    if (!record || record.otp !== otp) {
+    if (!verification.ok) {
       return NextResponse.json(
-        { error: 'Invalid delivery OTP.' },
+        { error: verification.error },
         { status: 400 },
       );
     }
-
-    await prisma.$executeRaw`
-      UPDATE "delivery_otp"
-      SET "verified" = true,
-          "verifiedAt" = CURRENT_TIMESTAMP
-      WHERE "orderId" = ${id}
-    `;
 
     if (access.order.status === 'SHIPPED') {
       await prisma.order.update({

@@ -260,7 +260,7 @@ export default function VendorRegisterPage() {
       });
       const data = await response.json();
 
-      setSentOtp(data.devOtp || "sent");
+      setSentOtp("sent");
       setOtpInput("");
       setMobileOtpToken("");
       setMobileVerified(false);
@@ -271,11 +271,7 @@ export default function VendorRegisterPage() {
         return;
       }
 
-      setNotice(
-        data.devOtp
-          ? `${data.message} Setup mode OTP: ${data.devOtp}`
-          : data.message || `OTP sent to ${form.mobile}.`,
-      );
+      setNotice(data.message || `OTP sent to ${form.mobile}.`);
     } catch {
       setError("Mobile OTP service is not responding. Please try again.");
     } finally {

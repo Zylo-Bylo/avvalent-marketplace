@@ -71,6 +71,5 @@ export async function POST(request: NextRequest) {
     message: emailSent
       ? 'Account created. Check your email for the OTP.'
       : 'Account created. Email delivery is not configured yet; ask admin for OTP or configure RESEND_API_KEY.',
-    ...(process.env.NODE_ENV !== 'production' ? { devOtp: emailOtp } : {}),
   }, { status: 201 });
 }

@@ -11,6 +11,7 @@ import {
   ensureTrustTables,
   getOrderTrustSnapshot,
   saveDispatchProof,
+  verifyDeliveryOtpForOrder,
 } from '@/lib/trust';
 
 export const runtime = 'nodejs';
@@ -75,30 +76,15 @@ export async function PATCH(
 
   if (body.status === 'DELIVERED' && !body.allowDeliveryOtpOverride) {
     const deliveryOtp = typeof body.deliveryOtp === 'string' ? body.deliveryOtp.trim() : '';
-    const otpRows = await prisma.$queryRaw<Array<{ otp: string; verified: boolean }>>`
-      SELECT "otp", "verified" FROM "delivery_otp"
-      WHERE "orderId" = ${order.id}
-      LIMIT 1
-    `;
-    const otpRecord = otpRows[0];
+    const verification = await verifyDeliveryOtpForOrder(order.id, deliveryOtp);
 
-    if (otpRecord && !otpRecord.verified && otpRecord.otp !== deliveryOtp) {
+    if (!verification.ok) {
       return NextResponse.json(
         {
-          error:
-            'Correct delivery OTP is required. Use override only after manual verification.',
+          error: verification.error,
         },
         { status: 400 },
       );
-    }
-
-    if (otpRecord && !otpRecord.verified) {
-      await prisma.$executeRaw`
-        UPDATE "delivery_otp"
-        SET "verified" = true,
-            "verifiedAt" = CURRENT_TIMESTAMP
-        WHERE "orderId" = ${order.id}
-      `;
     }
   }
 

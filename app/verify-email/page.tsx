@@ -41,7 +41,7 @@ function VerifyEmailForm() {
     });
     const data = await response.json();
     setLoading(false);
-    setMessage(data.devOtp ? `${data.message} Dev OTP: ${data.devOtp}` : data.message || data.error);
+    setMessage(data.message || data.error);
   }
 
   return (

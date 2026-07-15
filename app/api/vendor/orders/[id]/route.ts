@@ -12,6 +12,7 @@ import {
   ensureTrustTables,
   getOrderTrustSnapshot,
   saveDispatchProof,
+  verifyDeliveryOtpForOrder,
 } from '@/lib/trust';
 
 export async function PATCH(
@@ -158,41 +159,13 @@ export async function PATCH(
 
     if (body.status === 'DELIVERED') {
       const deliveryOtp = typeof body.deliveryOtp === 'string' ? body.deliveryOtp.trim() : '';
-      const otpRows = await prisma.$queryRaw<Array<{ otp: string; verified: boolean }>>`
-        SELECT "otp", "verified" FROM "delivery_otp"
-        WHERE "orderId" = ${order.id}
-        LIMIT 1
-      `;
-      const otpRecord = otpRows[0];
+      const verification = await verifyDeliveryOtpForOrder(order.id, deliveryOtp);
 
-      if (!otpRecord) {
+      if (!verification.ok) {
         return NextResponse.json(
-          { error: 'Delivery OTP is not generated for this order. Mark the order shipped with dispatch proof first.' },
+          { error: verification.error },
           { status: 400 },
         );
-      }
-
-      if (!otpRecord.verified && !deliveryOtp) {
-        return NextResponse.json(
-          { error: 'Enter the customer delivery OTP before marking delivered.' },
-          { status: 400 },
-        );
-      }
-
-      if (!otpRecord.verified && otpRecord.otp !== deliveryOtp) {
-        return NextResponse.json(
-          { error: 'Correct customer delivery OTP is required before delivery completion.' },
-          { status: 400 },
-        );
-      }
-
-      if (!otpRecord.verified) {
-        await prisma.$executeRaw`
-          UPDATE "delivery_otp"
-          SET "verified" = true,
-              "verifiedAt" = CURRENT_TIMESTAMP
-          WHERE "orderId" = ${order.id}
-        `;
       }
     }
 
