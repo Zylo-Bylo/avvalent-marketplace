@@ -1,20 +1,20 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { verifyToken } from "@/lib/auth";
-import { isAdminRole } from "@/lib/role-access";
+import { getAdminAuthState } from "@/lib/admin-auth";
 
 export default async function AdminLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
-  const payload = token ? verifyToken(token) : null;
+  const authState = await getAdminAuthState();
 
-  if (!payload || !isAdminRole(payload.role)) {
+  if (authState.status === "unauthenticated") {
     redirect("/login?next=/admin/dashboard&admin=1");
+  }
+
+  if (authState.status === "forbidden") {
+    redirect("/unauthorized?area=admin");
   }
 
   return children;

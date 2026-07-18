@@ -2,6 +2,7 @@ import fs from "node:fs";
 import pg from "pg";
 
 const ENV_PATH = ".env.staging.local";
+const DB_PARTS_ENV_PATH = ".env.staging.db.parts.local";
 const EXPECTED_STAGING_REF = "tltcnxuhrqweyxpxjdtd";
 const FORBIDDEN_PRODUCTION_REF = "uvembydjrayvnrooyywl";
 
@@ -50,15 +51,39 @@ const financialTables = [
   "RefundAdjustment",
 ];
 
-function readEnv() {
+function readEnv(path = ENV_PATH) {
   const result = {};
-  for (const line of fs.readFileSync(ENV_PATH, "utf8").split(/\r?\n/)) {
+  if (!fs.existsSync(path)) return result;
+  for (const line of fs.readFileSync(path, "utf8").split(/\r?\n/)) {
     const match = line.match(/^\s*([^#=]+)=(.*)$/);
     if (match) {
-      result[match[1].trim()] = match[2].trim();
+      result[match[1].trim()] = match[2].trim().replace(/^['"]|['"]$/g, "");
     }
   }
   return result;
+}
+
+function directDbConfig(parts) {
+  if (
+    parts.STAGING_DB_HOST !== "aws-1-ap-south-1.pooler.supabase.com" ||
+    parts.STAGING_DB_PORT !== "5432" ||
+    parts.STAGING_DB_NAME !== "postgres" ||
+    parts.STAGING_DB_USER !== `postgres.${EXPECTED_STAGING_REF}` ||
+    !parts.STAGING_DB_PASSWORD
+  ) {
+    return null;
+  }
+  if (Object.values(parts).some((value) => String(value).includes(FORBIDDEN_PRODUCTION_REF))) {
+    throw new Error("Refusing to connect to forbidden production project.");
+  }
+  return {
+    host: `db.${EXPECTED_STAGING_REF}.supabase.co`,
+    port: 5432,
+    database: "postgres",
+    user: "postgres",
+    password: parts.STAGING_DB_PASSWORD,
+    ssl: { rejectUnauthorized: false },
+  };
 }
 
 function redactErrorMessage(message, connectionString) {
@@ -76,8 +101,10 @@ function redactErrorMessage(message, connectionString) {
 
 async function main() {
   const env = readEnv();
+  const parts = readEnv(DB_PARTS_ENV_PATH);
   const ref = env.STAGING_SUPABASE_PROJECT_REF;
   const connectionString = env.STAGING_DATABASE_URL;
+  const config = directDbConfig(parts);
 
   if (ref !== EXPECTED_STAGING_REF) {
     throw new Error(`Unexpected staging ref: ${ref || "<missing>"}`);
@@ -85,11 +112,11 @@ async function main() {
   if (ref === FORBIDDEN_PRODUCTION_REF || connectionString?.includes(FORBIDDEN_PRODUCTION_REF)) {
     throw new Error("Refusing to connect to forbidden production project.");
   }
-  if (!connectionString || !connectionString.includes(EXPECTED_STAGING_REF)) {
+  if (!config && (!connectionString || !connectionString.includes(EXPECTED_STAGING_REF))) {
     throw new Error("STAGING_DATABASE_URL is missing or does not reference the expected staging ref.");
   }
 
-  const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } });
+  const client = new pg.Client(config || { connectionString, ssl: { rejectUnauthorized: false } });
   await client.connect();
   try {
     await client.query("begin read only");
@@ -103,11 +130,15 @@ async function main() {
     `);
 
     const tableSecurity = await client.query(`
-      select tablename, rowsecurity, forcerowsecurity
-      from pg_tables
-      where schemaname = 'public'
-        and tablename = any($1::text[])
-      order by tablename
+      select c.relname as tablename,
+             c.relrowsecurity as rowsecurity,
+             c.relforcerowsecurity as forcerowsecurity
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'
+        and c.relname = any($1::text[])
+        and c.relkind in ('r', 'p')
+      order by c.relname
     `, [requiredRlsTables]);
 
     const policies = await client.query(`
@@ -184,7 +215,7 @@ async function main() {
       const config = row.function_config || [];
       return row.schema_name !== "private" ||
         !row.security_definer ||
-        !config.some((item) => item === "search_path=");
+        !config.some((item) => item === "search_path=" || item === "search_path=\"\"");
     });
 
     const viewRow = view.rows[0];

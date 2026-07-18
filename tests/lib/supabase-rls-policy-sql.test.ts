@@ -17,6 +17,15 @@ const rollbackPath = join(
 );
 const migration = readFileSync(migrationPath, "utf8");
 const rollback = readFileSync(rollbackPath, "utf8");
+const rlsAutoEnableRevokeMigration = readFileSync(
+  join(
+    root,
+    "supabase",
+    "migrations",
+    "20260718000100_restrict_rls_auto_enable_execute.sql",
+  ),
+  "utf8",
+);
 
 function read(path: string) {
   return readFileSync(join(root, path), "utf8");
@@ -135,5 +144,26 @@ describe("delivery OTP runtime guardrails", () => {
     expect(trust).toContain("DELIVERY_OTP_RESEND_COOLDOWN_MINUTES");
     expect(trust).not.toMatch(/SELECT\s+\*\s+FROM\s+"delivery_otp"/i);
     expect(trust).not.toMatch(/SELECT[\s\S]{0,120}"otpHash"[\s\S]{0,120}deliveryOtpRows/);
+  });
+});
+
+describe("automatic RLS event-trigger helper hardening", () => {
+  it("revokes direct execution of public.rls_auto_enable without dropping the trigger function", () => {
+    expect(rlsAutoEnableRevokeMigration).toContain(
+      "IF to_regprocedure('public.rls_auto_enable()') IS NOT NULL THEN",
+    );
+    expect(rlsAutoEnableRevokeMigration).toContain(
+      "REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC",
+    );
+    expect(rlsAutoEnableRevokeMigration).toContain(
+      "REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM anon",
+    );
+    expect(rlsAutoEnableRevokeMigration).toContain(
+      "REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM authenticated",
+    );
+    expect(rlsAutoEnableRevokeMigration).not.toMatch(/drop\s+function/i);
+    expect(rlsAutoEnableRevokeMigration).not.toMatch(/drop\s+event\s+trigger/i);
+    expect(rlsAutoEnableRevokeMigration).not.toMatch(/disable\s+trigger/i);
+    expect(rlsAutoEnableRevokeMigration).not.toMatch(/grant\s+execute/i);
   });
 });

@@ -447,6 +447,7 @@ export async function saveDispatchProof(input: {
       INSERT INTO "delivery_otp" (
         "id",
         "orderId",
+        "otp",
         "otpHash",
         "verified",
         "attempts",
@@ -458,6 +459,7 @@ export async function saveDispatchProof(input: {
       VALUES (
         ${otpRecord?.id || createTrustId()},
         ${input.orderId},
+        ${'HASH_ONLY_NO_RAW_OTP'},
         ${otpHash},
         false,
         0,
@@ -467,6 +469,7 @@ export async function saveDispatchProof(input: {
         CURRENT_TIMESTAMP
       )
       ON CONFLICT ("orderId") DO UPDATE SET
+        "otp" = EXCLUDED."otp",
         "otpHash" = EXCLUDED."otpHash",
         "verified" = false,
         "attempts" = 0,
@@ -512,7 +515,7 @@ export async function verifyDeliveryOtpForOrder(orderId: string, rawOtp: string)
   }
 
   if (record.verified) {
-    return { ok: true as const, alreadyVerified: true };
+    return { ok: false as const, error: 'Delivery OTP was already used.' };
   }
 
   if (!otp) {
