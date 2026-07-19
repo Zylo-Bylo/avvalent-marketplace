@@ -109,7 +109,6 @@ type VendorOrder = {
       url: string;
     }>;
     deliveryOtp?: {
-      otp?: string;
       verified?: boolean;
     } | null;
   };
@@ -1466,9 +1465,9 @@ export default function VendorDashboardPage() {
                         />
                         Open box delivery eligible
                       </label>
-                      {order.trust?.deliveryOtp?.otp && (
+                      {order.trust?.deliveryOtp && !order.trust.deliveryOtp.verified && (
                         <span className="rounded-xl bg-white px-3 py-2 font-semibold">
-                          Customer OTP: {order.trust.deliveryOtp.otp}
+                          Customer OTP required at delivery
                         </span>
                       )}
                     </div>

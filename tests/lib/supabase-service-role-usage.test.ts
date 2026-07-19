@@ -53,6 +53,8 @@ describe("Supabase service-role key usage", () => {
     expect(source).not.toMatch(/\bdevOtp\b/);
     expect(source).not.toMatch(/SELECT\s+"otp"/i);
     expect(source).not.toMatch(/otpRecord\.otp(?!Hash)|record\.otp(?!Hash)/);
+    expect(source).not.toMatch(/deliveryOtp\??\.otp/);
+    expect(source).not.toMatch(/Customer OTP:\s*\{/);
     expect(source).not.toMatch(/console\.(log|error|warn).*otp/i);
     expect(source).not.toMatch(/otp.*console\.(log|error|warn)/i);
   });

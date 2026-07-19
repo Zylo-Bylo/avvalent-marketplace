@@ -94,7 +94,6 @@ type TrustSnapshot = {
     createdAt: string;
   }>;
   deliveryOtp?: {
-    otp?: string;
     verified?: boolean;
     verifiedAt?: string | null;
   } | null;
@@ -1118,11 +1117,8 @@ export default function OrderPage() {
                 {showDeliveryOtpBox ? (
                   <div className="mt-3 space-y-3">
                     <p className="rounded-xl bg-white p-3 text-sm text-blue-900">
-                      Your delivery OTP is{' '}
-                      <span className="text-lg font-black">
-                        {trust?.deliveryOtp?.otp}
-                      </span>
-                      . Share it only after checking the package.
+                      Delivery OTP is active for this shipment. Enter the OTP from
+                      the delivery message only after checking the package.
                     </p>
                     <input
                       value={deliveryOtp}
