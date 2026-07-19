@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ensureCategoryAtelierSchema } from '@/lib/category-atelier-schema';
 import { prisma } from '@/lib/prisma';
 
 function slugify(value: string) {
@@ -11,6 +12,8 @@ function slugify(value: string) {
 
 export async function GET(request: Request) {
   try {
+    await ensureCategoryAtelierSchema();
+
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('categoryId');
 
@@ -18,6 +21,9 @@ export async function GET(request: Request) {
       where: categoryId ? { categoryId } : undefined,
       orderBy: { name: 'asc' },
       include: {
+        productTypes: {
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        },
         category: {
           select: {
             id: true,
@@ -36,7 +42,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { name, categoryId } = await request.json();
+    await ensureCategoryAtelierSchema();
+
+    const { name, categoryId, status, sortOrder } = await request.json();
 
     if (!name || typeof name !== 'string' || !categoryId) {
       return NextResponse.json({ error: 'Subcategory name and category are required' }, { status: 400 });
@@ -61,8 +69,11 @@ export async function POST(request: Request) {
         name: trimmedName,
         slug: `${baseSlug || 'subcategory'}-${Date.now()}`,
         categoryId,
+        status: status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
+        sortOrder: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0,
       },
       include: {
+        productTypes: true,
         category: {
           select: {
             id: true,

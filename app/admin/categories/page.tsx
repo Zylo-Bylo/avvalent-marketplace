@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/navbar/Navbar";
 import LanguageAssistPanel from "@/components/forms/LanguageAssistPanel";
+import CategoryAtelierWorkspace from "@/components/admin/CategoryAtelierWorkspace";
 
 type Subcategory = {
   id: string;
@@ -264,7 +265,8 @@ const starterPlan = [
   },
 ];
 
-export default function AdminCategoriesPage() {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function LegacyAdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryName, setCategoryName] = useState("");
   const [subcategoryName, setSubcategoryName] = useState("");
@@ -1147,4 +1149,8 @@ export default function AdminCategoriesPage() {
       </section>
     </main>
   );
+}
+
+export default function AdminCategoriesPage() {
+  return <CategoryAtelierWorkspace />;
 }

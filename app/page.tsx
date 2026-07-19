@@ -6,9 +6,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import MobileNavbar from "@/components/MobileNavbar";
 import {
-  applianceCategoryTree,
-  getPartHref,
-} from "@/data/category-tree";
+  categoryPlaceholderImage,
+  findCategoryBySlug,
+  getCategoryHref,
+  getCategorySmallImage,
+  normalizePublicCategoryTree,
+  type PublicCategoryNode,
+} from "@/lib/public-category-navigation";
 import {
   defaultHomepageContent,
   normalizeHomepageContent,
@@ -16,19 +20,6 @@ import {
 } from "@/lib/homepage-content";
 import { useCartStore } from "@/store/cart-store";
 import { useWishlistStore } from "@/store/wishlist-store";
-
-type Subcategory = {
-  id: string;
-  name: string;
-  categoryId: string;
-};
-
-type Category = {
-  id: string;
-  name: string;
-  slug?: string;
-  subcategories?: Subcategory[];
-};
 
 type Product = {
   id: string;
@@ -62,31 +53,14 @@ type CurrentUser = {
 };
 
 const fallbackImage = "https://placehold.co/900x900/png?text=ZYLO+BUYLO";
-
-const categoryShortcuts = [
-  { name: "Fashion", slug: "fashion", icon: "F" },
-  { name: "Beauty", slug: "beauty", icon: "B" },
-  { name: "Electronics", slug: "electronics", icon: "E" },
-  { name: "Home & Kitchen", slug: "home-kitchen", icon: "HK" },
-  { name: "AC Parts", slug: "ac-parts", icon: "AC" },
-  { name: "TV Parts", slug: "tv-parts", icon: "TV" },
-  { name: "Washing Machine Parts", slug: "washing-machine-parts", icon: "WM" },
-  { name: "Mobile Accessories", slug: "mobile-accessories", icon: "MA" },
-];
+const visibleMegaSubcategoryLimit = 6;
+const visibleMegaProductTypeLimit = 8;
 
 const promoShortcuts = [
   { title: "New Arrivals", text: "Fresh products from vendors", href: "/products?sort=new" },
   { title: "Best Sellers", text: "Popular marketplace picks", href: "/products?sort=popular" },
   { title: "Deals", text: "Discounted products and offers", href: "/products?offer=true" },
   { title: "Bulk Buy", text: "Stock-ready products for repeat orders", href: "/products?bulk=true" },
-];
-
-const trendingShortcuts = [
-  { title: "Trending Fashion", category: "fashion" },
-  { title: "Trending Electronics", category: "electronics" },
-  { title: "Trending Beauty", category: "beauty" },
-  { title: "Trending Home Products", category: "home-kitchen" },
-  { title: "Trending Spare Parts", category: "ac-parts" },
 ];
 
 function priceLabel(price: number) {
@@ -99,17 +73,6 @@ function getWishlistId(productId: string) {
   return productId.split("").reduce((total, character) => {
     return total + character.charCodeAt(0);
   }, 0);
-}
-
-function firstPartHref(category: (typeof applianceCategoryTree)[number]) {
-  const group = category.groups[0];
-  const item = group?.parts[0];
-
-  if (!group || !item) {
-    return "/products";
-  }
-
-  return getPartHref(category.slug, group.slug, item.slug);
 }
 
 function categoryInitial(name: string) {
@@ -219,18 +182,48 @@ function SmartBannerMedia({
   );
 }
 
+function CategoryNavigationImage({
+  src,
+  alt,
+  sizes,
+  className,
+  quality = 95,
+}: {
+  src: string;
+  alt: string;
+  sizes: string;
+  className: string;
+  quality?: number;
+}) {
+  const [imageSrc, setImageSrc] = useState(src || categoryPlaceholderImage);
+
+  useEffect(() => {
+    setImageSrc(src || categoryPlaceholderImage);
+  }, [src]);
+
+  return (
+    <Image
+      src={imageSrc}
+      alt={alt}
+      fill
+      sizes={sizes}
+      quality={quality}
+      className={className}
+      onError={() => setImageSrc(categoryPlaceholderImage)}
+    />
+  );
+}
+
 export default function HomePage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
-  const [categoryRows, setCategoryRows] = useState<Category[]>([]);
+  const [categoryRows, setCategoryRows] = useState<PublicCategoryNode[]>([]);
   const [homepageContent, setHomepageContent] = useState<HomepageContent>(
     defaultHomepageContent,
   );
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [search, setSearch] = useState("");
-  const [activeTreeSlug, setActiveTreeSlug] = useState(
-    applianceCategoryTree[0]?.slug || "",
-  );
+  const [activeTreeSlug, setActiveTreeSlug] = useState("");
   const [treeMenuOpen, setTreeMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -290,7 +283,9 @@ export default function HomePage() {
 
       if (categoriesResponse.ok) {
         const data = await categoriesResponse.json();
-        setCategoryRows(data.categories || []);
+        const nextCategories = normalizePublicCategoryTree(data);
+        setCategoryRows(nextCategories);
+        setActiveTreeSlug((current) => current || nextCategories[0]?.slug || "");
       }
 
       if (authResponse.ok) {
@@ -324,8 +319,7 @@ export default function HomePage() {
   }, [heroSlides.length]);
 
   const activeTreeCategory =
-    applianceCategoryTree.find((category) => category.slug === activeTreeSlug) ||
-    applianceCategoryTree[0];
+    findCategoryBySlug(categoryRows, activeTreeSlug);
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
@@ -337,7 +331,7 @@ export default function HomePage() {
     return matchesSearch && matchesCategory;
   });
 
-  const topCategories = useMemo(() => categoryRows.slice(0, 10), [categoryRows]);
+  const topCategories = useMemo(() => categoryRows, [categoryRows]);
   const dealProducts = useMemo(
     () => [...filteredProducts].sort((a, b) => Number(a.price) - Number(b.price)),
     [filteredProducts],
@@ -386,7 +380,12 @@ export default function HomePage() {
     return product.subcategory?.name || product.category?.name || "Product";
   }
 
-  function getCategoryPreviewImage(category: Category) {
+  function getCategoryPreviewImage(category: PublicCategoryNode) {
+    const managedImage = getCategorySmallImage(category);
+    if (managedImage !== categoryPlaceholderImage) {
+      return managedImage;
+    }
+
     const categorySlug = category.slug || slugify(category.name);
     const match = products.find((product) => {
       const productCategorySlug = product.category?.name
@@ -400,7 +399,7 @@ export default function HomePage() {
       );
     });
 
-    return match?.images?.[0] || fallbackImage;
+    return match?.images?.[0] || categoryPlaceholderImage;
   }
 
   function chooseCategory(categoryId: string) {
@@ -855,17 +854,16 @@ export default function HomePage() {
             >
               All
             </button>
-            {applianceCategoryTree.slice(0, 12).map((category) => (
-              <button
+            {categoryRows.map((category) => (
+              <Link
                 key={category.slug}
-                type="button"
+                href={getCategoryHref(category)}
                 onMouseEnter={() => {
                   setActiveTreeSlug(category.slug);
                   setTreeMenuOpen(true);
                 }}
                 onClick={() => {
                   setActiveTreeSlug(category.slug);
-                  setTreeMenuOpen(true);
                 }}
                 className={`shrink-0 py-2 text-left ${
                   activeTreeSlug === category.slug && treeMenuOpen
@@ -874,7 +872,7 @@ export default function HomePage() {
                 }`}
               >
                 {category.name}
-              </button>
+              </Link>
             ))}
             <Link
               href="/supplier"
@@ -899,7 +897,7 @@ export default function HomePage() {
                     </button>
                   </div>
                   <div className="flex gap-2 overflow-x-auto md:grid md:gap-1 md:overflow-visible">
-                    {applianceCategoryTree.map((category) => (
+                    {categoryRows.map((category) => (
                       <button
                         key={category.slug}
                         type="button"
@@ -917,29 +915,46 @@ export default function HomePage() {
                   </div>
                 </aside>
                 <div className="grid gap-4 p-4 md:grid-cols-4 md:p-5">
-                  {activeTreeCategory.groups.map((group) => (
-                    <div key={group.slug} className="rounded-xl border border-[#eef0f4] bg-white p-3 md:border-0 md:p-0">
-                      <p className="mb-2 text-sm font-black text-[#111827]">
-                        {group.name}
-                      </p>
+                  {activeTreeCategory.children
+                    .filter((subcategory) => subcategory.productTypes.length > 0)
+                    .slice(0, visibleMegaSubcategoryLimit)
+                    .map((subcategory) => (
+                    <div key={subcategory.id} className="rounded-xl border border-[#eef0f4] bg-white p-3 md:border-0 md:p-0">
+                      <Link href={getCategoryHref(subcategory)} className="mb-2 block text-sm font-black text-[#111827] hover:text-[#c45500]">
+                        {subcategory.name}
+                      </Link>
                       <div className="grid grid-cols-2 gap-1 md:grid-cols-1">
-                        {group.parts.map((item) => (
+                        {subcategory.productTypes.slice(0, visibleMegaProductTypeLimit).map((item) => (
                           <Link
-                            key={item.slug}
-                            href={getPartHref(
-                              activeTreeCategory.slug,
-                              group.slug,
-                              item.slug,
-                            )}
+                            key={item.id}
+                            href={getCategoryHref(item)}
                             onClick={() => setTreeMenuOpen(false)}
                             className="rounded bg-[#f8f9ff] px-2 py-2 text-xs font-semibold text-[#565959] hover:text-[#c45500] md:bg-transparent md:px-0 md:py-1 md:text-sm"
                           >
                             {item.name}
                           </Link>
                         ))}
+                        {subcategory.productTypes.length > visibleMegaProductTypeLimit && (
+                          <Link
+                            href={getCategoryHref(subcategory)}
+                            onClick={() => setTreeMenuOpen(false)}
+                            className="rounded bg-[#fff8f0] px-2 py-2 text-xs font-black text-[#c45500] md:bg-transparent md:px-0 md:py-1 md:text-sm"
+                          >
+                            View All
+                          </Link>
+                        )}
                       </div>
                     </div>
                   ))}
+                  {activeTreeCategory.children.filter((subcategory) => subcategory.productTypes.length > 0).length > visibleMegaSubcategoryLimit && (
+                    <Link
+                      href={getCategoryHref(activeTreeCategory)}
+                      onClick={() => setTreeMenuOpen(false)}
+                      className="rounded-xl border border-[#eef0f4] bg-[#fff8f0] p-3 text-sm font-black text-[#c45500]"
+                    >
+                      View All {activeTreeCategory.name}
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
@@ -1047,10 +1062,10 @@ export default function HomePage() {
               </span>
               <span className="line-clamp-2 text-xs font-bold leading-4">Categories</span>
             </Link>
-            {(topCategories.length ? topCategories : categoryRows).slice(0, 10).map((category, index) => (
+            {(topCategories.length ? topCategories : categoryRows).map((category, index) => (
               <Link
                 key={category.id}
-                href={`/products?category=${category.slug || slugify(category.name)}`}
+                href={getCategoryHref(category)}
                 className="flex w-20 shrink-0 flex-col items-center gap-2 text-center"
               >
                 <span
@@ -1100,19 +1115,18 @@ export default function HomePage() {
                 All
               </span>
             </Link>
-            {(topCategories.length ? topCategories : categoryRows).slice(0, 12).map((category) => (
+            {(topCategories.length ? topCategories : categoryRows).map((category) => (
               <Link
                 key={category.id}
-                href={`/products?category=${category.slug || slugify(category.name)}`}
+                href={getCategoryHref(category)}
                 className="flex w-[72px] shrink-0 flex-col items-center gap-1 rounded-xl border border-white/10 bg-white p-1.5 text-center"
               >
                 <span className="relative h-12 w-12 overflow-hidden rounded-xl bg-[#fff4fb]">
-                  <Image
+                  <CategoryNavigationImage
                     src={getCategoryPreviewImage(category)}
-                    alt={category.name}
-                    fill
-                    sizes="48px"
-                    className="object-cover"
+                    alt={category.altText || category.name}
+                    sizes="96px"
+                    className="object-contain p-0.5"
                   />
                 </span>
                 <span className="line-clamp-1 text-[10px] font-black text-[#111827]">
@@ -1345,23 +1359,22 @@ export default function HomePage() {
 
           <div className="overflow-x-auto rounded-[24px] border border-[#ead7e8] bg-white px-4 py-5 shadow-[0_14px_36px_rgba(15,23,42,0.08)]">
             <div className="flex min-w-max items-start justify-center gap-5 lg:gap-9">
-              {categoryShortcuts.map((category, index) => (
+              {categoryRows.map((category) => (
                 <Link
-                  key={category.slug}
-                  href={`/products?category=${category.slug}`}
+                  key={category.id}
+                  href={getCategoryHref(category)}
                   className="group flex w-24 shrink-0 flex-col items-center gap-2 text-center transition hover:-translate-y-1 sm:w-28"
                 >
                   <span
-                    className={`flex h-16 w-16 items-center justify-center rounded-[22px] text-lg font-black shadow-sm ring-1 ring-[#f0e6ef] transition group-hover:shadow-xl sm:h-20 sm:w-20 sm:text-2xl ${
-                      [
-                        "bg-[#fff0f5] text-[#9f2089]",
-                        "bg-[#fff6dd] text-[#9a5b00]",
-                        "bg-[#eaf8ed] text-[#2f7a3d]",
-                        "bg-[#eef6ff] text-[#194f94]",
-                      ][index % 4]
-                    }`}
+                    className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[22px] bg-[#fff4fb] text-lg font-black text-[#9f2089] shadow-sm ring-1 ring-[#f0e6ef] transition group-hover:shadow-xl sm:h-20 sm:w-20 sm:text-2xl"
                   >
-                    {category.icon}
+                    <CategoryNavigationImage
+                      src={getCategoryPreviewImage(category)}
+                      alt={category.altText || category.name}
+                      sizes="160px"
+                      className="object-contain p-1"
+                    />
+                    {getCategoryPreviewImage(category) === categoryPlaceholderImage && categoryInitial(category.name)}
                   </span>
                   <span className="line-clamp-2 min-h-8 text-xs font-bold leading-4 text-[#242334] group-hover:text-[#9f2089]">
                     {category.name}
@@ -1553,10 +1566,10 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            {trendingShortcuts.map((shortcut, index) => (
+            {categoryRows.slice(0, 5).map((category, index) => (
               <Link
-                key={shortcut.title}
-                href={`/products?category=${shortcut.category}&sort=trending`}
+                key={category.id}
+                href={`${getCategoryHref(category)}&sort=trending`}
                 className={`min-h-32 rounded-2xl border border-[#e5e7eb] p-4 transition hover:-translate-y-0.5 hover:border-[#febd69] hover:shadow-md ${
                   [
                     "bg-[#fff7ed]",
@@ -1571,7 +1584,7 @@ export default function HomePage() {
                   Marketplace pick
                 </span>
                 <p className="mt-3 text-lg font-black text-[#111827]">
-                  {shortcut.title}
+                  Trending {category.name}
                 </p>
                 <p className="mt-2 text-sm text-[#565959]">
                   View category products with trending sort.
@@ -1701,10 +1714,10 @@ export default function HomePage() {
                 >
                   All departments
                 </button>
-                {applianceCategoryTree.slice(0, 8).map((category) => (
+                {categoryRows.slice(0, 8).map((category) => (
                   <Link
-                    key={category.slug}
-                    href={firstPartHref(category)}
+                    key={category.id}
+                    href={getCategoryHref(category)}
                     className="rounded bg-[#f3f4f6] px-3 py-2 text-left text-sm font-semibold hover:bg-[#e3e6e6]"
                   >
                     {category.name}
@@ -1815,10 +1828,10 @@ export default function HomePage() {
           <div>
             <h4 className="mb-4 text-sm font-black uppercase tracking-wide">Categories</h4>
             <div className="grid gap-3 text-sm text-[#c8d0d6]">
-              {applianceCategoryTree.slice(0, 6).map((category) => (
+              {categoryRows.slice(0, 6).map((category) => (
                 <Link
-                  key={category.slug}
-                  href={firstPartHref(category)}
+                  key={category.id}
+                  href={getCategoryHref(category)}
                   className="hover:text-white"
                 >
                   {category.name}

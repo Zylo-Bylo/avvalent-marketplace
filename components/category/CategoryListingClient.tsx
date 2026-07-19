@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import MobileNavbar from "@/components/MobileNavbar";
 import Navbar from "@/components/navbar/Navbar";
 import {
@@ -11,8 +11,18 @@ import {
   getDefaultSizes,
   getSizeGuideLabel,
 } from "@/lib/categoryFilters";
-import type { CategoryFilter } from "@/lib/categoryFilters";
+import type { CategoryFilter, CategoryShortcut } from "@/lib/categoryFilters";
 import { findCategoryPart } from "@/data/category-tree";
+import {
+  categoryPlaceholderImage,
+  findCategoryNodeByAnySlug,
+  findCategoryNodeByPath,
+  getCategoryDesktopBanner,
+  getCategoryHref,
+  getCategoryMobileBanner,
+  normalizePublicCategoryTree,
+  type PublicCategoryNode,
+} from "@/lib/public-category-navigation";
 import { useWishlistStore } from "@/store/wishlist-store";
 
 type Product = {
@@ -45,6 +55,23 @@ type CategoryListingClientProps = {
   mainSlug: string;
   groupSlug?: string;
   partSlug: string;
+};
+
+type DynamicTemplateField = {
+  name?: string;
+  label?: string;
+  fieldType?: string;
+  dropdownValues?: string[];
+  options?: string[];
+  filterable?: boolean;
+  displayOrder?: number;
+};
+
+type DynamicTemplate = {
+  specTemplate?: {
+    fields?: DynamicTemplateField[];
+    filterConfig?: string[];
+  };
 };
 
 const fallbackImage = "https://placehold.co/900x1200/png?text=ZYLO+BUYLO";
@@ -120,6 +147,56 @@ function getActiveChips(filters: Record<string, string>, filterDefs: CategoryFil
     });
 }
 
+function toDynamicOption(label: string) {
+  return {
+    label,
+    value: label.trim(),
+  };
+}
+
+const dynamicPriceFilter: CategoryFilter = {
+  key: "price",
+  label: "Price",
+  type: "price",
+  options: [
+    { label: "Under Rs. 499", value: "under-499", maxPrice: "499" },
+    { label: "Under Rs. 999", value: "under-999", maxPrice: "999" },
+    { label: "Rs. 1000 - Rs. 1999", value: "1000-1999", minPrice: "1000", maxPrice: "1999" },
+    { label: "Rs. 2000+", value: "2000-plus", minPrice: "2000" },
+  ],
+};
+
+const dynamicSortFilter: CategoryFilter = {
+  key: "sort",
+  label: "Sort By",
+  type: "sort",
+  options: [
+    { label: "Popular", value: "popular" },
+    { label: "Newest", value: "newest" },
+    { label: "Price: Low to High", value: "price-asc" },
+    { label: "Price: High to Low", value: "price-desc" },
+  ],
+};
+
+function filtersFromTemplate(template: DynamicTemplate | null): CategoryFilter[] {
+  const fields = template?.specTemplate?.fields || [];
+  const filterConfig = new Set(template?.specTemplate?.filterConfig || []);
+  const fieldFilters = fields
+    .filter((field) => field.filterable || (field.name && filterConfig.has(field.name)))
+    .sort((a, b) => Number(a.displayOrder || 0) - Number(b.displayOrder || 0))
+    .map((field) => {
+      const rawOptions = field.dropdownValues?.length ? field.dropdownValues : field.options || [];
+      return {
+        key: field.name || String(field.label || "").toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+        label: field.label || field.name || "Specification",
+        options: rawOptions.filter(Boolean).map(toDynamicOption),
+      };
+    })
+    .filter((filter) => filter.key && filter.options.length > 0);
+
+  return [...fieldFilters, dynamicPriceFilter, dynamicSortFilter];
+}
+
 export default function CategoryListingClient({
   mainSlug,
   groupSlug = "",
@@ -127,6 +204,10 @@ export default function CategoryListingClient({
 }: CategoryListingClientProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const categoryIdFilter = searchParams.get("categoryId") || "";
+  const subcategoryIdFilter = searchParams.get("subcategoryId") || "";
+  const productTypeIdFilter = searchParams.get("productTypeId") || "";
   const categoryPart = useMemo(
     () => (groupSlug ? findCategoryPart(mainSlug, groupSlug, partSlug) : null),
     [groupSlug, mainSlug, partSlug],
@@ -157,17 +238,161 @@ export default function CategoryListingClient({
   const [totalProducts, setTotalProducts] = useState(0);
   const [filterDraft, setFilterDraft] = useState<Record<string, string>>({});
   const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({});
+  const [desktopFilterOpen, setDesktopFilterOpen] = useState<string | null>(null);
+  const [desktopFilterPosition, setDesktopFilterPosition] = useState<{
+    left: number;
+    minWidth: number;
+    top: number;
+  } | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [filtersHydrated, setFiltersHydrated] = useState(false);
+  const [dynamicCategoryNode, setDynamicCategoryNode] = useState<PublicCategoryNode | null>(null);
+  const [dynamicBreadcrumb, setDynamicBreadcrumb] = useState<string[]>([]);
+  const [dynamicShortcuts, setDynamicShortcuts] = useState<CategoryShortcut[]>([]);
+  const [dynamicFilters, setDynamicFilters] = useState<CategoryFilter[]>([]);
+  const [useMobileBanner, setUseMobileBanner] = useState(false);
+  const desktopFilterButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const desktopFilterPanelRef = useRef<HTMLDivElement | null>(null);
 
-  const activeChips = getActiveChips(appliedFilters, config.filters);
-  const searchTerm = config.displayName;
+  const genericDynamicFilters = useMemo(() => [dynamicPriceFilter, dynamicSortFilter], []);
+  const listingFilters = dynamicCategoryNode
+    ? dynamicFilters.length > 0
+      ? dynamicFilters
+      : genericDynamicFilters
+    : config.filters;
+  const selectedChips = getActiveChips(filterDraft, listingFilters);
+  const listingDisplayName = dynamicCategoryNode?.name || config.displayName;
+  const listingBreadcrumb = dynamicBreadcrumb.length ? dynamicBreadcrumb : config.breadcrumb;
+  const listingShortcuts = dynamicCategoryNode ? dynamicShortcuts : config.shortcutButtons;
+  const resolvedCategoryId =
+    categoryIdFilter ||
+    (dynamicCategoryNode?.entityType === "category" ? dynamicCategoryNode.id : "");
+  const resolvedSubcategoryId =
+    subcategoryIdFilter ||
+    (dynamicCategoryNode?.entityType === "subcategory" ? dynamicCategoryNode.id : "");
+  const resolvedProductTypeId =
+    productTypeIdFilter ||
+    (dynamicCategoryNode?.entityType === "productType" ? dynamicCategoryNode.id : "");
+  const viewAllHref =
+    dynamicCategoryNode?.entityType === "productType" && dynamicCategoryNode.parentId
+      ? `/products?productTypeId=${encodeURIComponent(dynamicCategoryNode.id)}`
+      : dynamicCategoryNode?.entityType === "subcategory"
+        ? `/products?subcategoryId=${encodeURIComponent(dynamicCategoryNode.id)}`
+        : dynamicCategoryNode
+          ? `/products?category=${encodeURIComponent(dynamicCategoryNode.slug)}`
+          : "/products";
+  const searchTerm = listingDisplayName;
+  const dynamicDesktopBanner = dynamicCategoryNode
+    ? getCategoryDesktopBanner(dynamicCategoryNode)
+    : "";
+  const dynamicMobileBanner = dynamicCategoryNode
+    ? getCategoryMobileBanner(dynamicCategoryNode)
+    : "";
+  const dynamicBanner = useMobileBanner ? dynamicMobileBanner : dynamicDesktopBanner;
+  const bannerImage =
+    dynamicBanner && dynamicBanner !== categoryPlaceholderImage
+      ? dynamicBanner
+      : config.bannerImage;
+  const bannerAlt =
+    dynamicCategoryNode?.altText || `${listingDisplayName} category banner`;
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const update = () => setUseMobileBanner(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadDynamicCategoryMetadata() {
+      try {
+        const response = await fetch(`/api/categories?t=${Date.now()}`, { cache: "no-store" });
+        const data = await response.json();
+        if (!isActive || !response.ok) return;
+        const tree = normalizePublicCategoryTree(data);
+        const category = tree.find((node) => node.slug === mainSlug) || null;
+        const subcategory = category?.children.find((node) => node.slug === (groupSlug || partSlug)) || null;
+        const productType = groupSlug
+          ? subcategory?.productTypes.find((node) => node.slug === partSlug) || null
+          : null;
+        const selectedNode =
+          findCategoryNodeByPath(tree, mainSlug, groupSlug || partSlug, groupSlug ? partSlug : "") ||
+          productType ||
+          subcategory ||
+          category ||
+          findCategoryNodeByAnySlug(tree, partSlug) ||
+          findCategoryNodeByAnySlug(tree, groupSlug) ||
+          findCategoryNodeByAnySlug(tree, mainSlug);
+        const selectedCategory =
+          selectedNode?.entityType === "category"
+            ? selectedNode
+            : tree.find((node) => node.slug === selectedNode?.categorySlug) || category;
+        const selectedSubcategory =
+          selectedNode?.entityType === "subcategory"
+            ? selectedNode
+            : selectedNode?.entityType === "productType"
+              ? selectedCategory?.children.find((node) => node.slug === selectedNode.subcategorySlug) || subcategory
+              : subcategory;
+        setDynamicCategoryNode(selectedNode);
+        setDynamicBreadcrumb([selectedCategory?.name, selectedSubcategory?.name, selectedNode?.entityType === "productType" ? selectedNode.name : ""]
+          .filter((value): value is string => Boolean(value)));
+
+        const relatedNodes =
+          selectedNode?.entityType === "productType" && selectedSubcategory
+            ? selectedSubcategory.productTypes
+            : selectedNode?.entityType === "subcategory" && selectedNode.productTypes.length
+              ? selectedNode.productTypes
+              : selectedNode?.entityType === "category" && selectedNode.children.length
+                ? selectedNode.children
+                : selectedSubcategory?.productTypes.length
+                  ? selectedSubcategory.productTypes
+                  : selectedCategory?.children || [];
+        setDynamicShortcuts(
+          relatedNodes.map((node) => ({
+            label: node.name,
+            slug: node.slug,
+            href: getCategoryHref(node),
+          })),
+        );
+
+        const categoryId = categoryIdFilter || selectedCategory?.id || "";
+        const subcategoryId = subcategoryIdFilter || selectedSubcategory?.id || "";
+        const productTypeId = productTypeIdFilter || (selectedNode?.entityType === "productType" ? selectedNode.id : "");
+        if (categoryId) {
+          const templateParams = new URLSearchParams({ categoryId });
+          if (subcategoryId) templateParams.set("subcategoryId", subcategoryId);
+          if (productTypeId) templateParams.set("productTypeId", productTypeId);
+          const templateResponse = await fetch(`/api/category-templates?${templateParams.toString()}`, { cache: "no-store" });
+          const templateData = await templateResponse.json();
+          if (isActive && templateResponse.ok) {
+            setDynamicFilters(filtersFromTemplate(templateData.template || null));
+          }
+        }
+      } catch {
+        if (isActive) {
+          setDynamicCategoryNode(null);
+          setDynamicBreadcrumb([]);
+          setDynamicShortcuts([]);
+          setDynamicFilters([]);
+        }
+      }
+    }
+
+    loadDynamicCategoryMetadata();
+
+    return () => {
+      isActive = false;
+    };
+  }, [categoryIdFilter, groupSlug, mainSlug, partSlug, productTypeIdFilter, subcategoryIdFilter]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const initialFilters: Record<string, string> = {};
 
-    config.filters.forEach((filter) => {
+    listingFilters.forEach((filter) => {
       const value = params.get(filter.key);
       if (value) {
         initialFilters[filter.key] = value;
@@ -182,7 +407,7 @@ export default function CategoryListingClient({
     setFilterDraft(initialFilters);
     setAppliedFilters(initialFilters);
     setFiltersHydrated(true);
-  }, [config.filters]);
+  }, [listingFilters]);
 
   useEffect(() => {
     if (!filtersHydrated) {
@@ -197,17 +422,26 @@ export default function CategoryListingClient({
 
       const params = new URLSearchParams({
         limit: "48",
-        search: searchTerm,
         sort: appliedFilters.sort || "popular",
         includeInventoryDetails: "true",
       });
+
+      if (resolvedProductTypeId) {
+        params.set("productTypeId", resolvedProductTypeId);
+      } else if (resolvedSubcategoryId) {
+        params.set("subcategoryId", resolvedSubcategoryId);
+      } else if (resolvedCategoryId) {
+        params.set("categoryId", resolvedCategoryId);
+      } else {
+        params.set("search", searchTerm);
+      }
 
       const discount = appliedFilters.discount || appliedFilters.allDiscount;
       if (discount) {
         params.set("offer", "true");
       }
 
-      const priceFilter = config.filters
+      const priceFilter = listingFilters
         .find((filter) => filter.key === "price")
         ?.options.find((option) => option.value === appliedFilters.price);
 
@@ -250,7 +484,79 @@ export default function CategoryListingClient({
     return () => {
       isActive = false;
     };
-  }, [appliedFilters, config.filters, filtersHydrated, searchTerm]);
+  }, [
+    appliedFilters,
+    filtersHydrated,
+    listingFilters,
+    resolvedCategoryId,
+    resolvedProductTypeId,
+    resolvedSubcategoryId,
+    searchTerm,
+  ]);
+
+  useEffect(() => {
+    if (!desktopFilterOpen) {
+      setDesktopFilterPosition(null);
+      return;
+    }
+
+    const openKey = desktopFilterOpen;
+
+    function updatePosition() {
+      const button = desktopFilterButtonRefs.current[openKey];
+      if (!button) {
+        return;
+      }
+
+      const rect = button.getBoundingClientRect();
+      const panelWidth = 224;
+      const margin = 8;
+      const left = Math.min(
+        Math.max(rect.left, margin),
+        window.innerWidth - panelWidth - margin,
+      );
+
+      setDesktopFilterPosition({
+        left,
+        minWidth: Math.max(rect.width, 176),
+        top: rect.bottom + 8,
+      });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [desktopFilterOpen]);
+
+  useEffect(() => {
+    if (!desktopFilterOpen) {
+      return;
+    }
+
+    const openKey = desktopFilterOpen;
+
+    function closeOnOutsideClick(event: MouseEvent) {
+      const target = event.target as Node;
+      const openButton = desktopFilterButtonRefs.current[openKey];
+
+      if (openButton?.contains(target) || desktopFilterPanelRef.current?.contains(target)) {
+        return;
+      }
+
+      setDesktopFilterOpen(null);
+    }
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+    };
+  }, [desktopFilterOpen]);
 
   function setDraftFilter(key: string, value: string) {
     setFilterDraft((current) => ({
@@ -259,11 +565,27 @@ export default function CategoryListingClient({
     }));
   }
 
+  function selectFilterOption(key: string, value: string, compact: boolean) {
+    setDraftFilter(key, value);
+
+    if (!compact) {
+      setDesktopFilterOpen(null);
+    }
+  }
+
+  function toggleDesktopFilter(key: string) {
+    setDesktopFilterOpen((current) => (current === key ? null : key));
+  }
+
   function applyFilters(nextFilters = filterDraft) {
     const cleanFilters = Object.fromEntries(
       Object.entries(nextFilters).filter(([, value]) => Boolean(value)),
     );
     const params = new URLSearchParams();
+
+    if (resolvedCategoryId) params.set("categoryId", resolvedCategoryId);
+    if (resolvedSubcategoryId) params.set("subcategoryId", resolvedSubcategoryId);
+    if (resolvedProductTypeId) params.set("productTypeId", resolvedProductTypeId);
 
     Object.entries(cleanFilters).forEach(([key, value]) => {
       params.set(key, value);
@@ -273,6 +595,7 @@ export default function CategoryListingClient({
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
     setAppliedFilters(cleanFilters);
     setFilterDraft(cleanFilters);
+    setDesktopFilterOpen(null);
     setMobileFiltersOpen(false);
   }
 
@@ -282,9 +605,9 @@ export default function CategoryListingClient({
   }
 
   function removeFilter(key: string) {
-    const nextFilters = { ...appliedFilters };
+    const nextFilters = { ...filterDraft };
     delete nextFilters[key];
-    applyFilters(nextFilters);
+    setFilterDraft(nextFilters);
   }
 
   function renderFilterControl(filter: CategoryFilter, compact = false) {
@@ -302,7 +625,7 @@ export default function CategoryListingClient({
             <button
               key={option.value}
               type="button"
-              onClick={() => setDraftFilter(filter.key, option.value)}
+              onClick={() => selectFilterOption(filter.key, option.value, compact)}
               className={`rounded-md px-3 py-2 text-left text-xs font-bold transition ${
                 filterDraft[filter.key] === option.value
                   ? "bg-[#132238] text-white"
@@ -322,7 +645,7 @@ export default function CategoryListingClient({
       <Navbar />
 
       <section className="bg-[#132238] text-[#fff8ed]">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 md:grid-cols-[minmax(0,1fr)_390px] md:items-center md:py-10">
+        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(520px,1.15fr)] lg:items-center md:py-10">
           <div>
             <Link href="/" className="text-sm font-bold text-[#d5b46b] hover:text-white">
               Back to Home
@@ -331,26 +654,26 @@ export default function CategoryListingClient({
               Product Listing
             </p>
             <h1 className="mt-3 text-4xl font-black tracking-normal md:text-5xl">
-              {config.displayName}
+              {listingDisplayName}
             </h1>
             <p className="mt-3 text-sm font-semibold text-[#decfb5]">
-              {config.breadcrumb.join(" / ")}
+              {listingBreadcrumb.join(" / ")}
             </p>
             <p className="mt-5 max-w-2xl text-sm leading-6 text-[#f0e3ca]">
-              Curated Zylo-Buylo fashion picks with quick category paths, smart filters,
-              size cues and fresh marketplace stock.
+              Browse {listingDisplayName} products with category-specific filters,
+              vendor stock, product details and fresh marketplace listings.
             </p>
           </div>
-          <div className="relative min-h-52 overflow-hidden rounded-md border border-[#d5b46b]/30 bg-[#efe2c9] md:min-h-72">
+          <div className="relative min-h-48 overflow-hidden rounded-md border border-[#d5b46b]/30 bg-[#efe2c9] sm:min-h-64 lg:aspect-[16/5] lg:min-h-0">
             <Image
-              src={config.bannerImage}
-              alt={`${config.displayName} category banner`}
+              src={bannerImage}
+              alt={bannerAlt}
               fill
               priority
-              sizes="(min-width: 768px) 390px, 100vw"
-              className="object-cover"
+              sizes="(min-width: 1024px) 680px, 100vw"
+              className="object-contain"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#132238]/65 via-transparent to-transparent" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#132238]/45 via-transparent to-transparent" />
             <div className="absolute bottom-4 left-4 rounded-full bg-white/95 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-[#132238]">
               {sizeGuideLabel}
             </div>
@@ -363,17 +686,18 @@ export default function CategoryListingClient({
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-lg font-black text-[#132238]">Select Your Category</h2>
-              <p className="text-sm text-stone-500">Jump to related fashion shelves.</p>
+              <p className="text-sm text-stone-500">Jump to related category shelves.</p>
             </div>
             <Link
-              href="/products?category=fashion"
+              href={viewAllHref}
               className="w-fit rounded-full border border-[#d5b46b] px-4 py-2 text-xs font-black uppercase text-[#132238]"
             >
-              View All Fashion
+              View All {listingDisplayName}
             </Link>
           </div>
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-            {config.shortcutButtons.map((shortcut) => (
+          {listingShortcuts.length > 0 && (
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+              {listingShortcuts.map((shortcut) => (
               <Link
                 key={shortcut.slug}
                 href={shortcut.href}
@@ -381,8 +705,9 @@ export default function CategoryListingClient({
               >
                 {shortcut.label}
               </Link>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -402,23 +727,58 @@ export default function CategoryListingClient({
               onClick={() => setMobileFiltersOpen(true)}
               className="rounded-full bg-[#132238] px-4 py-2 text-sm font-black text-white lg:hidden"
             >
-              Filter & Sort{activeChips.length ? ` (${activeChips.length})` : ""}
+              Filter & Sort{selectedChips.length ? ` (${selectedChips.length})` : ""}
             </button>
           </div>
 
           <div className="mt-4 hidden gap-3 overflow-x-auto pb-2 lg:flex">
-            {config.filters.map((filter) => (
-              <details key={filter.key} className="group shrink-0">
-                <summary className="cursor-pointer list-none rounded-full border border-[#e2cfaa] bg-[#fbf7ef] px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#132238]">
-                  {filter.label}
-                </summary>
-                <div className="absolute z-20 mt-2">{renderFilterControl(filter)}</div>
-              </details>
-            ))}
+            {listingFilters.map((filter) => {
+              const selectedValue = filterDraft[filter.key];
+              const selectedLabel = filter.options.find(
+                (option) => option.value === selectedValue,
+              )?.label;
+
+              return (
+                <div key={filter.key} className="relative shrink-0">
+                  <button
+                    type="button"
+                    ref={(element) => {
+                      desktopFilterButtonRefs.current[filter.key] = element;
+                    }}
+                    onClick={() => toggleDesktopFilter(filter.key)}
+                    className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.08em] ${
+                      selectedLabel
+                        ? "border-[#132238] bg-[#132238] text-white"
+                        : "border-[#e2cfaa] bg-[#fbf7ef] text-[#132238]"
+                    }`}
+                    aria-expanded={desktopFilterOpen === filter.key}
+                  >
+                    {selectedLabel ? `${filter.label}: ${selectedLabel}` : filter.label}
+                  </button>
+                </div>
+              );
+            })}
           </div>
 
+          {desktopFilterOpen && desktopFilterPosition && (
+            <div
+              ref={desktopFilterPanelRef}
+              className="fixed z-50"
+              style={{
+                left: desktopFilterPosition.left,
+                minWidth: desktopFilterPosition.minWidth,
+                top: desktopFilterPosition.top,
+              }}
+            >
+              {renderFilterControl(
+                listingFilters.find((filter) => filter.key === desktopFilterOpen) ||
+                  listingFilters[0],
+              )}
+            </div>
+          )}
+
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            {activeChips.map((chip) => (
+            {selectedChips.map((chip) => (
               <button
                 key={chip.key}
                 type="button"
@@ -428,7 +788,7 @@ export default function CategoryListingClient({
                 {chip.label} x
               </button>
             ))}
-            {activeChips.length > 0 && (
+            {selectedChips.length > 0 && (
               <button
                 type="button"
                 onClick={clearFilters}
@@ -470,7 +830,7 @@ export default function CategoryListingClient({
           <div className="rounded-md bg-white p-8 text-center shadow-sm">
             <h2 className="text-2xl font-black">No products found yet</h2>
             <p className="mt-2 text-stone-500">
-              Vendors can add products for {config.displayName} from the vendor dashboard.
+              Vendors can add products for {listingDisplayName} from the vendor dashboard.
             </p>
           </div>
         ) : (
@@ -479,7 +839,7 @@ export default function CategoryListingClient({
               const stock = getStockSignal(product);
               const sizes = getProductSizes(product, fallbackSizes);
               const wishlistActive = isInWishlist(product.id);
-              const categoryName = product.subcategory?.name || product.category?.name || config.displayName;
+              const categoryName = product.subcategory?.name || product.category?.name || listingDisplayName;
 
               return (
                 <article
@@ -580,7 +940,7 @@ export default function CategoryListingClient({
             <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-stone-200 bg-white pb-3">
               <div>
                 <h2 className="text-lg font-black text-[#132238]">Filter & Sort</h2>
-                <p className="text-xs text-stone-500">{config.displayName}</p>
+                <p className="text-xs text-stone-500">{listingDisplayName}</p>
               </div>
               <button
                 type="button"
@@ -590,7 +950,7 @@ export default function CategoryListingClient({
                 Close
               </button>
             </div>
-            <div>{config.filters.map((filter) => renderFilterControl(filter, true))}</div>
+            <div>{listingFilters.map((filter) => renderFilterControl(filter, true))}</div>
             <div className="sticky bottom-0 mt-4 grid grid-cols-2 gap-3 border-t border-stone-200 bg-white pt-3">
               <button
                 type="button"

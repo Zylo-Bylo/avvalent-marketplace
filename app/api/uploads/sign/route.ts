@@ -9,6 +9,10 @@ import {
   sanitizeFileName,
   UPLOAD_BUCKET,
 } from '@/lib/uploads';
+import {
+  metadataImageStorageFolder,
+  type CategoryMetadataImageField,
+} from '@/lib/category-metadata-images';
 
 export const runtime = 'nodejs';
 
@@ -23,6 +27,7 @@ const ALLOWED_PURPOSES = new Set([
   'kyc',
   'profile',
   'homepage-banner',
+  'category-asset',
 ]);
 
 async function getUploadUser() {
@@ -99,6 +104,9 @@ export async function POST(request: NextRequest) {
   const size = Number(body?.size || 0);
   const purposeValue = String(body?.purpose || 'product');
   const purpose = ALLOWED_PURPOSES.has(purposeValue) ? purposeValue : 'product';
+  const scopeType = String(body?.scopeType || '');
+  const scopeId = String(body?.scopeId || '');
+  const assetField = String(body?.assetField || '') as CategoryMetadataImageField;
 
   const user = await getUploadUser();
   const role = String(user?.role || '');
@@ -148,7 +156,24 @@ export async function POST(request: NextRequest) {
   }
 
   const safeFileName = sanitizeFileName(fileName);
-  const path = `${purpose}/${user.id}/${Date.now()}-${safeFileName}`;
+  let path = `${purpose}/${user.id}/${Date.now()}-${safeFileName}`;
+  if (purpose === 'category-asset') {
+    const validScopeType = scopeType === 'category' || scopeType === 'subcategory' || scopeType === 'productType';
+    const validAssetField =
+      assetField === 'homepageIcon' ||
+      assetField === 'categoryImage' ||
+      assetField === 'desktopBanner' ||
+      assetField === 'mobileBanner';
+
+    if (role !== 'ADMIN' || !validScopeType || !scopeId || !validAssetField) {
+      return NextResponse.json(
+        { error: 'Valid admin category asset scope is required.' },
+        { status: 400 },
+      );
+    }
+
+    path = `${metadataImageStorageFolder(scopeType, scopeId, assetField)}/${Date.now()}-${safeFileName}`;
+  }
   const { data: signedUpload, error } = await supabase.storage
     .from(UPLOAD_BUCKET)
     .createSignedUploadUrl(path);

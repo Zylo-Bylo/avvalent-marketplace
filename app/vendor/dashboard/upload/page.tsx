@@ -13,6 +13,13 @@ import {
   formatRupees,
 } from "@/lib/pricing";
 import { parseBulkProductCsv } from "@/lib/bulk-product-csv";
+import { resolveBulkCategory } from "@/lib/bulk-category-resolver";
+import {
+  generateVariantCombinations,
+  normalizeStructuredVariantConfig,
+  validateVendorVariantRows,
+  type StructuredVariantConfig,
+} from "@/lib/category-variant-config";
 
 type Category = {
   id: string;
@@ -43,20 +50,22 @@ type VariantFormRow = {
   numericSize: string;
   color: string;
   sku: string;
+  barcode: string;
   stockQuantity: string;
   price: string;
   vendorPrice: string;
   mrp: string;
   imageUrl: string;
   lowStockThreshold: string;
+  weight: string;
+  active: boolean;
+  isDefault: boolean;
+  selected: boolean;
 };
 
-type VariantExample = Omit<
-  VariantFormRow,
-  "id" | "lowStockThreshold" | "vendorPrice" | "imageUrl"
-> & {
-  vendorPrice?: string;
-  imageUrl?: string;
+type VariantExample = Partial<Omit<VariantFormRow, "id">> & {
+  size?: string;
+  label?: string;
 };
 
 type VariantFieldConfig = {
@@ -75,6 +84,10 @@ type VariantFieldConfig = {
   availableSizesPlaceholder: string;
   brandMappingPlaceholder: string;
   examples: VariantExample[];
+  dimensions?: StructuredVariantConfig["dimensions"];
+  rowFields?: StructuredVariantConfig["rowFields"];
+  combinationRules?: StructuredVariantConfig["combinationRules"];
+  examplePreview?: StructuredVariantConfig["examplePreview"];
 };
 
 type BulkProductRow = {
@@ -786,12 +799,17 @@ function createVariantRow(index: number, color = ""): VariantFormRow {
     numericSize: "",
     color,
     sku: "",
+    barcode: "",
     stockQuantity: "",
     price: "",
     vendorPrice: "",
     mrp: "",
     imageUrl: "",
     lowStockThreshold: "3",
+    weight: "",
+    active: true,
+    isDefault: index === 0,
+    selected: false,
   };
 }
 
@@ -823,6 +841,19 @@ function getVariantOptionValues(
           : [];
 
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+function getStructuredDimensionOptions(
+  key: "size" | "color",
+  config: StructuredVariantConfig,
+) {
+  const dimension =
+    config.dimensions.find((item) => item.key.toLowerCase() === key) ||
+    config.dimensions[key === "size" ? 0 : 1];
+  return {
+    dimension,
+    options: dimension?.options?.filter(Boolean) || [],
+  };
 }
 
 function normalizeSkuToken(value: string) {
@@ -951,6 +982,15 @@ export default function ProductUploadPage() {
   const [variants, setVariants] = useState<VariantFormRow[]>([
     createVariantRow(0),
   ]);
+  const [selectedVariantSizes, setSelectedVariantSizes] = useState<string[]>([]);
+  const [selectedVariantColors, setSelectedVariantColors] = useState<string[]>([]);
+  const [bulkVariantValues, setBulkVariantValues] = useState({
+    price: "",
+    vendorPrice: "",
+    mrp: "",
+    weight: "",
+    lowStockThreshold: "3",
+  });
 
   const selectedCategory = categories.find(
     (category) => category.id === form.categoryId,
@@ -1035,6 +1075,18 @@ export default function ProductUploadPage() {
   const variantConfig = useMemo(
     () => managedTemplate?.variantConfig || getCategoryVariantConfig(categoryContext),
     [categoryContext, managedTemplate?.variantConfig],
+  );
+  const structuredVariantConfig = useMemo(
+    () => normalizeStructuredVariantConfig(variantConfig),
+    [variantConfig],
+  );
+  const sizeDimensionConfig = getStructuredDimensionOptions(
+    "size",
+    structuredVariantConfig,
+  );
+  const colorDimensionConfig = getStructuredDimensionOptions(
+    "color",
+    structuredVariantConfig,
   );
   const duplicateVariantSkus = useMemo(
     () => getDuplicateVariantSkus(variants),
@@ -1250,7 +1302,7 @@ export default function ProductUploadPage() {
   function updateVariantRow(
     id: string,
     field: keyof Omit<VariantFormRow, "id">,
-    value: string,
+    value: string | boolean,
   ) {
     setVariants((currentRows) =>
       currentRows.map((row) =>
@@ -1258,9 +1310,33 @@ export default function ProductUploadPage() {
           ? {
               ...row,
               [field]: value,
+              ...(field === "isDefault" && value
+                ? { selected: row.selected }
+                : {}),
             }
           : row,
       ),
+    );
+  }
+
+  function toggleVariantValue(
+    value: string,
+    selectedValues: string[],
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
+  ) {
+    setter(
+      selectedValues.includes(value)
+        ? selectedValues.filter((item) => item !== value)
+        : [...selectedValues, value],
+    );
+  }
+
+  function setDefaultVariant(id: string) {
+    setVariants((currentRows) =>
+      currentRows.map((row) => ({
+        ...row,
+        isDefault: row.id === id,
+      })),
     );
   }
 
@@ -1273,18 +1349,30 @@ export default function ProductUploadPage() {
 
   function addVariantRow() {
     const example =
-      variantConfig.examples[variants.length % variantConfig.examples.length] ||
-      defaultVariantExamples[0];
+      structuredVariantConfig.examplePreview[
+        variants.length % structuredVariantConfig.examplePreview.length
+      ] || defaultVariantExamples[0];
+    const previewSize = example.size || "";
+    const previewColor = example.color || form.color;
+    const draftRow = {
+      ...createVariantRow(variants.length, previewColor),
+      sizeLabel: previewSize,
+      numericSize: previewSize,
+      color: previewColor,
+    };
     setVariants((currentRows) => [
       ...currentRows,
       {
-        ...createVariantRow(currentRows.length, example.color || form.color),
+        ...createVariantRow(currentRows.length, previewColor),
         ...example,
-        color: example.color || form.color,
-        sku: form.sku ? `${form.sku}-${example.sku}` : example.sku,
+        sizeLabel: previewSize,
+        numericSize: previewSize,
+        color: previewColor,
+        sku: buildVariantSku(form.sku, draftRow, currentRows.length),
+        stockQuantity: "0",
         price: form.vendorPrice ? String(pricingPreview.finalCustomerPrice) : "",
         vendorPrice: form.vendorPrice,
-        mrp: form.mrp || example.mrp,
+        mrp: form.mrp || "",
         imageUrl: images[0] || "",
       },
     ]);
@@ -1292,17 +1380,118 @@ export default function ProductUploadPage() {
 
   function applyVariantTemplate() {
     setVariants(
-      variantConfig.examples.map((example, index) => ({
+      structuredVariantConfig.examplePreview.map((example, index) => ({
         ...createVariantRow(index, example.color || form.color),
         ...example,
+        sizeLabel: example.size || "",
+        numericSize: example.size || "",
         color: example.color || form.color,
-        sku: form.sku ? `${form.sku}-${example.sku}` : example.sku,
-        price: form.vendorPrice ? String(pricingPreview.finalCustomerPrice) : example.price,
+        sku: buildVariantSku(
+          form.sku,
+          {
+            ...createVariantRow(index, example.color || form.color),
+            sizeLabel: example.size || "",
+            numericSize: example.size || "",
+            color: example.color || form.color,
+          },
+          index,
+        ),
+        stockQuantity: "0",
+        price: "",
         vendorPrice: form.vendorPrice,
-        mrp: form.mrp || example.mrp,
+        mrp: form.mrp || "",
         imageUrl: images[index] || images[0] || "",
       })),
     );
+  }
+
+  function generateConfiguredVariantRows() {
+    const generatedRows = generateVariantCombinations({
+      sizes:
+        selectedVariantSizes.length > 0
+          ? selectedVariantSizes
+          : sizeDimensionConfig.options.slice(0, 1),
+      colors:
+        selectedVariantColors.length > 0
+          ? selectedVariantColors
+          : colorDimensionConfig.options.slice(0, 1),
+      baseSku: form.sku,
+      lowStockAlert: String(
+        structuredVariantConfig.rowFields.lowStockAlert?.default || "3",
+      ),
+    });
+
+    if (generatedRows.length === 0) {
+      setError("Select at least one configured size and one configured colour.");
+      return;
+    }
+
+    setError("");
+    setVariants((currentRows) => {
+      const existingCombos = new Set(
+        currentRows.map((row) =>
+          `${row.sizeLabel.trim()}::${row.color.trim()}`.toLowerCase(),
+        ),
+      );
+      const nextRows = generatedRows
+        .filter(
+          (row) =>
+            !existingCombos.has(
+              `${row.sizeLabel.trim()}::${row.color.trim()}`.toLowerCase(),
+            ),
+        )
+        .map((row, index) => ({
+          ...createVariantRow(currentRows.length + index, row.color),
+          ...row,
+          id: `${Date.now()}-generated-${index}`,
+          price: bulkVariantValues.price,
+          vendorPrice: bulkVariantValues.vendorPrice || form.vendorPrice,
+          mrp: bulkVariantValues.mrp || form.mrp,
+          weight: bulkVariantValues.weight,
+          lowStockThreshold:
+            bulkVariantValues.lowStockThreshold || row.lowStockThreshold,
+          imageUrl: images[0] || "",
+          isDefault: currentRows.length === 0 && index === 0,
+        }));
+      return nextRows.length ? [...currentRows, ...nextRows] : currentRows;
+    });
+  }
+
+  function updateSelectedVariantRows(updates: Partial<VariantFormRow>) {
+    setVariants((currentRows) =>
+      currentRows.map((row) =>
+        row.selected
+          ? {
+              ...row,
+              ...updates,
+            }
+          : row,
+      ),
+    );
+  }
+
+  function applyBulkVariantValues() {
+    const updates: Partial<VariantFormRow> = {};
+    if (bulkVariantValues.price) updates.price = bulkVariantValues.price;
+    if (bulkVariantValues.vendorPrice) updates.vendorPrice = bulkVariantValues.vendorPrice;
+    if (bulkVariantValues.mrp) updates.mrp = bulkVariantValues.mrp;
+    if (bulkVariantValues.weight) updates.weight = bulkVariantValues.weight;
+    if (bulkVariantValues.lowStockThreshold) {
+      updates.lowStockThreshold = bulkVariantValues.lowStockThreshold;
+    }
+    setVariants((currentRows) =>
+      currentRows.map((row) => ({
+        ...row,
+        ...updates,
+      })),
+    );
+  }
+
+  function deleteSelectedVariants() {
+    setVariants((currentRows) => {
+      const remainingRows = currentRows.filter((row) => !row.selected);
+      return remainingRows.length ? remainingRows : currentRows;
+    });
   }
 
   function autoFixVariantSkus() {
@@ -1393,14 +1582,6 @@ export default function ProductUploadPage() {
     link.click();
   }
 
-  function normalizeBulkLookup(value: string) {
-    return value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
-  }
-
   function splitBulkImages(value: string) {
     return value
       .split(/[|\n;]/)
@@ -1408,25 +1589,10 @@ export default function ProductUploadPage() {
       .filter(Boolean);
   }
 
-  function findBulkCategory(name: string) {
-    const normalized = normalizeBulkLookup(name);
-    return categories.find(
-      (category) => normalizeBulkLookup(category.name) === normalized,
-    );
-  }
-
-  function findBulkSubcategory(category: Category, name: string) {
-    const normalized = normalizeBulkLookup(name);
-    return (category.subcategories || []).find(
-      (subcategory) => normalizeBulkLookup(subcategory.name) === normalized,
-    );
-  }
-
   function validateBulkRow(row: BulkProductRow) {
-    const category = findBulkCategory(row.categoryName);
-    const subcategory = category && row.subcategoryName
-      ? findBulkSubcategory(category, row.subcategoryName)
-      : undefined;
+    const resolved = resolveBulkCategory(categories, row.categoryName, row.subcategoryName);
+    const category = resolved.category;
+    const subcategory = resolved.subcategory;
 
     if (!row.name) return "Product Name is required.";
     if (!row.vendorPrice || Number(row.vendorPrice) <= 0) {
@@ -1445,7 +1611,7 @@ export default function ProductUploadPage() {
       return "At least one Image URL is required.";
     }
 
-    return "";
+    return resolved.message || "";
   }
 
   async function handleBulkCsvFile(file: File | null) {
@@ -1483,9 +1649,10 @@ export default function ProductUploadPage() {
         message: "",
       };
       const message = validateBulkRow(bulkRow);
+      const hasError = Boolean(message && !message.startsWith("Mapped to "));
       return {
         ...bulkRow,
-        status: message ? "ERROR" as const : "READY" as const,
+        status: hasError ? "ERROR" as const : "READY" as const,
         message,
       };
     });
@@ -1516,10 +1683,9 @@ export default function ProductUploadPage() {
 
     for (const row of readyRows) {
       const rowIndex = nextRows.findIndex((entry) => entry.rowNumber === row.rowNumber);
-      const category = findBulkCategory(row.categoryName);
-      const subcategory = category && row.subcategoryName
-        ? findBulkSubcategory(category, row.subcategoryName)
-        : undefined;
+      const resolved = resolveBulkCategory(categories, row.categoryName, row.subcategoryName);
+      const category = resolved.category;
+      const subcategory = resolved.subcategory;
 
       if (!category || ((category.subcategories || []).length > 0 && !subcategory)) {
         nextRows[rowIndex] = {
@@ -1629,6 +1795,13 @@ export default function ProductUploadPage() {
     }
 
     const preparedVariants = prepareUniqueVariantRows(validVariants, form.sku);
+    const variantRowErrors = validateVendorVariantRows(preparedVariants);
+    if (variantRowErrors.length > 0) {
+      setError(variantRowErrors[0]);
+      setStep("variants");
+      return;
+    }
+
     if (duplicateVariantSkus.length > 0) {
       setVariants((currentRows) => prepareUniqueVariantRows(currentRows, form.sku));
     }
@@ -1698,6 +1871,10 @@ export default function ProductUploadPage() {
           mrp: variant.mrp ? Number(variant.mrp) : Number(form.mrp || 0),
           imageUrl: variant.imageUrl,
           lowStockThreshold: Number(variant.lowStockThreshold || 3),
+          barcode: variant.barcode,
+          weight: variant.weight ? Number(variant.weight) : undefined,
+          active: variant.active,
+          isDefault: variant.isDefault,
         })),
         categoryId: form.categoryId,
         subcategoryId: form.subcategoryId,
@@ -1779,6 +1956,11 @@ export default function ProductUploadPage() {
     );
     if (!hasVariant) {
       setError("Please add at least one product variant row.");
+      return;
+    }
+    const variantRowErrors = validateVendorVariantRows(variants);
+    if (variantRowErrors.length > 0) {
+      setError(variantRowErrors[0]);
       return;
     }
     setStep("final");
@@ -2517,14 +2699,14 @@ export default function ProductUploadPage() {
                   <section className="rounded-2xl bg-white p-5 shadow-sm">
                     <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
                       <div>
-                        <h3 className="text-xl font-black">{variantConfig.title}</h3>
+                        <h3 className="text-xl font-black">Product Variants & Stock</h3>
                         <p className="mt-1 text-sm text-slate-600">
-                          {variantConfig.note}
+                          Vendor yahan real SKU, stock, price aur image rows add karega. Admin template sirf structure aur allowed options deta hai.
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <button type="button" onClick={applyVariantTemplate} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-800">
-                          Use Category Example Rows
+                          Use Preview Rows (0 Stock)
                         </button>
                         <button type="button" onClick={addVariantRow} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-bold text-white">
                           Add Variant Row
@@ -2535,164 +2717,291 @@ export default function ProductUploadPage() {
                       </div>
                     </div>
                     <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50 p-4 text-sm text-slate-700">
-                      <p className="font-black text-violet-900">{variantConfig.selectedStyle}</p>
+                      <p className="font-black text-violet-900">{structuredVariantConfig.selectedStyle}</p>
                       <p className="mt-1">
-                        Same product listing rahega. Variant rows sirf customer ko selectable option aur stock dikhane ke liye hain.
+                        Admin configured dimensions: {structuredVariantConfig.dimensions.map((dimension) => dimension.label).join(" + ") || "Size + Colour"}.
+                        Preview rows are not inventory until vendor fills stock and submits this product.
                       </p>
                       <p className="mt-2 text-xs font-bold text-violet-900">
                         Customer Price = buyer ko dikhne wala variant selling price. Vendor Payout = is variant par vendor ko milne wali amount. Blank chhodne par final pricing page ka default use hoga.
                       </p>
+                    </div>
+                    <div className="mt-4 grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:grid-cols-2">
+                      <div>
+                        <p className="text-sm font-black text-slate-900">Generate combinations</p>
+                        <div className="mt-3 space-y-3">
+                          <div>
+                            <p className="text-xs font-bold uppercase text-slate-500">{sizeDimensionConfig.dimension?.label || "Size"}</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {sizeDimensionConfig.options.map((option) => (
+                                <button
+                                  key={option}
+                                  type="button"
+                                  onClick={() => toggleVariantValue(option, selectedVariantSizes, setSelectedVariantSizes)}
+                                  className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
+                                    selectedVariantSizes.includes(option)
+                                      ? "border-blue-700 bg-blue-700 text-white"
+                                      : "border-slate-300 bg-white text-slate-700"
+                                  }`}
+                                >
+                                  {option}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold uppercase text-slate-500">{colorDimensionConfig.dimension?.label || "Colour"}</p>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {colorDimensionConfig.options.map((option) => (
+                                <button
+                                  key={option}
+                                  type="button"
+                                  onClick={() => toggleVariantValue(option, selectedVariantColors, setSelectedVariantColors)}
+                                  className={`rounded-full border px-3 py-1.5 text-xs font-bold ${
+                                    selectedVariantColors.includes(option)
+                                      ? "border-blue-700 bg-blue-700 text-white"
+                                      : "border-slate-300 bg-white text-slate-700"
+                                  }`}
+                                >
+                                  {option}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <button type="button" onClick={generateConfiguredVariantRows} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-black text-white">
+                            Generate Variant Combinations
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-slate-900">Bulk values</p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {[
+                            ["vendorPrice", "Vendor payout"],
+                            ["price", "Customer price"],
+                            ["mrp", "MRP"],
+                            ["weight", "Weight (g)"],
+                            ["lowStockThreshold", "Low-stock threshold"],
+                          ].map(([field, placeholder]) => (
+                            <input
+                              key={field}
+                              type="number"
+                              value={bulkVariantValues[field as keyof typeof bulkVariantValues]}
+                              onChange={(event) =>
+                                setBulkVariantValues((current) => ({
+                                  ...current,
+                                  [field]: event.target.value,
+                                }))
+                              }
+                              placeholder={placeholder}
+                              className="rounded-xl border bg-white p-3 text-sm"
+                              min="0"
+                            />
+                          ))}
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button type="button" onClick={applyBulkVariantValues} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-800">
+                            Apply to All
+                          </button>
+                          <button type="button" onClick={() => updateSelectedVariantRows({ active: true })} className="rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-xs font-bold text-green-800">
+                            Activate Selected
+                          </button>
+                          <button type="button" onClick={() => updateSelectedVariantRows({ active: false })} className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-bold text-orange-800">
+                            Deactivate Selected
+                          </button>
+                          <button type="button" onClick={deleteSelectedVariants} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-700">
+                            Delete Selected
+                          </button>
+                        </div>
+                      </div>
                     </div>
                     {duplicateVariantSkus.length > 0 && (
                       <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
                         Duplicate variant SKU found: {duplicateVariantSkus.join(", ")}. Click Auto-fix SKUs or edit SKU suffixes before submit.
                       </div>
                     )}
-                    <div className="mt-4 overflow-x-auto">
-                      <table className="w-full min-w-[1180px] border-collapse text-sm">
-                        <thead>
-                          <tr className="bg-slate-100 text-left">
-                            {[
-                              variantConfig.sizeLabelHeading,
-                              variantConfig.numericSizeHeading,
-                              variantConfig.colorHeading,
-                              variantConfig.skuHeading,
-                              "Stock",
-                              "Customer Price (Buyer Pays)",
-                              "Vendor Payout",
-                              "MRP",
-                              "Variant Image",
-                              "Status",
-                              "Action",
-                            ].map((heading) => (
-                              <th key={heading} className="border px-3 py-2">{heading}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {variants.map((variant) => {
-                            const status = getVariantStatus(variant.stockQuantity, variant.lowStockThreshold);
-                            return (
-                              <tr key={variant.id} className="bg-white">
-                                {[
-                                  ["sizeLabel", variantConfig.sizeLabelPlaceholder],
-                                  ["numericSize", variantConfig.numericSizePlaceholder],
-                                  ["color", form.color || variantConfig.colorPlaceholder],
-                                  ["sku", form.sku ? `${form.sku}-${variantConfig.skuPlaceholder}` : variantConfig.skuPlaceholder],
-                                  ["stockQuantity", "4"],
-                                  ["price", String(pricingPreview.finalCustomerPrice)],
-                                  ["vendorPrice", form.vendorPrice || "Vendor payout"],
-                                  ["mrp", form.mrp || "799"],
-                                  ["imageUrl", "Select or upload variant image"],
-                                ].map(([field, placeholder]) => {
-                                  const typedField = field as keyof Omit<VariantFormRow, "id">;
-                                  const optionValues = getVariantOptionValues(typedField, variantConfig);
-                                  return (
-                                    <td key={field} className="border p-2">
-                                      {field === "imageUrl" ? (
-                                        <div className="min-w-[210px] space-y-2">
-                                          {variant.imageUrl ? (
-                                            <div className="flex items-center gap-2 rounded-lg border bg-white p-2">
-                                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                                              <img
-                                                src={variant.imageUrl}
-                                                alt={`${variant.color || "Variant"} preview`}
-                                                className="h-12 w-12 rounded-md object-cover"
-                                              />
-                                              <button
-                                                type="button"
-                                                onClick={() => updateVariantRow(variant.id, typedField, "")}
-                                                className="text-xs font-bold text-red-600"
-                                              >
-                                                Remove
-                                              </button>
-                                            </div>
-                                          ) : (
-                                            <p className="rounded-lg bg-slate-50 p-2 text-xs font-semibold text-slate-500">
-                                              No variant image selected
-                                            </p>
-                                          )}
-
-                                          <select
-                                            value={variant.imageUrl}
-                                            onChange={(event) =>
-                                              updateVariantRow(variant.id, typedField, event.target.value)
-                                            }
-                                            className="w-full rounded-lg border bg-white p-2 text-xs"
-                                          >
-                                            <option value="">Pick from uploaded product images</option>
-                                            {images.map((image, imageIndex) => (
-                                              <option key={`${image}-${imageIndex}`} value={image}>
-                                                {imageIndex === 0 ? "Front image" : `Product image ${imageIndex + 1}`}
-                                              </option>
-                                            ))}
-                                          </select>
-
-                                          <FileUploadField
-                                            label="Upload color/variant image"
-                                            purpose="product"
-                                            accept="image/*"
-                                            onUploaded={(url) =>
-                                              updateVariantRow(variant.id, typedField, url)
-                                            }
-                                          />
-                                        </div>
-                                      ) : field === "color" ? (
-                                        <>
-                                          <input
-                                            list="variant-color-options"
-                                            value={variant[typedField]}
-                                            onChange={(event) => updateVariantRow(variant.id, typedField, event.target.value)}
-                                            placeholder={placeholder}
-                                            className="w-full rounded-lg border p-2"
-                                          />
-                                          <datalist id="variant-color-options">
-                                            {optionValues.map((option) => (
-                                              <option key={option} value={option} />
-                                            ))}
-                                          </datalist>
-                                        </>
-                                      ) : optionValues.length > 0 ? (
-                                        <select
-                                          value={variant[typedField]}
-                                          onChange={(event) => updateVariantRow(variant.id, typedField, event.target.value)}
-                                          className="w-full rounded-lg border bg-white p-2"
-                                        >
-                                          <option value="">{placeholder}</option>
-                                          {optionValues.map((option) => (
-                                            <option key={option} value={option}>
-                                              {option}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      ) : (
-                                        <input
-                                          type={["stockQuantity", "price", "vendorPrice", "mrp"].includes(field) ? "number" : "text"}
-                                          value={variant[typedField]}
-                                          onChange={(event) => updateVariantRow(variant.id, typedField, event.target.value)}
-                                          placeholder={placeholder}
-                                          className="w-full rounded-lg border p-2"
-                                          min="0"
-                                        />
-                                      )}
-                                    </td>
-                                  );
-                                })}
-                                <td className="border p-2">
-                                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${getStatusClass(status)}`}>
-                                    {status}
-                                  </span>
-                                </td>
-                                <td className="border p-2">
-                                  <button type="button" onClick={() => removeVariantRow(variant.id)} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700">
-                                    Remove
+                    <div className="mt-4 space-y-4">
+                      {variants.map((variant, index) => {
+                        const status = getVariantStatus(variant.stockQuantity, variant.lowStockThreshold);
+                        return (
+                          <div key={variant.id} className="rounded-2xl border border-slate-200 p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+                                <input
+                                  type="checkbox"
+                                  checked={variant.selected}
+                                  onChange={(event) => updateVariantRow(variant.id, "selected", event.target.checked)}
+                                />
+                                Row {index + 1}
+                              </label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className={`rounded-full px-3 py-1 text-xs font-bold ${getStatusClass(status)}`}>
+                                  {status}
+                                </span>
+                                <label className="flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-xs font-bold">
+                                  <input
+                                    type="checkbox"
+                                    checked={variant.active}
+                                    onChange={(event) => updateVariantRow(variant.id, "active", event.target.checked)}
+                                  />
+                                  Active
+                                </label>
+                                <label className="flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-xs font-bold">
+                                  <input
+                                    type="checkbox"
+                                    checked={variant.isDefault}
+                                    onChange={(event) =>
+                                      event.target.checked
+                                        ? setDefaultVariant(variant.id)
+                                        : updateVariantRow(variant.id, "isDefault", false)
+                                    }
+                                  />
+                                  Default
+                                </label>
+                                <button type="button" onClick={() => removeVariantRow(variant.id)} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700">
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                              <select
+                                value={variant.sizeLabel}
+                                onChange={(event) => updateVariantRow(variant.id, "sizeLabel", event.target.value)}
+                                className="rounded-xl border bg-white p-3 text-sm"
+                              >
+                                <option value="">{sizeDimensionConfig.dimension?.label || variantConfig.sizeLabelPlaceholder}</option>
+                                {sizeDimensionConfig.options.map((option) => (
+                                  <option key={option} value={option}>{option}</option>
+                                ))}
+                              </select>
+                              <input
+                                value={variant.numericSize}
+                                onChange={(event) => updateVariantRow(variant.id, "numericSize", event.target.value)}
+                                placeholder={variantConfig.numericSizePlaceholder}
+                                className="rounded-xl border p-3 text-sm"
+                              />
+                              <input
+                                list={`variant-color-options-${variant.id}`}
+                                value={variant.color}
+                                onChange={(event) => updateVariantRow(variant.id, "color", event.target.value)}
+                                placeholder={form.color || colorDimensionConfig.dimension?.label || variantConfig.colorPlaceholder}
+                                className="rounded-xl border p-3 text-sm"
+                              />
+                              <datalist id={`variant-color-options-${variant.id}`}>
+                                {colorDimensionConfig.options.map((option) => (
+                                  <option key={option} value={option} />
+                                ))}
+                                {getVariantOptionValues("color", variantConfig).map((option) => (
+                                  <option key={`legacy-${option}`} value={option} />
+                                ))}
+                              </datalist>
+                              <input
+                                value={variant.sku}
+                                onChange={(event) => updateVariantRow(variant.id, "sku", event.target.value)}
+                                placeholder={form.sku ? `${form.sku}-SIZE-COLOR` : variantConfig.skuPlaceholder}
+                                className="rounded-xl border p-3 text-sm"
+                              />
+                              <input
+                                value={variant.barcode}
+                                onChange={(event) => updateVariantRow(variant.id, "barcode", event.target.value)}
+                                placeholder="Barcode"
+                                className="rounded-xl border p-3 text-sm"
+                              />
+                              <input
+                                type="number"
+                                value={variant.stockQuantity}
+                                onChange={(event) => updateVariantRow(variant.id, "stockQuantity", event.target.value)}
+                                placeholder="Stock"
+                                className="rounded-xl border p-3 text-sm"
+                                min="0"
+                              />
+                              <input
+                                type="number"
+                                value={variant.lowStockThreshold}
+                                onChange={(event) => updateVariantRow(variant.id, "lowStockThreshold", event.target.value)}
+                                placeholder="Low-stock alert"
+                                className="rounded-xl border p-3 text-sm"
+                                min="0"
+                              />
+                              <input
+                                type="number"
+                                value={variant.price}
+                                onChange={(event) => updateVariantRow(variant.id, "price", event.target.value)}
+                                placeholder={String(pricingPreview.finalCustomerPrice)}
+                                className="rounded-xl border p-3 text-sm"
+                                min="0"
+                              />
+                              <input
+                                type="number"
+                                value={variant.vendorPrice}
+                                onChange={(event) => updateVariantRow(variant.id, "vendorPrice", event.target.value)}
+                                placeholder={form.vendorPrice || "Vendor payout"}
+                                className="rounded-xl border p-3 text-sm"
+                                min="0"
+                              />
+                              <input
+                                type="number"
+                                value={variant.mrp}
+                                onChange={(event) => updateVariantRow(variant.id, "mrp", event.target.value)}
+                                placeholder={form.mrp || "MRP"}
+                                className="rounded-xl border p-3 text-sm"
+                                min="0"
+                              />
+                              <input
+                                type="number"
+                                value={variant.weight}
+                                onChange={(event) => updateVariantRow(variant.id, "weight", event.target.value)}
+                                placeholder="Weight (g)"
+                                className="rounded-xl border p-3 text-sm"
+                                min="0"
+                              />
+                            </div>
+                            <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_280px]">
+                              <div className="space-y-2">
+                                <select
+                                  value={variant.imageUrl}
+                                  onChange={(event) => updateVariantRow(variant.id, "imageUrl", event.target.value)}
+                                  className="w-full rounded-xl border bg-white p-3 text-sm"
+                                >
+                                  <option value="">Pick from uploaded product images</option>
+                                  {images.map((image, imageIndex) => (
+                                    <option key={`${image}-${imageIndex}`} value={image}>
+                                      {imageIndex === 0 ? "Front image" : `Product image ${imageIndex + 1}`}
+                                    </option>
+                                  ))}
+                                </select>
+                                <FileUploadField
+                                  label="Upload variant image"
+                                  purpose="product"
+                                  accept="image/*"
+                                  onUploaded={(url) => updateVariantRow(variant.id, "imageUrl", url)}
+                                />
+                              </div>
+                              {variant.imageUrl ? (
+                                <div className="rounded-xl border bg-slate-50 p-2">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={variant.imageUrl}
+                                    alt={`${variant.color || "Variant"} preview`}
+                                    className="h-32 w-full rounded-lg object-cover"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => updateVariantRow(variant.id, "imageUrl", "")}
+                                    className="mt-2 text-xs font-bold text-red-600"
+                                  >
+                                    Remove image
                                   </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                                </div>
+                              ) : (
+                                <div className="rounded-xl bg-slate-50 p-4 text-xs font-semibold text-slate-500">
+                                  No variant image selected
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </section>
                   )}

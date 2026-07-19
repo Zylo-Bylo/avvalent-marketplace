@@ -41,12 +41,13 @@ export type CategoryVariantConfig = {
   availableSizesPlaceholder: string;
   brandMappingPlaceholder: string;
   examples: CategoryVariantExample[];
-};
+} & Record<string, unknown>;
 
 export type CategoryUploadTemplatePayload = {
   id?: string;
   categoryId: string;
   subcategoryId?: string | null;
+  productTypeId?: string | null;
   productTypes: string[];
   specTemplate: CategorySpecTemplate;
   variantConfig: CategoryVariantConfig;
@@ -60,6 +61,7 @@ type TemplateRow = {
   id: string;
   categoryId: string;
   subcategoryId: string | null;
+  productTypeId: string | null;
   productTypes: string;
   specTemplate: string;
   variantConfig: string;
@@ -83,6 +85,7 @@ function toTemplate(row: TemplateRow): CategoryUploadTemplatePayload {
     id: row.id,
     categoryId: row.categoryId,
     subcategoryId: row.subcategoryId,
+    productTypeId: row.productTypeId,
     productTypes: parseJson<string[]>(row.productTypes, []),
     specTemplate: parseJson<CategorySpecTemplate>(row.specTemplate, {
       title: 'Category Specifications',
@@ -119,6 +122,7 @@ export async function ensureCategoryUploadTemplateSchema() {
       "id" TEXT NOT NULL PRIMARY KEY,
       "categoryId" TEXT NOT NULL,
       "subcategoryId" TEXT,
+      "productTypeId" TEXT,
       "productTypes" TEXT NOT NULL,
       "specTemplate" TEXT NOT NULL,
       "variantConfig" TEXT NOT NULL,
@@ -130,6 +134,19 @@ export async function ensureCategoryUploadTemplateSchema() {
   `);
 
   await prisma.$executeRawUnsafe(`
+    ALTER TABLE "CategoryUploadTemplate" ADD COLUMN IF NOT EXISTS "productTypeId" TEXT
+  `).catch(async () => {
+    const columns = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
+      'PRAGMA table_info("CategoryUploadTemplate")',
+    );
+    if (!columns.some((column) => column.name === 'productTypeId')) {
+      await prisma.$executeRawUnsafe(
+        'ALTER TABLE "CategoryUploadTemplate" ADD COLUMN "productTypeId" TEXT',
+      );
+    }
+  });
+
+  await prisma.$executeRawUnsafe(`
     CREATE INDEX IF NOT EXISTS "CategoryUploadTemplate_categoryId_idx"
     ON "CategoryUploadTemplate" ("categoryId")
   `);
@@ -138,18 +155,40 @@ export async function ensureCategoryUploadTemplateSchema() {
     CREATE INDEX IF NOT EXISTS "CategoryUploadTemplate_subcategoryId_idx"
     ON "CategoryUploadTemplate" ("subcategoryId")
   `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "CategoryUploadTemplate_productTypeId_idx"
+    ON "CategoryUploadTemplate" ("productTypeId")
+  `);
 }
 
 export async function getCategoryUploadTemplate(
   categoryId: string,
   subcategoryId?: string | null,
+  productTypeId?: string | null,
 ) {
   await ensureCategoryUploadTemplateSchema();
+
+  if (productTypeId) {
+    const rows = await prisma.$queryRaw<TemplateRow[]>`
+      SELECT * FROM "CategoryUploadTemplate"
+      WHERE "categoryId" = ${categoryId}
+        AND "subcategoryId" = ${subcategoryId || null}
+        AND "productTypeId" = ${productTypeId}
+      ORDER BY "updatedAt" DESC
+      LIMIT 1
+    `;
+
+    if (rows[0]) {
+      return toTemplate(rows[0]);
+    }
+  }
 
   if (subcategoryId) {
     const rows = await prisma.$queryRaw<TemplateRow[]>`
       SELECT * FROM "CategoryUploadTemplate"
       WHERE "categoryId" = ${categoryId} AND "subcategoryId" = ${subcategoryId}
+        AND ("productTypeId" IS NULL OR "productTypeId" = '')
       ORDER BY "updatedAt" DESC
       LIMIT 1
     `;
@@ -177,11 +216,13 @@ export async function saveCategoryUploadTemplate(
 
   const id = template.id || crypto.randomUUID();
   const subcategoryId = template.subcategoryId || null;
+  const productTypeId = template.productTypeId || null;
 
   await prisma.$executeRaw`
     DELETE FROM "CategoryUploadTemplate"
     WHERE "categoryId" = ${template.categoryId}
       AND COALESCE("subcategoryId", '') = ${subcategoryId || ''}
+      AND COALESCE("productTypeId", '') = ${productTypeId || ''}
   `;
 
   await prisma.$executeRaw`
@@ -189,6 +230,7 @@ export async function saveCategoryUploadTemplate(
       "id",
       "categoryId",
       "subcategoryId",
+      "productTypeId",
       "productTypes",
       "specTemplate",
       "variantConfig",
@@ -200,6 +242,7 @@ export async function saveCategoryUploadTemplate(
       ${id},
       ${template.categoryId},
       ${subcategoryId},
+      ${productTypeId},
       ${JSON.stringify(template.productTypes || [])},
       ${JSON.stringify(template.specTemplate || {})},
       ${JSON.stringify(template.variantConfig || {})},
@@ -210,5 +253,5 @@ export async function saveCategoryUploadTemplate(
     )
   `;
 
-  return getCategoryUploadTemplate(template.categoryId, subcategoryId);
+  return getCategoryUploadTemplate(template.categoryId, subcategoryId, productTypeId);
 }

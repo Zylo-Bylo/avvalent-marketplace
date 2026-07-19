@@ -12,6 +12,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('categoryId');
     const subcategoryId = searchParams.get('subcategoryId');
+    const productTypeId = searchParams.get('productTypeId');
 
     if (!categoryId) {
       return NextResponse.json(
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const template = await getCategoryUploadTemplate(categoryId, subcategoryId);
+    const template = await getCategoryUploadTemplate(categoryId, subcategoryId, productTypeId);
     return NextResponse.json({ template });
   } catch (error) {
     console.error('Category template fetch error:', error);
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
     const template = await saveCategoryUploadTemplate({
       categoryId: body.categoryId,
       subcategoryId: body.subcategoryId || null,
+      productTypeId: body.productTypeId || null,
       productTypes: Array.isArray(body.productTypes) ? body.productTypes : [],
       specTemplate: body.specTemplate || {
         title: 'Category Specifications',

@@ -186,26 +186,72 @@ model Vendor {
 }
 
 model Category {
-  id            String        @id @default(cuid())
-  name          String        @unique
-  slug          String        @unique
-  products      Product[]
-  subcategories Subcategory[]
+  id              String        @id @default(cuid())
+  name            String        @unique
+  slug            String        @unique
+  status          String        @default("ACTIVE")
+  sortOrder       Int           @default(0)
+  homepageIcon    String?
+  categoryImage   String?
+  desktopBanner   String?
+  mobileBanner    String?
+  altText         String?
+  archivedAt      DateTime?
+  products        Product[]
+  subcategories   Subcategory[]
   commissionRules CommissionRule[]
+
+  @@index([status])
+  @@index([sortOrder])
 }
 
 model Subcategory {
-  id         String    @id @default(cuid())
-  name       String
-  slug       String    @unique
-  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  categoryId String
-  products   Product[]
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id             String        @id @default(cuid())
+  name           String
+  slug           String        @unique
+  status         String        @default("ACTIVE")
+  sortOrder      Int           @default(0)
+  homepageIcon   String?
+  categoryImage  String?
+  desktopBanner  String?
+  mobileBanner   String?
+  altText        String?
+  archivedAt     DateTime?
+  category       Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId     String
+  products       Product[]
+  productTypes   ProductType[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@unique([categoryId, name])
   @@index([categoryId])
+  @@index([status])
+  @@index([sortOrder])
+}
+
+model ProductType {
+  id             String       @id @default(cuid())
+  name           String
+  slug           String       @unique
+  status         String       @default("ACTIVE")
+  sortOrder      Int          @default(0)
+  homepageIcon   String?
+  categoryImage  String?
+  desktopBanner  String?
+  mobileBanner   String?
+  altText        String?
+  archivedAt     DateTime?
+  subcategory    Subcategory  @relation(fields: [subcategoryId], references: [id], onDelete: Cascade)
+  subcategoryId  String
+  products       Product[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([subcategoryId, name])
+  @@index([subcategoryId])
+  @@index([status])
+  @@index([sortOrder])
 }
 
 model Product {
@@ -241,6 +287,8 @@ model Product {
   categoryId  String?
   subcategory Subcategory? @relation(fields: [subcategoryId], references: [id])
   subcategoryId String?
+  productType ProductType? @relation(fields: [productTypeId], references: [id])
+  productTypeId String?
   reviews     Review[]
   orderItems  OrderItem[]
   variants    ProductVariant[]
@@ -254,11 +302,27 @@ model Product {
   @@index([vendorId])
   @@index([categoryId])
   @@index([subcategoryId])
+  @@index([productTypeId])
   @@index([inventory])
   @@index([price])
   @@index([discountPercent])
   @@index([createdAt])
   @@index([updatedAt])
+}
+
+model CategoryAuditLog {
+  id         String   @id @default(cuid())
+  adminUser  String
+  action     String
+  entityType String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
 }
 
 model ProductVariant {

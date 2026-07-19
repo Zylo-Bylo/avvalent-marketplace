@@ -93,6 +93,7 @@ export default function ProductsPage() {
   const [categoryId, setCategoryId] = useState("");
   const [categorySlug, setCategorySlug] = useState("");
   const [subcategoryId, setSubcategoryId] = useState("");
+  const [productTypeId, setProductTypeId] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [sort, setSort] = useState("newest");
@@ -144,6 +145,7 @@ export default function ProductsPage() {
     setCategoryId(params.get("categoryId") || "");
     setCategorySlug(queryCategory);
     setSubcategoryId(params.get("subcategoryId") || "");
+    setProductTypeId(params.get("productTypeId") || "");
     setMinPrice(params.get("minPrice") || "");
     setMaxPrice(params.get("maxPrice") || "");
     setSort(params.get("sort") || "newest");
@@ -213,6 +215,10 @@ export default function ProductsPage() {
         params.set("subcategoryId", subcategoryId);
       }
 
+      if (productTypeId) {
+        params.set("productTypeId", productTypeId);
+      }
+
       if (minPrice) {
         params.set("minPrice", minPrice);
       }
@@ -275,6 +281,7 @@ export default function ProductsPage() {
   }, [
     categoryId,
     categorySlug,
+    productTypeId,
     maxPrice,
     minPrice,
     bulkOnly,
@@ -295,6 +302,7 @@ export default function ProductsPage() {
       (categorySlug ? 1 : 0) +
       (offerOnly ? 1 : 0) +
       (selectedBrand ? 1 : 0) +
+      (productTypeId ? 1 : 0) +
       (bulkOnly ? 1 : 0) +
       (featuredOnly ? 1 : 0) +
       (showOutOfStock ? 1 : 0),
@@ -306,6 +314,7 @@ export default function ProductsPage() {
       maxPrice,
       minPrice,
       offerOnly,
+      productTypeId,
       search,
       selectedBrand,
       showOutOfStock,
@@ -318,6 +327,7 @@ export default function ProductsPage() {
     setCategoryId("");
     setCategorySlug("");
     setSubcategoryId("");
+    setProductTypeId("");
     setMinPrice("");
     setMaxPrice("");
     setSort("newest");
@@ -332,6 +342,7 @@ export default function ProductsPage() {
     setCategoryId(value);
     setCategorySlug("");
     setSubcategoryId("");
+    setProductTypeId("");
   }
 
   function getProductCategoryName(product: Product) {
@@ -511,7 +522,10 @@ export default function ProductsPage() {
 
             <select
               value={subcategoryId}
-              onChange={(event) => setSubcategoryId(event.target.value)}
+              onChange={(event) => {
+                setSubcategoryId(event.target.value);
+                setProductTypeId("");
+              }}
               disabled={!selectedCategory}
               className="w-full border border-stone-300 px-3 py-3 text-sm outline-none focus:border-[#6b145d] disabled:bg-stone-100"
             >

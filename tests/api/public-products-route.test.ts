@@ -139,6 +139,28 @@ describe("public products API routes", () => {
     );
   });
 
+  it("applies dynamic category template filters to product text fields", async () => {
+    const response = await getProducts(
+      new Request("http://localhost/api/products?subcategoryId=sub-baby-diapers&packQuantity=20%20Pieces") as NextRequest,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          subcategoryId: "sub-baby-diapers",
+          AND: expect.arrayContaining([
+            {
+              OR: expect.arrayContaining([
+                { description: expect.objectContaining({ contains: "20 Pieces" }) },
+              ]),
+            },
+          ]),
+        }),
+      }),
+    );
+  });
+
   it("returns product detail for approved vendor products", async () => {
     mocks.prisma.product.findUnique.mockResolvedValue({
       id: "product-1",

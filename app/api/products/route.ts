@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const categoryId = searchParams.get('categoryId');
     const subcategoryId = searchParams.get('subcategoryId');
+    const productTypeId = searchParams.get('productTypeId');
     const vendorId = searchParams.get('vendorId');
     const search = searchParams.get('search');
     const brand = searchParams.get('brand');
@@ -116,6 +117,10 @@ export async function GET(request: NextRequest) {
 
     if (subcategoryId) {
       where.subcategoryId = subcategoryId;
+    }
+
+    if (productTypeId) {
+      where.productTypeId = productTypeId;
     }
 
     if (vendorId) {
@@ -195,6 +200,41 @@ export async function GET(request: NextRequest) {
             },
           },
         ]),
+      });
+    }
+
+    const knownParams = new Set([
+      'category',
+      'categoryId',
+      'subcategoryId',
+      'productTypeId',
+      'vendorId',
+      'search',
+      'brand',
+      'minPrice',
+      'maxPrice',
+      'offer',
+      'bulk',
+      'featured',
+      'includeOutOfStock',
+      'includeInventoryDetails',
+      'sort',
+      'limit',
+      'offset',
+      'price',
+      'discount',
+      'allDiscount',
+    ]);
+    for (const [key, value] of searchParams.entries()) {
+      const trimmedValue = value.trim();
+      if (!trimmedValue || knownParams.has(key)) continue;
+
+      andFilters.push({
+        OR: [
+          { name: { ...textContains(trimmedValue) } },
+          { description: { ...textContains(trimmedValue) } },
+          { sku: { ...textContains(trimmedValue) } },
+        ],
       });
     }
 

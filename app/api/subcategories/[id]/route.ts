@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ensureCategoryAtelierSchema } from '@/lib/category-atelier-schema';
 import { prisma } from '@/lib/prisma';
 
 function slugify(value: string) {
@@ -14,8 +15,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureCategoryAtelierSchema();
+
     const { id } = await params;
-    const { name, categoryId } = await request.json();
+    const body = await request.json();
+    const { name, categoryId } = body;
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ error: 'Subcategory name is required' }, { status: 400 });
@@ -25,10 +29,20 @@ export async function PATCH(
       where: { id },
       data: {
         name: name.trim(),
-        slug: `${slugify(name) || 'subcategory'}-${Date.now()}`,
+        slug: body.slug ? slugify(body.slug) : `${slugify(name) || 'subcategory'}-${Date.now()}`,
         ...(categoryId ? { categoryId } : {}),
+        ...(body.status ? { status: body.status } : {}),
+        ...(body.sortOrder !== undefined ? { sortOrder: Number(body.sortOrder) || 0 } : {}),
+        ...(body.homepageIcon !== undefined ? { homepageIcon: body.homepageIcon || null } : {}),
+        ...(body.categoryImage !== undefined ? { categoryImage: body.categoryImage || null } : {}),
+        ...(body.desktopBanner !== undefined ? { desktopBanner: body.desktopBanner || null } : {}),
+        ...(body.mobileBanner !== undefined ? { mobileBanner: body.mobileBanner || null } : {}),
+        ...(body.altText !== undefined ? { altText: body.altText || null } : {}),
       },
       include: {
+        productTypes: {
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        },
         category: {
           select: {
             id: true,
@@ -50,7 +64,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureCategoryAtelierSchema();
+
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+
+    if (searchParams.get('confirmed') !== 'true') {
+      return NextResponse.json(
+        { error: 'Delete confirmation is required' },
+        { status: 400 },
+      );
+    }
 
     await prisma.$transaction([
       prisma.product.updateMany({
