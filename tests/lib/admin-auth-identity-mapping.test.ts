@@ -27,6 +27,8 @@ describe("admin Auth identity mapping", () => {
     expect(adminAuth).toContain('auth_mapping."authUserId" = auth_user.id::text');
     expect(adminAuth).toContain('app_user.id = auth_mapping."userId"');
     expect(adminAuth).toContain('where app_user.id = ${session.userId}');
+    expect(adminAuth).toContain("maybeError.code === '42P01'");
+    expect(adminAuth).toContain("return { status: 'forbidden', userId: session.userId }");
     expect(adminAuth).not.toContain('app_user.id = auth_user.id::text');
   });
 
