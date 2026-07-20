@@ -24,7 +24,7 @@ describe("admin Auth identity mapping", () => {
 
     expect(adminAuth).toContain('auth_user.raw_app_meta_data ->> \'role\' as protected_role');
     expect(adminAuth).toContain('inner join public."AuthIdentityMapping" auth_mapping');
-    expect(adminAuth).toContain('auth_mapping."authUserId" = auth_user.id::text');
+    expect(adminAuth).toContain('auth_mapping."authUserId"::text = auth_user.id::text');
     expect(adminAuth).toContain('app_user.id = auth_mapping."userId"');
     expect(adminAuth).toContain('where app_user.id = ${session.userId}');
     expect(adminAuth).toContain("maybeError.code === '42P01'");

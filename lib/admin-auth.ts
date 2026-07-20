@@ -46,7 +46,7 @@ export async function getAdminAuthState(): Promise<AdminAuthState> {
         auth_user.raw_app_meta_data ->> 'role' as protected_role
       from auth.users auth_user
       inner join public."AuthIdentityMapping" auth_mapping
-        on auth_mapping."authUserId" = auth_user.id::text
+        on auth_mapping."authUserId"::text = auth_user.id::text
         and auth_mapping.provider = 'supabase'
       inner join public."User" app_user
         on app_user.id = auth_mapping."userId"
