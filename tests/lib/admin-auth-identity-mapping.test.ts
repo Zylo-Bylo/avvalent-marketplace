@@ -43,6 +43,32 @@ describe("admin Auth identity mapping", () => {
     expect(rollback).toContain('drop table if exists public."AuthIdentityMapping"');
   });
 
+  it("defines a self-contained production prerequisite without inserting mappings", () => {
+    const sql = read("supabase/proposed/20260720000100_auth_identity_mapping_prerequisite.sql");
+    const rollback = read("supabase/proposed/20260720000100_auth_identity_mapping_prerequisite_rollback.sql");
+
+    const tableIndex = sql.indexOf('create table if not exists public."AuthIdentityMapping"');
+    const revokeIndex = sql.indexOf('revoke all on table public."AuthIdentityMapping" from public, anon, authenticated');
+    const rlsIndex = sql.indexOf('alter table public."AuthIdentityMapping" enable row level security');
+    const helperIndex = sql.indexOf("create or replace function private.zylo_is_admin()");
+    const policyIndex = sql.indexOf('create policy "auth_identity_mapping_select_admin"');
+
+    expect(tableIndex).toBeGreaterThan(-1);
+    expect(revokeIndex).toBeGreaterThan(tableIndex);
+    expect(rlsIndex).toBeGreaterThan(revokeIndex);
+    expect(helperIndex).toBeGreaterThan(rlsIndex);
+    expect(policyIndex).toBeGreaterThan(helperIndex);
+    expect(sql).toContain("security definer");
+    expect(sql).toContain("set search_path = ''");
+    expect(sql).toContain("revoke all on function private.zylo_is_admin() from public, anon, authenticated");
+    expect(sql).toContain("grant execute on function private.zylo_is_admin() to authenticated");
+    expect(sql).not.toMatch(/insert\s+into\s+public\."AuthIdentityMapping"/i);
+    expect(sql).not.toMatch(/using\s*\(\s*true\s*\)/i);
+    expect(rollback).toContain('drop table if exists public."AuthIdentityMapping"');
+    expect(rollback).toContain("drop function if exists private.zylo_is_admin()");
+    expect(rollback).not.toMatch(/grant\s+.*public|grant\s+.*anon|grant\s+.*authenticated/i);
+  });
+
   it("makes the production mapping script explicit and non-leaky", () => {
     const script = read("scripts/prepare-production-admin-identity-mapping.mjs");
 
