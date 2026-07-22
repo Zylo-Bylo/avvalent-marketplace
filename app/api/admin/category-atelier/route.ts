@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { NextResponse } from 'next/server';
-import { requireAdminUser } from '@/lib/admin-auth';
+import { requireAdminApiUser } from '@/lib/admin-auth';
 import {
   ensureCategoryUploadTemplateSchema,
   getCategoryUploadTemplate,
@@ -269,6 +269,9 @@ async function duplicateTemplates(categoryId: string, newCategoryId: string) {
 
 export async function GET() {
   try {
+    const auth = await requireAdminApiUser();
+    if (auth.response) return auth.response;
+
     await ensureCategoryAtelierSchema();
     const invalidImageCleanup = await clearInvalidMetadataImages();
 
@@ -305,16 +308,14 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await ensureCategoryAtelierSchema();
+    const auth = await requireAdminApiUser();
+    if (auth.response) return auth.response;
 
-    const admin = await requireAdminUser();
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await ensureCategoryAtelierSchema();
 
     const body = await request.json();
     const action = String(body.action || '');
-    const adminUser = admin.id;
+    const adminUser = auth.user.id;
 
     if (action === 'createCategory') {
       const name = String(body.name || '').trim();

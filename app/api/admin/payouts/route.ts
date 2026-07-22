@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { requireAdminUser } from '@/lib/admin-auth';
+import { requireAdminApiUser } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
-import { getAuthSession } from '@/lib/session-cookies';
 import {
   PAYOUT_STATUSES,
   getAdminPayoutData,
@@ -15,17 +14,13 @@ import {
 export const runtime = 'nodejs';
 
 async function requireAdmin() {
-  if (!(await requireAdminUser())) {
-    return null;
-  }
-  const session = await getAuthSession();
-  return session?.userId || null;
+  const auth = await requireAdminApiUser();
+  return auth.response ? auth : { user: auth.user, response: null };
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await requireAdmin())) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-  }
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const format = searchParams.get('format') || '';
@@ -105,10 +100,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: Request) {
-  const adminId = await requireAdmin();
-  if (!adminId) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-  }
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
+  const adminId = auth.user.id;
 
   await ensurePayoutTables();
   const body = await request.json().catch(() => ({}));

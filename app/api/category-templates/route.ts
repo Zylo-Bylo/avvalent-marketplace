@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdminUser } from '@/lib/admin-auth';
+import { requireAdminApiUser } from '@/lib/admin-auth';
 import {
   getCategoryUploadTemplate,
   saveCategoryUploadTemplate,
@@ -34,10 +34,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const admin = await requireAdminUser();
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdminApiUser();
+    if (auth.response) return auth.response;
 
     const body = await request.json();
     if (!body.categoryId || typeof body.categoryId !== 'string') {

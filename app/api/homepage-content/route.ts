@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdminUser } from '@/lib/admin-auth';
+import { requireAdminApiUser } from '@/lib/admin-auth';
 import {
   defaultHomepageContent,
   normalizeHomepageContent,
@@ -56,10 +56,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const admin = await requireAdminUser();
-  if (!admin) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 401 });
-  }
+  const auth = await requireAdminApiUser();
+  if (auth.response) return auth.response;
 
   try {
     await ensureHomepageContentTable();

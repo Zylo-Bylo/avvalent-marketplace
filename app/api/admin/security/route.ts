@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
-import { requireAdminUser } from '@/lib/admin-auth';
+import { requireAdminApiUser } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
 import { ensureTrustTables } from '@/lib/trust';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
-  if (!(await requireAdminUser())) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-  }
+  const auth = await requireAdminApiUser();
+  if (auth.response) return auth.response;
 
   await ensureTrustTables();
 

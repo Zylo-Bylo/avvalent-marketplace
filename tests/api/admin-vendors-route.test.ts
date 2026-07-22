@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
     listLocalVendorsForAdmin: vi.fn(),
     updateLocalVendorStatus: vi.fn(),
     sendVendorStatusEmail: vi.fn(),
+    requireAdminApiUser: vi.fn(),
     prisma,
   };
 });
@@ -31,6 +32,10 @@ vi.mock("next/headers", () => ({
 
 vi.mock("@/lib/auth", () => ({
   verifyToken: mocks.verifyToken,
+}));
+
+vi.mock("@/lib/admin-auth", () => ({
+  requireAdminApiUser: mocks.requireAdminApiUser,
 }));
 
 vi.mock("@/lib/local-sqlite-auth", () => ({
@@ -96,10 +101,17 @@ describe("admin vendors API routes", () => {
     mocks.shouldUseLocalSqliteAuth.mockReturnValue(false);
     mocks.prisma.user.findUnique.mockResolvedValue({ role: "ADMIN" });
     mocks.sendVendorStatusEmail.mockResolvedValue(undefined);
+    mocks.requireAdminApiUser.mockResolvedValue({
+      user: { id: "admin-1", role: "ADMIN" },
+      response: null,
+    });
   });
 
   it("rejects vendor listing for non-admin users", async () => {
-    mocks.prisma.user.findUnique.mockResolvedValue({ role: "CUSTOMER" });
+    mocks.requireAdminApiUser.mockResolvedValue({
+      user: null,
+      response: Response.json({ error: "Admin access required" }, { status: 403 }),
+    });
 
     const response = await GET(
       new Request("http://localhost/api/admin/vendors") as NextRequest,
@@ -144,7 +156,10 @@ describe("admin vendors API routes", () => {
   });
 
   it("rejects status updates for non-admin users", async () => {
-    mocks.prisma.user.findUnique.mockResolvedValue({ role: "VENDOR" });
+    mocks.requireAdminApiUser.mockResolvedValue({
+      user: null,
+      response: Response.json({ error: "Admin access required" }, { status: 403 }),
+    });
 
     const response = await PATCH(patchRequest({ status: "APPROVED" }), params());
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireAdminUser } from '@/lib/admin-auth';
+import { requireAdminApiUser } from '@/lib/admin-auth';
 import {
   ensureReturnRefundTable,
   isReturnStatus,
@@ -13,9 +13,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  if (!(await requireAdminUser())) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-  }
+  const auth = await requireAdminApiUser();
+  if (auth.response) return auth.response;
 
   await ensureReturnRefundTable();
 

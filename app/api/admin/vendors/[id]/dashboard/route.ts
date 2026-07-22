@@ -1,47 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { requireAdminApiUser } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
 import { getOrderTrustSnapshot, ensureTrustTables } from '@/lib/trust';
-import {
-  getLocalUserRole,
-  shouldUseLocalSqliteAuth,
-} from '@/lib/local-sqlite-auth';
 import { ensureVariantSchema } from '@/lib/variants';
-
-async function requireAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
-
-  if (!token) {
-    return false;
-  }
-
-  const data = verifyToken(token);
-  if (!data || typeof data !== 'object' || !data.userId) {
-    return false;
-  }
-
-  if (shouldUseLocalSqliteAuth()) {
-    return getLocalUserRole(String(data.userId)) === 'ADMIN';
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: String(data.userId) },
-    select: { role: true },
-  });
-
-  return user?.role === 'ADMIN';
-}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    if (!(await requireAdmin())) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-    }
+    const auth = await requireAdminApiUser();
+    if (auth.response) return auth.response;
 
     const { id } = await params;
     const { searchParams } = new URL(request.url);

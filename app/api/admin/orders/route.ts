@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdminUser } from '@/lib/admin-auth';
+import { requireAdminApiUser } from '@/lib/admin-auth';
 import { ORDER_STATUSES } from '@/lib/order-status';
 import { prisma } from '@/lib/prisma';
 import { ensureTrustTables, getOrderTrustSnapshot } from '@/lib/trust';
@@ -7,9 +7,8 @@ import { ensureTrustTables, getOrderTrustSnapshot } from '@/lib/trust';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  if (!(await requireAdminUser())) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-  }
+  const auth = await requireAdminApiUser();
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status') || '';

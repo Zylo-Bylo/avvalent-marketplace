@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/session-cookies';
 import {
   getLocalUserRole,
@@ -71,4 +72,24 @@ export async function getAdminAuthState(): Promise<AdminAuthState> {
 export async function requireAdminUser() {
   const state = await getAdminAuthState();
   return state.status === 'authorized' ? state.user : null;
+}
+
+export async function requireAdminApiUser() {
+  const state = await getAdminAuthState();
+
+  if (state.status === 'unauthenticated') {
+    return {
+      user: null,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    };
+  }
+
+  if (state.status === 'forbidden') {
+    return {
+      user: null,
+      response: NextResponse.json({ error: 'Admin access required' }, { status: 403 }),
+    };
+  }
+
+  return { user: state.user, response: null };
 }

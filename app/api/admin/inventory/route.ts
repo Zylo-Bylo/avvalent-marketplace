@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { requireAdminUser } from '@/lib/admin-auth';
+import { requireAdminApiUser } from '@/lib/admin-auth';
 import { prisma } from '@/lib/prisma';
-import { getAuthSession } from '@/lib/session-cookies';
 import {
   adjustProductStock,
   getAdminInventoryData,
@@ -13,11 +12,8 @@ import { adjustVariantStock } from '@/lib/variants';
 export const runtime = 'nodejs';
 
 async function requireAdmin() {
-  if (!(await requireAdminUser())) {
-    return null;
-  }
-  const session = await getAuthSession();
-  return session?.userId || null;
+  const auth = await requireAdminApiUser();
+  return auth.response ? auth : { user: auth.user, response: null };
 }
 
 function inventoryRowsToCsv(rows: any[]) {
@@ -64,9 +60,8 @@ async function ensureNotificationTable() {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await requireAdmin())) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-  }
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
 
   const { searchParams } = new URL(request.url);
   const data = await getAdminInventoryData({
@@ -90,10 +85,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: Request) {
-  const adminId = await requireAdmin();
-  if (!adminId) {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-  }
+  const auth = await requireAdmin();
+  if (auth.response) return auth.response;
+  const adminId = auth.user.id;
 
   try {
     const body = await request.json().catch(() => ({}));

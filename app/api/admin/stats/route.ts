@@ -1,31 +1,16 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { requireAdminApiUser } from '@/lib/admin-auth';
 import {
-  getLocalUserRole,
   listLocalVendorsForAdmin,
   shouldUseLocalSqliteAuth,
 } from '@/lib/local-sqlite-auth';
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth_token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const data = verifyToken(token);
-    if (!data || typeof data !== 'object' || !data.userId) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    const auth = await requireAdminApiUser();
+    if (auth.response) return auth.response;
 
     if (shouldUseLocalSqliteAuth()) {
-      if (getLocalUserRole(String(data.userId)) !== 'ADMIN') {
-        return NextResponse.json({ error: 'Unauthorized - admin only' }, { status: 403 });
-      }
-
       const vendors = listLocalVendorsForAdmin();
       const totalProducts = vendors.reduce(
         (sum, vendor) => sum + Number(vendor._count?.products || 0),
@@ -55,15 +40,6 @@ export async function GET() {
     }
 
     const { prisma } = await import('@/lib/prisma');
-    const user = await prisma.user.findUnique({
-      where: { id: String(data.userId) },
-    });
-
-    if (user?.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Unauthorized - admin only' }, { status: 403 });
-    }
-
-    // Fetch stats
     const [
       totalUsers,
       totalVendors,
