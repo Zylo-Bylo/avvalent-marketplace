@@ -6,6 +6,7 @@ import {
   shouldUseLocalSqliteAuth,
   updateLocalVendorProfile,
 } from '@/lib/local-sqlite-auth';
+import { safeKycDocument } from '@/lib/vendor-profile-phase1';
 
 const vendorSelect = {
   id: true,
@@ -78,6 +79,10 @@ export async function GET() {
       vendorProfile: {
         select: vendorSelect,
       },
+      notifications: {
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      },
     },
   });
 
@@ -85,10 +90,48 @@ export async function GET() {
     return NextResponse.json({ error: 'Not a vendor' }, { status: 403 });
   }
 
-  return NextResponse.json({ user });
+  const [contactPersons, addresses, kycDocuments, verificationEvents, suspensionEvents] =
+    await Promise.all([
+      prisma.vendorContactPerson.findMany({
+        where: { vendorId: user.vendorProfile.id },
+        orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }],
+      }),
+      prisma.vendorAddress.findMany({
+        where: { vendorId: user.vendorProfile.id },
+        orderBy: [{ type: 'asc' }, { isDefault: 'desc' }, { createdAt: 'desc' }],
+      }),
+      prisma.vendorKycDocument.findMany({
+        where: { vendorId: user.vendorProfile.id },
+        orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
+      }),
+      prisma.vendorVerificationEvent.findMany({
+        where: { vendorId: user.vendorProfile.id },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      prisma.vendorSuspensionEvent.findMany({
+        where: { vendorId: user.vendorProfile.id },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }),
+    ]);
+
+  return NextResponse.json({
+    user: {
+      ...user,
+      vendorProfile: {
+        ...user.vendorProfile,
+        contactPersons,
+        addresses,
+        kycDocuments: kycDocuments.map((document) => safeKycDocument(document)),
+        verificationEvents,
+        suspensionEvents,
+      },
+    },
+  });
 }
 
-export async function PUT(request: NextRequest) {
+async function updateVendorProfile(request: NextRequest) {
   const userId = await getUserIdFromCookie();
 
   if (!userId) {
@@ -209,4 +252,12 @@ export async function PUT(request: NextRequest) {
       vendorProfile: updatedVendor,
     },
   });
+}
+
+export async function PUT(request: NextRequest) {
+  return updateVendorProfile(request);
+}
+
+export async function PATCH(request: NextRequest) {
+  return updateVendorProfile(request);
 }

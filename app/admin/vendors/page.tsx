@@ -361,6 +361,12 @@ export default function AdminVendorsPage() {
                           >
                             Review KYC
                           </button>
+                          <Link
+                            href={`/admin/vendors/${vendor.id}`}
+                            className="border border-stone-300 px-3 py-2 text-xs font-semibold"
+                          >
+                            Profile Ops
+                          </Link>
                           <button
                             onClick={() => updateVendor(vendor.id, "APPROVED")}
                             disabled={vendor.status === "APPROVED"}

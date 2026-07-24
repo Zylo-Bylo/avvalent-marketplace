@@ -2,16 +2,29 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => {
+  const tx: any = {};
   const prisma = {
     user: {
       findUnique: vi.fn(),
     },
     vendor: {
       count: vi.fn(),
+      findUnique: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
     },
+    vendorVerificationEvent: {
+      create: vi.fn(),
+    },
+    vendorSuspensionEvent: {
+      create: vi.fn(),
+    },
+    notification: {
+      create: vi.fn(),
+    },
+    $transaction: vi.fn((callback: any) => callback(tx)),
   };
+  Object.assign(tx, prisma);
 
   return {
     cookies: vi.fn(),
@@ -100,6 +113,13 @@ describe("admin vendors API routes", () => {
     mocks.verifyToken.mockReturnValue({ userId: "admin-1", role: "ADMIN" });
     mocks.shouldUseLocalSqliteAuth.mockReturnValue(false);
     mocks.prisma.user.findUnique.mockResolvedValue({ role: "ADMIN" });
+    mocks.prisma.vendor.findUnique.mockResolvedValue({
+      status: "PENDING",
+      userId: "user-1",
+    });
+    mocks.prisma.vendorVerificationEvent.create.mockResolvedValue({ id: "event-1" });
+    mocks.prisma.vendorSuspensionEvent.create.mockResolvedValue({ id: "suspension-1" });
+    mocks.prisma.notification.create.mockResolvedValue({ id: "notification-1" });
     mocks.sendVendorStatusEmail.mockResolvedValue(undefined);
     mocks.requireAdminApiUser.mockResolvedValue({
       user: { id: "admin-1", role: "ADMIN" },
@@ -258,7 +278,7 @@ describe("admin vendors API routes", () => {
   });
 
   it("returns 404 when the vendor no longer exists", async () => {
-    mocks.prisma.vendor.update.mockRejectedValue({ code: "P2025" });
+    mocks.prisma.vendor.findUnique.mockResolvedValue(null);
 
     const response = await PATCH(patchRequest({ status: "APPROVED" }), params("missing"));
 

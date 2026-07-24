@@ -50,31 +50,85 @@ export async function PATCH(
   } else {
     try {
       const { prisma } = await import('@/lib/prisma');
-      vendor = await prisma.vendor.update({
+      const currentVendor = await prisma.vendor.findUnique({
         where: { id },
-        data: {
-          status,
-          ...(nextKycStatus && { kycStatus: nextKycStatus }),
-          rejectionReason: status === 'REJECTED' ? rejectionReason || 'Rejected by admin' : null,
-          approvedAt: status === 'APPROVED' ? new Date() : null,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              emailVerified: true,
-              createdAt: true,
+        select: { status: true, userId: true },
+      });
+
+      if (!currentVendor) {
+        return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
+      }
+
+      vendor = await prisma.$transaction(async (tx) => {
+        const updatedVendor = await tx.vendor.update({
+          where: { id },
+          data: {
+            status,
+            ...(nextKycStatus && { kycStatus: nextKycStatus }),
+            rejectionReason: status === 'REJECTED' ? rejectionReason || 'Rejected by admin' : null,
+            approvedAt: status === 'APPROVED' ? new Date() : null,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                emailVerified: true,
+                createdAt: true,
+              },
+            },
+            _count: {
+              select: {
+                products: true,
+                orders: true,
+              },
             },
           },
-          _count: {
-            select: {
-              products: true,
-              orders: true,
-            },
+        });
+
+        await tx.vendorVerificationEvent.create({
+          data: {
+            vendorId: id,
+            actorUserId: auth.user.id,
+            previousStatus: currentVendor.status,
+            newStatus: status,
+            reason:
+              status === 'REJECTED'
+                ? rejectionReason || 'Rejected by admin'
+                : status === 'INACTIVE'
+                  ? 'Deactivated by admin'
+                : status === 'APPROVED'
+                  ? 'Approved by admin'
+                  : 'Vendor status updated by admin',
+            metadata: { source: 'admin_vendor_patch' },
           },
-        },
+        });
+
+        await tx.notification.create({
+          data: {
+            userId: currentVendor.userId,
+            title: `Vendor account ${status.toLowerCase()}`,
+            message:
+              status === 'REJECTED'
+                ? rejectionReason || `Your vendor account was marked ${status.toLowerCase()}.`
+                : `Your vendor account was marked ${status.toLowerCase()}.`,
+          },
+        });
+
+        if (status === 'INACTIVE') {
+          await tx.vendorSuspensionEvent.create({
+            data: {
+              vendorId: id,
+              actorUserId: auth.user.id,
+              action: 'SUSPENDED',
+              reason: rejectionReason || 'Deactivated by admin',
+              startsAt: new Date(),
+            },
+          });
+        }
+
+        return updatedVendor;
       });
     } catch (error) {
       if (isPrismaNotFoundError(error)) {

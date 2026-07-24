@@ -247,6 +247,7 @@ const sidebarItems: Array<{ label: string; section: DashboardSection; href?: str
   { label: "Offers / Coupons", section: "offers" },
   { label: "Reviews & Ratings", section: "reviews" },
   { label: "Reports / Analytics", section: "reports" },
+  { label: "Profile Operations", section: "profile", href: "/vendor/dashboard/profile" },
   { label: "Business Profile", section: "business" },
   { label: "Documents / KYC", section: "kyc" },
   { label: "Support", section: "support" },

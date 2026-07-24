@@ -10,6 +10,21 @@ const mocks = vi.hoisted(() => {
     vendor: {
       update: vi.fn(),
     },
+    vendorContactPerson: {
+      findMany: vi.fn(),
+    },
+    vendorAddress: {
+      findMany: vi.fn(),
+    },
+    vendorKycDocument: {
+      findMany: vi.fn(),
+    },
+    vendorVerificationEvent: {
+      findMany: vi.fn(),
+    },
+    vendorSuspensionEvent: {
+      findMany: vi.fn(),
+    },
     $transaction: vi.fn((operations: unknown[]) => Promise.all(operations)),
   };
 
@@ -62,6 +77,11 @@ describe("vendor profile API route", () => {
     vi.clearAllMocks();
     mocks.shouldUseLocalSqliteAuth.mockReturnValue(false);
     mocks.verifyToken.mockReturnValue({ userId: "vendor-user-1", role: "VENDOR" });
+    mocks.prisma.vendorContactPerson.findMany.mockResolvedValue([]);
+    mocks.prisma.vendorAddress.findMany.mockResolvedValue([]);
+    mocks.prisma.vendorKycDocument.findMany.mockResolvedValue([]);
+    mocks.prisma.vendorVerificationEvent.findMany.mockResolvedValue([]);
+    mocks.prisma.vendorSuspensionEvent.findMany.mockResolvedValue([]);
     setAuthToken("auth-token");
   });
 
@@ -104,7 +124,19 @@ describe("vendor profile API route", () => {
     const response = await GET();
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ user });
+    await expect(response.json()).resolves.toEqual({
+      user: {
+        ...user,
+        vendorProfile: {
+          ...user.vendorProfile,
+          contactPersons: [],
+          addresses: [],
+          kycDocuments: [],
+          verificationEvents: [],
+          suspensionEvents: [],
+        },
+      },
+    });
     expect(mocks.prisma.user.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "vendor-user-1" },
