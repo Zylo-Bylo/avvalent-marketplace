@@ -145,6 +145,12 @@ enum StockReservationStatus {
   EXPIRED
 }
 
+enum VendorWarehouseStatus {
+  PENDING
+  APPROVED
+  DEACTIVATED
+}
+
 model User {
   id            String         @id @default(cuid())
   email         String         @unique
@@ -222,6 +228,7 @@ model Vendor {
   refundAdjustments RefundAdjustment[]
   inventories      Inventory[]
   stockMovements   StockMovement[]
+  warehouses       VendorWarehouse[]
   contactPersons   VendorContactPerson[]
   addresses        VendorAddress[]
   kycDocuments     VendorKycDocument[]
@@ -270,6 +277,7 @@ model VendorAddress {
   contactPhone String?
   isDefault    Boolean           @default(false)
   isActive     Boolean           @default(true)
+  warehouses   VendorWarehouse[]
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
@@ -277,6 +285,36 @@ model VendorAddress {
   @@index([vendorId, type])
   @@index([vendorId, type, isDefault])
   @@index([vendorId, isActive])
+  @@index([createdAt])
+}
+
+model VendorWarehouse {
+  id             String                @id @default(cuid())
+  vendor         Vendor                @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendorId       String
+  code           String
+  name           String
+  contactPerson  String?
+  phone          String?
+  email          String?
+  address        VendorAddress?        @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  addressId      String?
+  capacity       Int?
+  isDefault      Boolean               @default(false)
+  isActive       Boolean               @default(true)
+  status         VendorWarehouseStatus @default(PENDING)
+  notes          String?
+  inventories    Inventory[]
+  stockMovements StockMovement[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@unique([vendorId, code])
+  @@index([vendorId])
+  @@index([vendorId, isDefault])
+  @@index([vendorId, isActive])
+  @@index([status])
+  @@index([addressId])
   @@index([createdAt])
 }
 
@@ -509,6 +547,8 @@ model Inventory {
   productId                String
   vendor                   Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   vendorId                 String
+  warehouse                VendorWarehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  warehouseId              String?
   sku                      String?
   mpn                      String?
   currentStock             Int         @default(0)
@@ -531,6 +571,7 @@ model Inventory {
 
   @@unique([productId])
   @@index([vendorId])
+  @@index([warehouseId])
   @@index([sku])
   @@index([mpn])
   @@index([stockStatus])
@@ -542,6 +583,8 @@ model StockMovement {
   productId        String
   vendor           Vendor            @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   vendorId         String
+  warehouse        VendorWarehouse?  @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  warehouseId      String?
   type             StockMovementType
   quantity         Int
   oldStock         Int
@@ -555,6 +598,7 @@ model StockMovement {
 
   @@index([productId])
   @@index([vendorId])
+  @@index([warehouseId])
   @@index([orderId])
   @@index([type])
   @@index([createdAt])

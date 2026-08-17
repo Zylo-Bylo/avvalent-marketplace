@@ -28,9 +28,31 @@ type AdminVendorProfile = {
   _count?: { products: number; orders: number };
 };
 
+type AdminVendorWarehouse = {
+  id: string;
+  code: string;
+  name: string;
+  contactPerson?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  capacity?: number | null;
+  isDefault: boolean;
+  isActive: boolean;
+  status: string;
+  notes?: string | null;
+  address?: {
+    type: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  } | null;
+};
+
 export default function AdminVendorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const [vendorId, setVendorId] = useState("");
   const [vendor, setVendor] = useState<AdminVendorProfile | null>(null);
+  const [warehouses, setWarehouses] = useState<AdminVendorWarehouse[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [reason, setReason] = useState("");
@@ -42,13 +64,20 @@ export default function AdminVendorProfilePage({ params }: { params: Promise<{ i
   const loadVendor = useCallback(async (id = vendorId) => {
     if (!id) return;
     setError("");
-    const response = await fetch(`/api/admin/vendors/${id}/profile`, { cache: "no-store" });
-    const result = await response.json();
-    if (!response.ok) {
+    const [profileResponse, warehouseResponse] = await Promise.all([
+      fetch(`/api/admin/vendors/${id}/profile`, { cache: "no-store" }),
+      fetch(`/api/admin/vendors/${id}/warehouses`, { cache: "no-store" }),
+    ]);
+    const result = await profileResponse.json();
+    if (!profileResponse.ok) {
       setError(result.error || "Could not load vendor profile.");
       return;
     }
     setVendor(result.vendor);
+    if (warehouseResponse.ok) {
+      const warehouseResult = await warehouseResponse.json();
+      setWarehouses(warehouseResult.warehouses || []);
+    }
   }, [vendorId]);
 
   useEffect(() => {
@@ -78,6 +107,23 @@ export default function AdminVendorProfilePage({ params }: { params: Promise<{ i
   async function suspend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await action(`/api/admin/vendors/${vendorId}/suspend`, { reason });
+  }
+
+  async function updateWarehouse(warehouseId: string, body: Record<string, unknown>) {
+    setError("");
+    setMessage("");
+    const response = await fetch(`/api/admin/vendor-warehouses/${warehouseId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      setError(result.error || "Warehouse update failed.");
+      return;
+    }
+    setMessage("Warehouse status updated.");
+    await loadVendor();
   }
 
   if (!vendor) {
@@ -158,6 +204,42 @@ export default function AdminVendorProfilePage({ params }: { params: Promise<{ i
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button className="border bg-black px-3 py-2 text-xs font-bold text-white" onClick={() => action(`/api/admin/vendors/${vendorId}/kyc/${document.id}/verify`, { reason: "Verified from admin review." })}>Verify</button>
                   <button className="border border-red-300 px-3 py-2 text-xs font-bold text-red-700" onClick={() => action(`/api/admin/vendors/${vendorId}/kyc/${document.id}/reject`, { reason: reason || "Rejected from admin review." })}>Reject</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-5 border bg-white p-5">
+          <h2 className="text-xl font-black">Warehouses</h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {warehouses.length === 0 ? <p>No warehouses added.</p> : warehouses.map((warehouse) => (
+              <div key={warehouse.id} className="border bg-slate-50 p-4 text-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <b>{warehouse.name}</b> {warehouse.isDefault ? "(Default)" : ""}
+                    <div className="mt-1 text-slate-600">{warehouse.code} - {warehouse.status}</div>
+                    <div>{warehouse.isActive ? "Active" : "Inactive"}</div>
+                    <div>
+                      {warehouse.address
+                        ? `${warehouse.address.type}: ${warehouse.address.addressLine1}, ${warehouse.address.city}, ${warehouse.address.state} ${warehouse.address.postalCode}`
+                        : "No linked address"}
+                    </div>
+                    <div>{warehouse.contactPerson || "No contact"} {warehouse.phone ? `- ${warehouse.phone}` : ""}</div>
+                    {warehouse.capacity !== null && warehouse.capacity !== undefined && <div>Capacity: {warehouse.capacity}</div>}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {warehouse.status !== "APPROVED" && (
+                      <button className="bg-black px-3 py-2 text-xs font-bold text-white" onClick={() => updateWarehouse(warehouse.id, { status: "APPROVED", isActive: true })}>
+                        Approve
+                      </button>
+                    )}
+                    {warehouse.isActive && (
+                      <button className="border border-red-300 px-3 py-2 text-xs font-bold text-red-700" onClick={() => updateWarehouse(warehouse.id, { status: "DEACTIVATED", isActive: false })}>
+                        Deactivate
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

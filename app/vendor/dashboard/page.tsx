@@ -241,6 +241,7 @@ const sidebarItems: Array<{ label: string; section: DashboardSection; href?: str
   { label: "Orders", section: "orders" },
   { label: "My Store", section: "products" },
   { label: "Stock Management", section: "inventory", href: "/vendor/dashboard/inventory" },
+  { label: "Warehouses", section: "inventory", href: "/vendor/dashboard/warehouses" },
   { label: "Customers", section: "customers" },
   { label: "Messages", section: "messages" },
   { label: "Payments & Wallet", section: "payments" },
