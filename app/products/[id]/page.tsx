@@ -6,7 +6,7 @@ import {
 } from "@/lib/fallback-catalog";
 import type { ProductVariantRow } from "@/lib/variants";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 async function getProductDetail(id: string) {
   try {

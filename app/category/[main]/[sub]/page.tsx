@@ -1,5 +1,7 @@
 import CategoryListingClient from "@/components/category/CategoryListingClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function CategoryGroupPage({
   params,
 }: {

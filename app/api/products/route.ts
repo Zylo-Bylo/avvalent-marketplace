@@ -337,9 +337,7 @@ export async function GET(request: NextRequest) {
       hasMore: offset + limit < total,
     }, {
       headers: {
-        'Cache-Control': search || includeOutOfStock || offerOnly || bulkOnly
-          ? 'public, s-maxage=30, stale-while-revalidate=120'
-          : 'public, s-maxage=120, stale-while-revalidate=300',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
       },
     });
   } catch (error) {

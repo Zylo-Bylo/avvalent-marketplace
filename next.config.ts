@@ -94,24 +94,6 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      {
-        source: "/products/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, s-maxage=60, stale-while-revalidate=300",
-          },
-        ],
-      },
-      {
-        source: "/category/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, s-maxage=120, stale-while-revalidate=600",
-          },
-        ],
-      },
     ];
   },
   turbopack: {

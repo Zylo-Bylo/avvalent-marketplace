@@ -33,7 +33,11 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json({ subcategories });
+    return NextResponse.json({ subcategories }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    });
   } catch (error) {
     console.error('Subcategory fetch error:', error);
     return NextResponse.json({ error: 'Failed to fetch subcategories' }, { status: 500 });

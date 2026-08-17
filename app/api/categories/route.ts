@@ -6,68 +6,6 @@ import {
 } from '@/lib/fallback-catalog';
 import { ensureCategoryAtelierSchema } from '@/lib/category-atelier-schema';
 
-type CachedCategory = {
-  id: string;
-  name: string;
-  slug: string;
-  entityType?: string;
-  parentId?: string | null;
-  status?: string;
-  sortOrder?: number;
-  homepageVisible?: boolean;
-  homepageIcon?: string | null;
-  categoryImage?: string | null;
-  desktopBanner?: string | null;
-  mobileBanner?: string | null;
-  homepageIconUrl?: string | null;
-  categoryImageUrl?: string | null;
-  desktopBannerUrl?: string | null;
-  mobileBannerUrl?: string | null;
-  altText?: string | null;
-  children?: CachedCategory['subcategories'];
-  subcategories: Array<{
-    id: string;
-    name: string;
-    slug: string;
-    entityType?: string;
-    parentId?: string | null;
-    status?: string;
-    sortOrder?: number;
-    homepageVisible?: boolean;
-    homepageIcon?: string | null;
-    categoryImage?: string | null;
-    desktopBanner?: string | null;
-    mobileBanner?: string | null;
-    homepageIconUrl?: string | null;
-    categoryImageUrl?: string | null;
-    desktopBannerUrl?: string | null;
-    mobileBannerUrl?: string | null;
-    altText?: string | null;
-    productTypes?: Array<{
-      id: string;
-      name: string;
-      slug: string;
-      entityType?: string;
-      parentId?: string | null;
-      status?: string;
-      sortOrder?: number;
-      homepageVisible?: boolean;
-      homepageIcon?: string | null;
-      categoryImage?: string | null;
-      desktopBanner?: string | null;
-      mobileBanner?: string | null;
-      homepageIconUrl?: string | null;
-      categoryImageUrl?: string | null;
-      desktopBannerUrl?: string | null;
-      mobileBannerUrl?: string | null;
-      altText?: string | null;
-    }>;
-  }>;
-};
-
-let cachedCategories: { expiresAt: number; payload: { categories: CachedCategory[] } } | null = null;
-const CATEGORY_CACHE_TTL_MS = 30 * 1000;
-
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -194,14 +132,9 @@ export async function GET() {
       })),
     }));
 
-    cachedCategories = {
-      expiresAt: Date.now() + CATEGORY_CACHE_TTL_MS,
-      payload: { categories: publicCategories },
-    };
-
-    return NextResponse.json(cachedCategories.payload, {
+    return NextResponse.json({ categories: publicCategories }, {
       headers: {
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
       },
     });
   } catch (error) {
@@ -252,8 +185,6 @@ export async function POST(request: Request) {
         },
       },
     });
-
-    cachedCategories = null;
 
     return NextResponse.json({ category }, { status: 201 });
   } catch (error) {

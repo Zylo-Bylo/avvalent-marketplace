@@ -4,11 +4,65 @@
   "buildCommand": "npm run vercel-build",
   "headers": [
     {
+      "source": "/admin/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/vendor/dashboard/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/api/admin/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/api/vendor/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/api/auth/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/products",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/products/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, s-maxage=60, stale-while-revalidate=300"
+          "value": "no-store, no-cache, must-revalidate"
         }
       ]
     },
@@ -17,7 +71,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, s-maxage=120, stale-while-revalidate=600"
+          "value": "no-store, no-cache, must-revalidate"
         }
       ]
     },
