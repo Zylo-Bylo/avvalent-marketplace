@@ -86,6 +86,22 @@ describe("public products API routes", () => {
         },
       }),
     });
+    expect(mocks.ensureInventorySchema).not.toHaveBeenCalled();
+    expect(mocks.prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          variants: expect.objectContaining({
+            take: 5,
+            select: {
+              id: true,
+              sizeLabel: true,
+              numericSize: true,
+              stockQuantity: true,
+            },
+          }),
+        }),
+      }),
+    );
   });
 
   it("preserves approved-vendor filtering with search, category, offer, and price filters", async () => {

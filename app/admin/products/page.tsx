@@ -163,7 +163,7 @@ export default function AdminProductsPage() {
       fetch("/api/products?limit=200&includeOutOfStock=true", {
         cache: "no-store",
       }),
-      fetch("/api/categories", { cache: "no-store" }),
+      fetch("/api/categories?fresh=1", { cache: "no-store" }),
     ]);
 
     const productsData = await productsResponse.json();

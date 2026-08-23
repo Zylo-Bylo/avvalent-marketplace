@@ -4,20 +4,6 @@ import {
   getFallbackProducts,
   shouldUseFallbackCatalog,
 } from '@/lib/fallback-catalog';
-import { ensureInventorySchema } from '@/lib/inventory';
-
-let inventorySetupPromise: Promise<void> | null = null;
-
-function ensureInventoryReady() {
-  if (!inventorySetupPromise) {
-    inventorySetupPromise = ensureInventorySchema().catch((error) => {
-      inventorySetupPromise = null;
-      throw error;
-    });
-  }
-
-  return inventorySetupPromise;
-}
 
 const categoryAliases: Record<string, string[]> = {
   fashion: ['fashion', 'kurti-saree-lehenga', 'women-western', 'men', 'bags-footwear'],
@@ -59,6 +45,7 @@ function textContains(value: string) {
 
 export async function GET(request: NextRequest) {
   try {
+    const requestStartedAt = performance.now();
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const categoryId = searchParams.get('categoryId');
@@ -78,8 +65,6 @@ export async function GET(request: NextRequest) {
     const requestedLimit = parseInt(searchParams.get('limit') || '24', 10);
     const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 24, 1), 48);
     const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
-
-    await ensureInventoryReady();
 
     const where: Record<string, unknown> = {
       vendor: {
@@ -298,6 +283,16 @@ export async function GET(request: NextRequest) {
           name: true,
         },
       },
+      variants: {
+        orderBy: [{ numericSize: 'asc' as const }, { sizeLabel: 'asc' as const }],
+        take: 5,
+        select: {
+          id: true,
+          sizeLabel: true,
+          numericSize: true,
+          stockQuantity: true,
+        },
+      },
       ...(includeInventoryDetails
         ? {
             inventories: {
@@ -330,14 +325,26 @@ export async function GET(request: NextRequest) {
       }),
       prisma.product.count({ where }),
     ]);
-
-    return NextResponse.json({
+    const queryFinishedAt = performance.now();
+    const body = JSON.stringify({
       products,
       total,
       hasMore: offset + limit < total,
-    }, {
+    });
+    const serializationFinishedAt = performance.now();
+    const privateInventoryResponse = includeOutOfStock || includeInventoryDetails;
+
+    return new NextResponse(body, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': privateInventoryResponse
+          ? 'private, no-store'
+          : 'public, max-age=0, s-maxage=15, stale-while-revalidate=15',
+        'Server-Timing': [
+          `db;dur=${(queryFinishedAt - requestStartedAt).toFixed(1)}`,
+          `serialize;dur=${(serializationFinishedAt - queryFinishedAt).toFixed(1)}`,
+        ].join(', '),
+        'X-Catalogue-Payload-Bytes': String(Buffer.byteLength(body)),
       },
     });
   } catch (error) {

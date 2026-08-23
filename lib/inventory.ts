@@ -20,6 +20,25 @@ export const STOCK_STATUSES = [
 
 export type StockStatusValue = (typeof STOCK_STATUSES)[number];
 
+export const STOCK_REASON_CODES = [
+  'OPENING_STOCK',
+  'PURCHASE_RECEIPT',
+  'STOCK_IN',
+  'STOCK_OUT',
+  'DAMAGED_STOCK',
+  'MANUAL_ADJUSTMENT',
+  'WAREHOUSE_ASSIGNMENT',
+  'ORDER_RESERVATION',
+  'ORDER_CONVERSION',
+  'ORDER_RELEASE',
+  'ORDER_RETURN',
+  'ADMIN_ADJUSTMENT',
+  'VENDOR_ADJUSTMENT',
+  'LEGACY_SYNC',
+] as const;
+
+export type StockReasonCode = (typeof STOCK_REASON_CODES)[number];
+
 export type CartStockItem = {
   id: string;
   name?: string;
@@ -30,8 +49,13 @@ type InventoryRow = {
   id: string;
   productId: string;
   vendorId: string;
+  warehouseId: string | null;
+  variantId: string | null;
   sku: string | null;
   mpn: string | null;
+  openingStock: number;
+  receivedStock: number;
+  damagedStock: number;
   currentStock: number;
   reservedStock: number;
   availableStock: number;
@@ -62,9 +86,22 @@ function addMinutes(minutes: number) {
   return date;
 }
 
+function normalizeNullableId(value: unknown) {
+  const normalized = String(value ?? '').trim();
+  return normalized && normalized !== 'ALL' && normalized !== 'UNASSIGNED' ? normalized : null;
+}
+
+function normalizeReasonCode(value: unknown, fallback: StockReasonCode): StockReasonCode {
+  const normalized = String(value ?? '').trim().toUpperCase();
+  return STOCK_REASON_CODES.includes(normalized as StockReasonCode)
+    ? (normalized as StockReasonCode)
+    : fallback;
+}
+
 export function getStockStatus(input: {
   currentStock: number;
   reservedStock?: number;
+  damagedStock?: number;
   lowStockThreshold?: number;
   criticalStockThreshold?: number;
   allowBackorder?: boolean;
@@ -76,7 +113,7 @@ export function getStockStatus(input: {
 
   const availableStock = Math.max(
     0,
-    toInt(input.currentStock) - toInt(input.reservedStock),
+    toInt(input.currentStock) - toInt(input.reservedStock) - toInt(input.damagedStock),
   );
 
   if (availableStock <= 0) {
@@ -95,7 +132,10 @@ export function getStockStatus(input: {
 }
 
 export function getStockSignal(inventory?: Partial<InventoryRow> | null) {
-  const availableStock = toInt(inventory?.availableStock ?? inventory?.currentStock);
+  const availableStock = toInt(
+    inventory?.availableStock ??
+      (toInt(inventory?.currentStock) - toInt(inventory?.reservedStock) - toInt((inventory as any)?.damagedStock)),
+  );
   const lowStockThreshold = toInt(inventory?.lowStockThreshold, 10);
   const criticalStockThreshold = toInt(inventory?.criticalStockThreshold, 3);
   const status =
@@ -103,6 +143,7 @@ export function getStockSignal(inventory?: Partial<InventoryRow> | null) {
     getStockStatus({
       currentStock: toInt(inventory?.currentStock),
       reservedStock: toInt(inventory?.reservedStock),
+      damagedStock: toInt((inventory as any)?.damagedStock),
       lowStockThreshold,
       criticalStockThreshold,
       allowBackorder: Boolean(inventory?.allowBackorder),
@@ -150,8 +191,13 @@ async function ensureInventorySchemaUncached() {
       "id" TEXT PRIMARY KEY,
       "productId" TEXT NOT NULL UNIQUE,
       "vendorId" TEXT NOT NULL,
+      "warehouseId" TEXT,
+      "variantId" TEXT,
       "sku" TEXT,
       "mpn" TEXT,
+      "openingStock" INTEGER NOT NULL DEFAULT 0,
+      "receivedStock" INTEGER NOT NULL DEFAULT 0,
+      "damagedStock" INTEGER NOT NULL DEFAULT 0,
       "currentStock" INTEGER NOT NULL DEFAULT 0,
       "reservedStock" INTEGER NOT NULL DEFAULT 0,
       "availableStock" INTEGER NOT NULL DEFAULT 0,
@@ -177,7 +223,10 @@ async function ensureInventorySchemaUncached() {
       "id" TEXT PRIMARY KEY,
       "productId" TEXT NOT NULL,
       "vendorId" TEXT NOT NULL,
+      "warehouseId" TEXT,
+      "variantId" TEXT,
       "type" TEXT NOT NULL,
+      "reasonCode" TEXT,
       "quantity" INTEGER NOT NULL,
       "oldStock" INTEGER NOT NULL,
       "newStock" INTEGER NOT NULL,
@@ -192,6 +241,8 @@ async function ensureInventorySchemaUncached() {
     CREATE TABLE IF NOT EXISTS "StockReservation" (
       "id" TEXT PRIMARY KEY,
       "productId" TEXT NOT NULL,
+      "warehouseId" TEXT,
+      "variantId" TEXT,
       "orderId" TEXT,
       "quantity" INTEGER NOT NULL,
       "status" TEXT NOT NULL DEFAULT 'RESERVED',
@@ -201,10 +252,39 @@ async function ensureInventorySchemaUncached() {
     )
   `);
 
+  const additiveColumns = [
+    `ALTER TABLE "Inventory" ADD COLUMN "warehouseId" TEXT`,
+    `ALTER TABLE "Inventory" ADD COLUMN "variantId" TEXT`,
+    `ALTER TABLE "Inventory" ADD COLUMN "openingStock" INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE "Inventory" ADD COLUMN "receivedStock" INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE "Inventory" ADD COLUMN "damagedStock" INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE "StockMovement" ADD COLUMN "warehouseId" TEXT`,
+    `ALTER TABLE "StockMovement" ADD COLUMN "variantId" TEXT`,
+    `ALTER TABLE "StockMovement" ADD COLUMN "reasonCode" TEXT`,
+    `ALTER TABLE "StockReservation" ADD COLUMN "warehouseId" TEXT`,
+    `ALTER TABLE "StockReservation" ADD COLUMN "variantId" TEXT`,
+  ];
+
+  for (const statement of additiveColumns) {
+    await prisma.$executeRawUnsafe(statement).catch((error) => {
+      const message = String(error?.message || error);
+      if (!/duplicate column|already exists/i.test(message)) {
+        throw error;
+      }
+    });
+  }
+
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_vendorId_idx" ON "Inventory" ("vendorId")`);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_warehouseId_idx" ON "Inventory" ("warehouseId")`);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_variantId_idx" ON "Inventory" ("variantId")`);
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Inventory_stockStatus_idx" ON "Inventory" ("stockStatus")`);
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockMovement_productId_idx" ON "StockMovement" ("productId")`);
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockMovement_vendorId_idx" ON "StockMovement" ("vendorId")`);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockMovement_warehouseId_idx" ON "StockMovement" ("warehouseId")`);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockMovement_variantId_idx" ON "StockMovement" ("variantId")`);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockMovement_reasonCode_idx" ON "StockMovement" ("reasonCode")`);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockReservation_warehouseId_idx" ON "StockReservation" ("warehouseId")`);
+  await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockReservation_variantId_idx" ON "StockReservation" ("variantId")`);
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockReservation_orderId_idx" ON "StockReservation" ("orderId")`);
   await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "StockReservation_status_idx" ON "StockReservation" ("status")`);
 }
@@ -261,20 +341,26 @@ async function notifyAdmins(title: string, message: string) {
 async function createMovement(input: {
   productId: string;
   vendorId: string;
+  warehouseId?: string | null;
+  variantId?: string | null;
   type: string;
+  reasonCode?: StockReasonCode | null;
   quantity: number;
   oldStock: number;
   newStock: number;
   reason?: string;
   orderId?: string | null;
   adjustedByUserId?: string | null;
+  tx?: any;
 }) {
-  await prisma.$executeRaw`
+  const client = input.tx || prisma;
+  await client.$executeRaw`
     INSERT INTO "StockMovement" (
-      "id", "productId", "vendorId", "type", "quantity", "oldStock", "newStock",
+      "id", "productId", "vendorId", "warehouseId", "variantId", "type", "reasonCode", "quantity", "oldStock", "newStock",
       "reason", "orderId", "adjustedByUserId", "createdAt"
     ) VALUES (
-      ${randomUUID()}, ${input.productId}, ${input.vendorId}, ${input.type},
+      ${randomUUID()}, ${input.productId}, ${input.vendorId}, ${input.warehouseId || null},
+      ${input.variantId || null}, ${input.type}, ${input.reasonCode || null},
       ${toInt(input.quantity)}, ${toInt(input.oldStock)}, ${toInt(input.newStock)},
       ${input.reason || null}, ${input.orderId || null}, ${input.adjustedByUserId || null},
       CURRENT_TIMESTAMP
@@ -282,13 +368,44 @@ async function createMovement(input: {
   `;
 }
 
-async function writeInventoryStatus(inventory: InventoryRow) {
-  const availableStock = Math.max(0, toInt(inventory.currentStock) - toInt(inventory.reservedStock));
+async function assertActiveVendorWarehouse(
+  vendorId: string,
+  warehouseId?: string | null,
+  client: any = prisma,
+) {
+  const normalizedWarehouseId = normalizeNullableId(warehouseId);
+  if (!normalizedWarehouseId) {
+    return null;
+  }
+
+  const warehouse = await client.vendorWarehouse.findFirst({
+    where: {
+      id: normalizedWarehouseId,
+      vendorId,
+      isActive: true,
+      status: { not: 'DEACTIVATED' },
+    },
+    select: { id: true, name: true, code: true },
+  });
+
+  if (!warehouse) {
+    throw new Error('Warehouse not found, inactive, or unauthorized.');
+  }
+
+  return warehouse;
+}
+
+async function writeInventoryStatus(inventory: InventoryRow, tx?: any) {
+  const client = tx || prisma;
+  const availableStock = Math.max(
+    0,
+    toInt(inventory.currentStock) - toInt(inventory.reservedStock) - toInt(inventory.damagedStock),
+  );
   const stockStatus = getStockStatus({
     ...inventory,
   });
 
-  await prisma.$executeRaw`
+  await client.$executeRaw`
     UPDATE "Inventory"
     SET
       "availableStock" = ${availableStock},
@@ -308,7 +425,7 @@ async function writeInventoryStatus(inventory: InventoryRow) {
     WHERE "id" = ${inventory.id}
   `;
 
-  await prisma.product.update({
+  await client.product.update({
     where: { id: inventory.productId },
     data: { inventory: toInt(inventory.currentStock) },
   });
@@ -345,11 +462,11 @@ export async function ensureProductInventory(
   const id = randomUUID();
   await prisma.$executeRaw`
     INSERT INTO "Inventory" (
-      "id", "productId", "vendorId", "sku", "currentStock", "reservedStock",
+      "id", "productId", "vendorId", "sku", "openingStock", "currentStock", "reservedStock",
       "availableStock", "stockStatus", "createdAt", "updatedAt", "lastStockUpdatedAt"
     ) VALUES (
       ${id}, ${product.id}, ${product.vendorId}, ${product.sku || null},
-      ${toInt(product.inventory)}, 0, ${toInt(product.inventory)}, ${status},
+      ${toInt(product.inventory)}, ${toInt(product.inventory)}, 0, ${toInt(product.inventory)}, ${status},
       CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
     )
   `;
@@ -388,7 +505,10 @@ export async function releaseExpiredReservations() {
     await createMovement({
       productId: inventory.productId,
       vendorId: inventory.vendorId,
+      warehouseId: inventory.warehouseId,
+      variantId: inventory.variantId,
       type: 'RESERVATION_RELEASED',
+      reasonCode: 'ORDER_RELEASE',
       quantity: reservation.quantity,
       oldStock: oldReserved,
       newStock: nextReserved,
@@ -484,9 +604,9 @@ export async function reserveStockForOrder(orderId: string) {
     `;
     await prisma.$executeRaw`
       INSERT INTO "StockReservation" (
-        "id", "productId", "orderId", "quantity", "status", "expiresAt", "createdAt", "updatedAt"
+        "id", "productId", "warehouseId", "variantId", "orderId", "quantity", "status", "expiresAt", "createdAt", "updatedAt"
       ) VALUES (
-        ${randomUUID()}, ${item.productId}, ${orderId}, ${quantity}, 'RESERVED',
+        ${randomUUID()}, ${item.productId}, ${inventory.warehouseId}, ${inventory.variantId}, ${orderId}, ${quantity}, 'RESERVED',
         ${expiresAt}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       )
     `;
@@ -494,7 +614,10 @@ export async function reserveStockForOrder(orderId: string) {
     await createMovement({
       productId: item.productId,
       vendorId: inventory.vendorId,
+      warehouseId: inventory.warehouseId,
+      variantId: inventory.variantId,
       type: 'RESERVED',
+      reasonCode: 'ORDER_RESERVATION',
       quantity,
       oldStock: toInt(inventory.reservedStock),
       newStock: nextReserved,
@@ -542,7 +665,10 @@ export async function convertReservedStockToSold(orderIds: string[]) {
       await createMovement({
         productId: item.productId,
         vendorId: inventory.vendorId,
+        warehouseId: inventory.warehouseId,
+        variantId: inventory.variantId,
         type: 'ORDER_PLACED',
+        reasonCode: 'ORDER_CONVERSION',
         quantity,
         oldStock,
         newStock: nextStock,
@@ -590,7 +716,10 @@ export async function reduceStockForOrder(orderId: string) {
     await createMovement({
       productId: item.productId,
       vendorId: inventory.vendorId,
+      warehouseId: inventory.warehouseId,
+      variantId: inventory.variantId,
       type: 'ORDER_PLACED',
+      reasonCode: 'ORDER_CONVERSION',
       quantity,
       oldStock,
       newStock: nextStock,
@@ -630,7 +759,10 @@ export async function restoreStockForOrder(orderId: string, input?: { resellable
     await createMovement({
       productId: item.productId,
       vendorId: inventory.vendorId,
+      warehouseId: inventory.warehouseId,
+      variantId: inventory.variantId,
       type: order.status === 'RETURNED' ? 'ORDER_RETURNED' : 'ORDER_CANCELLED',
+      reasonCode: 'ORDER_RETURN',
       quantity,
       oldStock,
       newStock: nextStock,
@@ -671,7 +803,10 @@ export async function releaseReservedStockForOrder(orderId: string, input?: { re
     await createMovement({
       productId: inventory.productId,
       vendorId: inventory.vendorId,
+      warehouseId: inventory.warehouseId,
+      variantId: inventory.variantId,
       type: 'RESERVATION_RELEASED',
+      reasonCode: 'ORDER_RELEASE',
       quantity: reservation.quantity,
       oldStock: oldReserved,
       newStock: nextReserved,
@@ -684,41 +819,105 @@ export async function releaseReservedStockForOrder(orderId: string, input?: { re
 export async function adjustProductStock(input: {
   productId: string;
   quantity: number;
-  mode: 'ADD' | 'REMOVE' | 'SET';
+  mode: 'ADD' | 'REMOVE' | 'SET' | 'DAMAGE';
+  warehouseId?: string | null;
+  variantId?: string | null;
+  reasonCode?: StockReasonCode | null;
   reason?: string;
   adjustedByUserId?: string | null;
 }) {
   await ensureInventoryTables();
   const inventory = await ensureProductInventory(input.productId);
+  const warehouseId = normalizeNullableId(input.warehouseId);
+  await assertActiveVendorWarehouse(inventory.vendorId, warehouseId);
   const oldStock = toInt(inventory.currentStock);
+  const oldDamagedStock = toInt(inventory.damagedStock);
+  const oldAvailableStock = Math.max(
+    0,
+    oldStock - toInt(inventory.reservedStock) - oldDamagedStock,
+  );
   const quantity = toInt(input.quantity);
-  const nextStock =
-    input.mode === 'SET'
-      ? quantity
-      : input.mode === 'ADD'
-        ? oldStock + quantity
-        : Math.max(0, oldStock - quantity);
+  if (quantity <= 0 && input.mode !== 'SET') {
+    throw new Error('Quantity must be greater than zero.');
+  }
 
-  await prisma.$executeRaw`
-    UPDATE "Inventory"
-    SET "currentStock" = ${nextStock}, "updatedAt" = CURRENT_TIMESTAMP
-    WHERE "id" = ${inventory.id}
-  `;
-  await writeInventoryStatus({ ...inventory, currentStock: nextStock });
-  await createMovement({
-    productId: input.productId,
-    vendorId: inventory.vendorId,
-    type: input.mode === 'ADD' ? 'STOCK_ADDED' : input.mode === 'REMOVE' ? 'STOCK_REMOVED' : 'MANUAL_ADJUSTMENT',
-    quantity,
-    oldStock,
-    newStock: nextStock,
-    reason: input.reason || 'Manual stock adjustment.',
-    adjustedByUserId: input.adjustedByUserId,
+  const nextStock =
+    input.mode === 'SET' ? quantity : input.mode === 'ADD' ? oldStock + quantity : input.mode === 'DAMAGE' ? oldStock : oldStock - quantity;
+  const nextDamagedStock =
+    input.mode === 'DAMAGE' ? oldDamagedStock + quantity : oldDamagedStock;
+  const nextAvailableStockRaw = nextStock - toInt(inventory.reservedStock) - nextDamagedStock;
+  const nextAvailableStock = Math.max(0, nextAvailableStockRaw);
+
+  if (input.mode === 'REMOVE' && quantity > oldAvailableStock) {
+    throw new Error(`Only ${oldAvailableStock} available stock can be removed.`);
+  }
+
+  if (input.mode === 'DAMAGE' && quantity > oldAvailableStock) {
+    throw new Error(`Only ${oldAvailableStock} available stock can be marked damaged.`);
+  }
+
+  if (input.mode === 'SET' && nextAvailableStockRaw < 0) {
+    throw new Error('Stock cannot be lower than reserved and damaged stock.');
+  }
+
+  const reasonCode =
+    input.mode === 'ADD'
+      ? normalizeReasonCode(input.reasonCode, 'STOCK_IN')
+      : input.mode === 'REMOVE'
+        ? normalizeReasonCode(input.reasonCode, 'STOCK_OUT')
+        : input.mode === 'DAMAGE'
+          ? 'DAMAGED_STOCK'
+          : normalizeReasonCode(input.reasonCode, 'MANUAL_ADJUSTMENT');
+  const movementType =
+    input.mode === 'ADD'
+      ? 'STOCK_ADDED'
+      : input.mode === 'REMOVE'
+        ? 'STOCK_REMOVED'
+        : input.mode === 'DAMAGE'
+          ? 'DAMAGED_STOCK'
+          : 'MANUAL_ADJUSTMENT';
+
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`
+      UPDATE "Inventory"
+      SET
+        "warehouseId" = ${warehouseId ?? inventory.warehouseId},
+        "variantId" = ${normalizeNullableId(input.variantId) ?? inventory.variantId},
+        "currentStock" = ${nextStock},
+        "receivedStock" = ${input.mode === 'ADD' ? toInt(inventory.receivedStock) + quantity : toInt(inventory.receivedStock)},
+        "damagedStock" = ${nextDamagedStock},
+        "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "id" = ${inventory.id}
+    `;
+    await writeInventoryStatus({
+      ...inventory,
+      warehouseId: warehouseId ?? inventory.warehouseId,
+      variantId: normalizeNullableId(input.variantId) ?? inventory.variantId,
+      currentStock: nextStock,
+      receivedStock: input.mode === 'ADD' ? toInt(inventory.receivedStock) + quantity : toInt(inventory.receivedStock),
+      damagedStock: nextDamagedStock,
+      availableStock: nextAvailableStock,
+    }, tx);
+    await createMovement({
+      productId: input.productId,
+      vendorId: inventory.vendorId,
+      warehouseId: warehouseId ?? inventory.warehouseId,
+      variantId: normalizeNullableId(input.variantId) ?? inventory.variantId,
+      type: movementType,
+      reasonCode,
+      quantity,
+      oldStock: input.mode === 'DAMAGE' ? oldDamagedStock : oldStock,
+      newStock: input.mode === 'DAMAGE' ? nextDamagedStock : nextStock,
+      reason: input.reason || 'Manual stock adjustment.',
+      adjustedByUserId: input.adjustedByUserId,
+      tx,
+    });
   });
 }
 
 export async function updateInventorySettings(input: {
   productId: string;
+  warehouseId?: string | null;
   lowStockThreshold?: number;
   criticalStockThreshold?: number;
   minimumOrderQuantity?: number;
@@ -731,26 +930,48 @@ export async function updateInventorySettings(input: {
 }) {
   await ensureInventoryTables();
   const inventory = await ensureProductInventory(input.productId);
-  await prisma.$executeRaw`
-    UPDATE "Inventory"
-    SET
-      "lowStockThreshold" = ${toInt(input.lowStockThreshold, inventory.lowStockThreshold)},
-      "criticalStockThreshold" = ${toInt(input.criticalStockThreshold, inventory.criticalStockThreshold)},
-      "minimumOrderQuantity" = ${toInt(input.minimumOrderQuantity, inventory.minimumOrderQuantity)},
-      "maximumOrderQuantity" = ${input.maximumOrderQuantity ?? inventory.maximumOrderQuantity ?? null},
-      "restockDate" = ${input.restockDate ? new Date(input.restockDate) : inventory.restockDate || null},
-      "mpn" = ${input.mpn ?? inventory.mpn ?? null},
-      "allowBackorder" = ${input.allowBackorder ?? inventory.allowBackorder},
-      "isPreOrder" = ${input.isPreOrder ?? inventory.isPreOrder},
-      "bulkPricingTiers" = ${input.bulkPricingTiers ? JSON.stringify(input.bulkPricingTiers) : inventory.bulkPricingTiers ? JSON.stringify(inventory.bulkPricingTiers) : null}::jsonb,
-      "updatedAt" = CURRENT_TIMESTAMP
-    WHERE "id" = ${inventory.id}
-  `;
+  const nextWarehouseId =
+    input.warehouseId === undefined ? inventory.warehouseId : normalizeNullableId(input.warehouseId);
+  await assertActiveVendorWarehouse(inventory.vendorId, nextWarehouseId);
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`
+      UPDATE "Inventory"
+      SET
+        "warehouseId" = ${nextWarehouseId},
+        "lowStockThreshold" = ${toInt(input.lowStockThreshold, inventory.lowStockThreshold)},
+        "criticalStockThreshold" = ${toInt(input.criticalStockThreshold, inventory.criticalStockThreshold)},
+        "minimumOrderQuantity" = ${toInt(input.minimumOrderQuantity, inventory.minimumOrderQuantity)},
+        "maximumOrderQuantity" = ${input.maximumOrderQuantity ?? inventory.maximumOrderQuantity ?? null},
+        "restockDate" = ${input.restockDate ? new Date(input.restockDate) : inventory.restockDate || null},
+        "mpn" = ${input.mpn ?? inventory.mpn ?? null},
+        "allowBackorder" = ${input.allowBackorder ?? inventory.allowBackorder},
+        "isPreOrder" = ${input.isPreOrder ?? inventory.isPreOrder},
+        "bulkPricingTiers" = ${input.bulkPricingTiers ? JSON.stringify(input.bulkPricingTiers) : inventory.bulkPricingTiers ? JSON.stringify(inventory.bulkPricingTiers) : null}::jsonb,
+        "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "id" = ${inventory.id}
+    `;
+
+    if (nextWarehouseId !== inventory.warehouseId) {
+      await createMovement({
+        productId: input.productId,
+        vendorId: inventory.vendorId,
+        warehouseId: nextWarehouseId,
+        variantId: inventory.variantId,
+        type: 'MANUAL_ADJUSTMENT',
+        reasonCode: 'WAREHOUSE_ASSIGNMENT',
+        quantity: 0,
+        oldStock: toInt(inventory.currentStock),
+        newStock: toInt(inventory.currentStock),
+        reason: 'Inventory warehouse assignment updated.',
+        tx,
+      });
+    }
+  });
   const updated = await ensureProductInventory(input.productId);
   return writeInventoryStatus(updated);
 }
 
-export async function getVendorInventoryData(vendorId: string) {
+export async function getVendorInventoryData(vendorId: string, filters: { warehouseId?: string } = {}) {
   await ensureInventoryTables();
   const products = await prisma.product.findMany({
     where: { vendorId },
@@ -765,10 +986,14 @@ export async function getVendorInventoryData(vendorId: string) {
     SELECT * FROM "StockMovement" WHERE "vendorId" = ${vendorId} ORDER BY "createdAt" DESC LIMIT 200
   `;
   const variants = await getVariantsForProducts(products.map((product) => product.id));
-  return buildInventoryPayload(products, inventories, movements, variants);
+  const warehouses = await prisma.vendorWarehouse.findMany({
+    where: { vendorId },
+    orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+  });
+  return buildInventoryPayload(products, inventories, movements, variants, warehouses, filters);
 }
 
-export async function getAdminInventoryData(filters: { q?: string; status?: string; vendorId?: string }) {
+export async function getAdminInventoryData(filters: { q?: string; status?: string; vendorId?: string; warehouseId?: string }) {
   await ensureInventoryTables();
   const products = await prisma.product.findMany({
     include: {
@@ -785,10 +1010,14 @@ export async function getAdminInventoryData(filters: { q?: string; status?: stri
     SELECT * FROM "StockMovement" ORDER BY "createdAt" DESC LIMIT 300
   `;
   const variants = await getVariantsForProducts(products.map((product) => product.id));
-  const payload = buildInventoryPayload(products, inventories, movements, variants);
+  const warehouses = await prisma.vendorWarehouse.findMany({
+    orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+  });
+  const payload = buildInventoryPayload(products, inventories, movements, variants, warehouses, filters);
   const q = String(filters.q || '').trim().toLowerCase();
   const status = String(filters.status || 'ALL');
   const vendorId = String(filters.vendorId || '');
+  const warehouseId = String(filters.warehouseId || 'ALL');
   payload.rows = payload.rows.filter((row: any) => {
     const matchesSearch =
       !q ||
@@ -797,7 +1026,11 @@ export async function getAdminInventoryData(filters: { q?: string; status?: stri
         .some((value) => String(value).toLowerCase().includes(q));
     const matchesStatus = status === 'ALL' || row.inventory?.stockStatus === status;
     const matchesVendor = !vendorId || row.product.vendorId === vendorId;
-    return matchesSearch && matchesStatus && matchesVendor;
+    const matchesWarehouse =
+      warehouseId === 'ALL' ||
+      (warehouseId === 'UNASSIGNED' && !row.inventory?.warehouseId) ||
+      row.inventory?.warehouseId === warehouseId;
+    return matchesSearch && matchesStatus && matchesVendor && matchesWarehouse;
   });
   return payload;
 }
@@ -807,7 +1040,11 @@ function buildInventoryPayload(
   inventories: InventoryRow[],
   movements: any[],
   variants: any[] = [],
+  warehouses: any[] = [],
+  filters: { warehouseId?: string } = {},
 ) {
+  const warehouseById = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse]));
+  const warehouseFilter = String(filters.warehouseId || 'ALL');
   const rows = products.map((product) => {
     const inventory = inventories.find((item) => item.productId === product.id) || null;
     const productVariants = variants.filter((variant) => variant.productId === product.id);
@@ -815,10 +1052,19 @@ function buildInventoryPayload(
       product,
       vendor: product.vendor || null,
       inventory,
+      warehouse: inventory?.warehouseId ? warehouseById.get(inventory.warehouseId) || null : null,
       variants: productVariants,
       signal: getStockSignal(inventory),
     };
+  }).filter((row) => {
+    if (warehouseFilter === 'ALL') return true;
+    if (warehouseFilter === 'UNASSIGNED') return !row.inventory?.warehouseId;
+    return row.inventory?.warehouseId === warehouseFilter;
   });
+  const movementRows = movements.map((movement) => ({
+    ...movement,
+    warehouse: movement.warehouseId ? warehouseById.get(movement.warehouseId) || null : null,
+  }));
   const summary = rows.reduce(
     (result, row) => {
       result.totalProducts += 1;
@@ -835,7 +1081,7 @@ function buildInventoryPayload(
     { totalProducts: 0, inStock: 0, lowStock: 0, criticalStock: 0, outOfStock: 0, alerts: 0 },
   );
 
-  return { rows, movements, summary };
+  return { rows, movements: movementRows, warehouses, summary };
 }
 
 async function maybeSendStockAlerts(inventory: InventoryRow, productName: string) {

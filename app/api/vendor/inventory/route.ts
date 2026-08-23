@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getAuthSession } from '@/lib/session-cookies';
 import {
@@ -54,13 +54,16 @@ async function getVendorVariant(vendorId: string, variantId: string) {
   return rows[0];
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const auth = await getVendor();
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const data = await getVendorInventoryData(auth.vendor.id);
+  const { searchParams } = new URL(request.url);
+  const data = await getVendorInventoryData(auth.vendor.id, {
+    warehouseId: searchParams.get('warehouseId') || 'ALL',
+  });
   return NextResponse.json(data);
 }
 
@@ -90,12 +93,23 @@ export async function POST(request: Request) {
     await adjustProductStock({
       productId,
       quantity: Number(body.quantity || 0),
-      mode: body.mode === 'REMOVE' ? 'REMOVE' : body.mode === 'SET' ? 'SET' : 'ADD',
+      mode:
+        body.mode === 'REMOVE'
+          ? 'REMOVE'
+          : body.mode === 'SET'
+            ? 'SET'
+            : body.mode === 'DAMAGE'
+              ? 'DAMAGE'
+              : 'ADD',
+      warehouseId: body.warehouseId || null,
+      reasonCode: body.reasonCode || null,
       reason: String(body.reason || 'Vendor stock update.'),
       adjustedByUserId: auth.userId,
     });
 
-    const data = await getVendorInventoryData(auth.vendor.id);
+    const data = await getVendorInventoryData(auth.vendor.id, {
+      warehouseId: body.warehouseId || 'ALL',
+    });
     return NextResponse.json({ message: 'Stock updated.', ...data });
   } catch (error) {
     return NextResponse.json(
@@ -129,9 +143,12 @@ export async function PATCH(request: Request) {
       allowBackorder: Boolean(body.allowBackorder),
       isPreOrder: Boolean(body.isPreOrder),
       bulkPricingTiers: body.bulkPricingTiers || null,
+      warehouseId: body.warehouseId,
     });
 
-    const data = await getVendorInventoryData(auth.vendor.id);
+    const data = await getVendorInventoryData(auth.vendor.id, {
+      warehouseId: body.warehouseId || 'ALL',
+    });
     return NextResponse.json({ message: 'Inventory settings saved.', ...data });
   } catch (error) {
     return NextResponse.json(

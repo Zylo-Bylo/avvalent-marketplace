@@ -24,7 +24,9 @@ type InventoryRow = {
     status: string;
   }[];
   inventory: {
+    warehouseId?: string | null;
     mpn?: string | null;
+    damagedStock?: number;
     currentStock: number;
     reservedStock: number;
     availableStock: number;
@@ -38,12 +40,23 @@ type InventoryRow = {
     isPreOrder: boolean;
     lastStockUpdatedAt: string;
   };
+  warehouse?: Warehouse | null;
   signal: { label: string; tone: string };
+};
+
+type Warehouse = {
+  id: string;
+  code: string;
+  name: string;
+  isDefault: boolean;
+  isActive: boolean;
+  status: string;
 };
 
 type InventoryData = {
   rows: InventoryRow[];
   movements: any[];
+  warehouses: Warehouse[];
   summary: {
     totalProducts: number;
     inStock: number;
@@ -57,6 +70,7 @@ type InventoryData = {
 const emptyData: InventoryData = {
   rows: [],
   movements: [],
+  warehouses: [],
   summary: { totalProducts: 0, inStock: 0, lowStock: 0, criticalStock: 0, outOfStock: 0, alerts: 0 },
 };
 
@@ -88,6 +102,7 @@ export default function VendorInventoryPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [warehouseFilter, setWarehouseFilter] = useState("ALL");
   const [stockFilter, setStockFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("UPDATED_DESC");
 
@@ -146,6 +161,10 @@ export default function VendorInventoryPage() {
         statusFilter === "ALL" || inventory?.stockStatus === statusFilter;
       const matchesCategory =
         categoryFilter === "ALL" || row.product.category?.name === categoryFilter;
+      const matchesWarehouse =
+        warehouseFilter === "ALL" ||
+        (warehouseFilter === "UNASSIGNED" && !inventory?.warehouseId) ||
+        inventory?.warehouseId === warehouseFilter;
       const matchesStock =
         stockFilter === "ALL" ||
         (stockFilter === "AVAILABLE" && availableStock > 0) ||
@@ -156,7 +175,7 @@ export default function VendorInventoryPage() {
         (stockFilter === "PREORDER_BACKORDER" &&
           ["PRE_ORDER", "BACKORDER"].includes(inventory?.stockStatus || ""));
 
-      return matchesSearch && matchesStatus && matchesCategory && matchesStock;
+      return matchesSearch && matchesStatus && matchesCategory && matchesWarehouse && matchesStock;
     });
 
     return [...rows].sort((a, b) => {
@@ -179,7 +198,7 @@ export default function VendorInventoryPage() {
         new Date(aInventory?.lastStockUpdatedAt || 0).getTime()
       );
     });
-  }, [categoryFilter, data.rows, search, sortBy, statusFilter, stockFilter]);
+  }, [categoryFilter, data.rows, search, sortBy, statusFilter, stockFilter, warehouseFilter]);
 
   const movementRows = useMemo(() => data.movements || [], [data.movements]);
 
@@ -197,20 +216,27 @@ export default function VendorInventoryPage() {
       return;
     }
     setMessage(result.message || "Inventory updated.");
-    setData({ rows: result.rows || [], movements: result.movements || [], summary: result.summary || emptyData.summary });
+    setData({
+      rows: result.rows || [],
+      movements: result.movements || [],
+      warehouses: result.warehouses || [],
+      summary: result.summary || emptyData.summary,
+    });
   }
 
   function exportCsv() {
-    const header = ["Product Name", "SKU", "MPN", "Current Stock", "Reserved Stock", "Available Stock", "Status", "Last Updated"];
+    const header = ["Product Name", "Warehouse", "SKU", "MPN", "Current Stock", "Reserved Stock", "Damaged Stock", "Available Stock", "Status", "Last Updated"];
     const csv = [
       header.join(","),
       ...filteredRows.map((row) =>
         [
           row.product.name,
+          row.warehouse ? `${row.warehouse.name} (${row.warehouse.code})` : "Unassigned",
           row.product.sku || "",
           row.inventory?.mpn || "",
           row.inventory?.currentStock || 0,
           row.inventory?.reservedStock || 0,
+          row.inventory?.damagedStock || 0,
           row.inventory?.availableStock || 0,
           row.inventory?.stockStatus || "",
           row.inventory?.lastStockUpdatedAt || "",
@@ -268,7 +294,7 @@ export default function VendorInventoryPage() {
         </div>
 
         <div className="mt-5 rounded-2xl bg-white p-4 shadow-sm">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_170px_170px_190px_180px]">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_170px_170px_190px_190px_180px]">
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -307,6 +333,19 @@ export default function VendorInventoryPage() {
               <option value="PREORDER_BACKORDER">Pre-order / Backorder</option>
             </select>
             <select
+              value={warehouseFilter}
+              onChange={(event) => setWarehouseFilter(event.target.value)}
+              className="rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-pink-500"
+            >
+              <option value="ALL">All Warehouses</option>
+              <option value="UNASSIGNED">Unassigned</option>
+              {data.warehouses.map((warehouse) => (
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name} ({warehouse.code})
+                </option>
+              ))}
+            </select>
+            <select
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value)}
               className="rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-pink-500"
@@ -328,6 +367,7 @@ export default function VendorInventoryPage() {
                 setSearch("");
                 setStatusFilter("ALL");
                 setCategoryFilter("ALL");
+                setWarehouseFilter("ALL");
                 setStockFilter("ALL");
                 setSortBy("UPDATED_DESC");
               }}
@@ -346,13 +386,15 @@ export default function VendorInventoryPage() {
         ) : (
           <div className="mt-5 overflow-hidden rounded-2xl bg-white shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] text-left text-sm">
+              <table className="w-full min-w-[1240px] text-left text-sm">
                 <thead className="bg-slate-100 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="p-3">Product</th>
                     <th className="p-3">SKU / MPN</th>
+                    <th className="p-3">Warehouse</th>
                     <th className="p-3">Current</th>
                     <th className="p-3">Reserved</th>
+                    <th className="p-3">Damaged</th>
                     <th className="p-3">Available</th>
                     <th className="p-3">Thresholds</th>
                     <th className="p-3">MOQ / Max</th>
@@ -385,8 +427,31 @@ export default function VendorInventoryPage() {
                             className="mt-2 w-28 rounded-lg border p-2 text-xs"
                           />
                         </td>
+                        <td className="p-3">
+                          <select
+                            value={productSettings.warehouseId ?? row.inventory?.warehouseId ?? ""}
+                            onChange={(event) =>
+                              setSettings((current) => ({
+                                ...current,
+                                [row.product.id]: { ...productSettings, warehouseId: event.target.value || null },
+                              }))
+                            }
+                            className="w-44 rounded-lg border p-2 text-xs"
+                          >
+                            <option value="">Unassigned</option>
+                            {data.warehouses.map((warehouse) => (
+                              <option key={warehouse.id} value={warehouse.id}>
+                                {warehouse.name} ({warehouse.code})
+                              </option>
+                            ))}
+                          </select>
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            {row.warehouse ? `${row.warehouse.name} (${row.warehouse.code})` : "No warehouse"}
+                          </p>
+                        </td>
                         <td className="p-3 font-bold">{row.inventory?.currentStock || 0}</td>
                         <td className="p-3">{row.inventory?.reservedStock || 0}</td>
+                        <td className="p-3 text-red-700">{row.inventory?.damagedStock || 0}</td>
                         <td className="p-3 font-bold text-green-700">{row.inventory?.availableStock || 0}</td>
                         <td className="p-3">
                           <input type="number" value={productSettings.lowStockThreshold ?? 10} onChange={(event) => setSettings((current) => ({ ...current, [row.product.id]: { ...productSettings, lowStockThreshold: event.target.value } }))} className="mb-1 w-20 rounded-lg border p-2 text-xs" />
@@ -410,15 +475,16 @@ export default function VendorInventoryPage() {
                         <td className="p-3">
                           <div className="flex gap-2">
                             <input value={quantities[row.product.id] || ""} onChange={(event) => setQuantities((current) => ({ ...current, [row.product.id]: event.target.value }))} type="number" placeholder="Qty" className="w-20 rounded-lg border p-2 text-xs" />
-                            <button onClick={() => action(row.product.id, { mode: "ADD", quantity: Number(quantities[row.product.id] || 0) })} className="rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white">Add</button>
-                            <button onClick={() => action(row.product.id, { mode: "REMOVE", quantity: Number(quantities[row.product.id] || 0) })} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white">Reduce</button>
+                            <button onClick={() => action(row.product.id, { mode: "ADD", quantity: Number(quantities[row.product.id] || 0), warehouseId: productSettings.warehouseId ?? row.inventory?.warehouseId ?? null, reasonCode: "STOCK_IN" })} className="rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white">Add</button>
+                            <button onClick={() => action(row.product.id, { mode: "REMOVE", quantity: Number(quantities[row.product.id] || 0), warehouseId: productSettings.warehouseId ?? row.inventory?.warehouseId ?? null, reasonCode: "STOCK_OUT" })} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white">Reduce</button>
+                            <button onClick={() => action(row.product.id, { mode: "DAMAGE", quantity: Number(quantities[row.product.id] || 0), warehouseId: productSettings.warehouseId ?? row.inventory?.warehouseId ?? null, reasonCode: "DAMAGED_STOCK" })} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white">Damage</button>
                           </div>
                           <button onClick={() => action(row.product.id, productSettings, "PATCH")} className="mt-2 rounded-lg border px-3 py-2 text-xs font-bold">Save Settings</button>
                         </td>
                       </tr>
                       {(row.variants || []).length > 0 && (
                         <tr key={`${row.product.id}-variants`} className="border-t bg-slate-50">
-                          <td colSpan={9} className="p-3">
+                          <td colSpan={11} className="p-3">
                             <div className="rounded-xl border border-slate-200 bg-white p-3">
                               <div className="mb-2 flex items-center justify-between gap-3">
                                 <p className="text-xs font-black uppercase text-slate-500">Size / Color Variant Stock</p>
@@ -489,7 +555,7 @@ export default function VendorInventoryPage() {
                   })}
                   {filteredRows.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="p-8 text-center text-sm text-slate-500">
+                      <td colSpan={11} className="p-8 text-center text-sm text-slate-500">
                         No products match these filters.
                       </td>
                     </tr>
@@ -506,15 +572,17 @@ export default function VendorInventoryPage() {
             {movementRows.length === 0 ? (
               <p className="py-8 text-center text-sm text-slate-500">No stock movements yet.</p>
             ) : (
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-[920px] text-left text-sm">
                 <thead className="bg-slate-100 text-xs uppercase text-slate-500">
-                  <tr><th className="p-3">Date</th><th className="p-3">Type</th><th className="p-3">Quantity</th><th className="p-3">Old</th><th className="p-3">New</th><th className="p-3">Reason</th></tr>
+                  <tr><th className="p-3">Date</th><th className="p-3">Warehouse</th><th className="p-3">Type</th><th className="p-3">Reason Code</th><th className="p-3">Quantity</th><th className="p-3">Old</th><th className="p-3">New</th><th className="p-3">Reason</th></tr>
                 </thead>
                 <tbody>
                   {movementRows.map((row) => (
                     <tr key={row.id} className="border-t">
                       <td className="p-3">{new Date(row.createdAt).toLocaleString("en-IN")}</td>
+                      <td className="p-3">{row.warehouse ? `${row.warehouse.name} (${row.warehouse.code})` : "Unassigned"}</td>
                       <td className="p-3 font-bold">{row.type}</td>
+                      <td className="p-3">{row.reasonCode || "-"}</td>
                       <td className="p-3">{row.quantity}</td>
                       <td className="p-3">{row.oldStock}</td>
                       <td className="p-3">{row.newStock}</td>

@@ -9,6 +9,7 @@ export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   try {
+    const requestStartedAt = performance.now();
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('categoryId');
     const subcategoryId = searchParams.get('subcategoryId');
@@ -22,7 +23,24 @@ export async function GET(request: Request) {
     }
 
     const template = await getCategoryUploadTemplate(categoryId, subcategoryId, productTypeId);
-    return NextResponse.json({ template });
+    const queryFinishedAt = performance.now();
+    const body = JSON.stringify({ template });
+    const serializationFinishedAt = performance.now();
+    const forceFresh = searchParams.get('fresh') === '1';
+
+    return new NextResponse(body, {
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': forceFresh
+          ? 'private, no-store'
+          : 'public, max-age=30, s-maxage=120, stale-while-revalidate=60',
+        'Server-Timing': [
+          `db;dur=${(queryFinishedAt - requestStartedAt).toFixed(1)}`,
+          `serialize;dur=${(serializationFinishedAt - queryFinishedAt).toFixed(1)}`,
+        ].join(', '),
+        'X-Catalogue-Payload-Bytes': String(Buffer.byteLength(body)),
+      },
+    });
   } catch (error) {
     console.error('Category template fetch error:', error);
     return NextResponse.json(

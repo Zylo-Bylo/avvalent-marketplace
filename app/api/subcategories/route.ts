@@ -12,17 +12,30 @@ function slugify(value: string) {
 
 export async function GET(request: Request) {
   try {
-    await ensureCategoryAtelierSchema();
-
+    const requestStartedAt = performance.now();
     const { searchParams } = new URL(request.url);
     const categoryId = searchParams.get('categoryId');
 
     const subcategories = await prisma.subcategory.findMany({
       where: categoryId ? { categoryId } : undefined,
       orderBy: { name: 'asc' },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        categoryId: true,
+        status: true,
+        sortOrder: true,
         productTypes: {
           orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            subcategoryId: true,
+            status: true,
+            sortOrder: true,
+          },
         },
         category: {
           select: {
@@ -32,10 +45,19 @@ export async function GET(request: Request) {
         },
       },
     });
+    const queryFinishedAt = performance.now();
+    const body = JSON.stringify({ subcategories });
+    const serializationFinishedAt = performance.now();
 
-    return NextResponse.json({ subcategories }, {
+    return new NextResponse(body, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=60',
+        'Server-Timing': [
+          `db;dur=${(queryFinishedAt - requestStartedAt).toFixed(1)}`,
+          `serialize;dur=${(serializationFinishedAt - queryFinishedAt).toFixed(1)}`,
+        ].join(', '),
+        'X-Catalogue-Payload-Bytes': String(Buffer.byteLength(body)),
       },
     });
   } catch (error) {

@@ -1,4 +1,14 @@
 .eslintcache
 tsconfig.tsbuildinfo
-.next
-node_modules
+.next/
+node_modules/
+coverage/
+.npm-cache/
+.tmp/
+backup/
+prisma/.generated/
+.env*
+*.db
+*.db-journal
+*.log
+.local-auth.json

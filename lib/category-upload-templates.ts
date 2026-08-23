@@ -167,8 +167,6 @@ export async function getCategoryUploadTemplate(
   subcategoryId?: string | null,
   productTypeId?: string | null,
 ) {
-  await ensureCategoryUploadTemplateSchema();
-
   if (productTypeId) {
     const rows = await prisma.$queryRaw<TemplateRow[]>`
       SELECT * FROM "CategoryUploadTemplate"

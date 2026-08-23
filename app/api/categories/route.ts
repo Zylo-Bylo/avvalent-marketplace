@@ -6,6 +6,128 @@ import {
 } from '@/lib/fallback-catalog';
 import { ensureCategoryAtelierSchema } from '@/lib/category-atelier-schema';
 
+const PUBLIC_CATEGORY_CACHE_CONTROL =
+  'public, max-age=30, s-maxage=120, stale-while-revalidate=60';
+
+function publicImageUrl(value: string | null | undefined) {
+  const normalized = value?.trim() || '';
+  return /^(blob|data):/i.test(normalized) ? '' : normalized;
+}
+
+type CategoryReadRow = Awaited<ReturnType<typeof readPublicCategories>>[number];
+
+async function readPublicCategories() {
+  return prisma.category.findMany({
+    where: {
+      status: 'ACTIVE',
+      archivedAt: null,
+    },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      status: true,
+      sortOrder: true,
+      homepageIcon: true,
+      categoryImage: true,
+      desktopBanner: true,
+      mobileBanner: true,
+      altText: true,
+      subcategories: {
+        where: {
+          status: 'ACTIVE',
+          archivedAt: null,
+        },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          status: true,
+          sortOrder: true,
+          homepageIcon: true,
+          categoryImage: true,
+          desktopBanner: true,
+          mobileBanner: true,
+          altText: true,
+          categoryId: true,
+          productTypes: {
+            where: {
+              status: 'ACTIVE',
+              archivedAt: null,
+            },
+            orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              status: true,
+              sortOrder: true,
+              homepageIcon: true,
+              categoryImage: true,
+              desktopBanner: true,
+              mobileBanner: true,
+              altText: true,
+              subcategoryId: true,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+function compactPublicCategories(categories: CategoryReadRow[]) {
+  return categories.map((category) => ({
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    entityType: 'category' as const,
+    parentId: null,
+    status: category.status,
+    sortOrder: category.sortOrder,
+    homepageVisible: true,
+    homepageIconUrl: publicImageUrl(category.homepageIcon),
+    categoryImageUrl: publicImageUrl(category.categoryImage),
+    desktopBannerUrl: publicImageUrl(category.desktopBanner),
+    mobileBannerUrl: publicImageUrl(category.mobileBanner),
+    altText: category.altText || category.name,
+    subcategories: category.subcategories.map((subcategory) => ({
+      id: subcategory.id,
+      name: subcategory.name,
+      slug: subcategory.slug,
+      entityType: 'subcategory' as const,
+      parentId: subcategory.categoryId,
+      categoryId: subcategory.categoryId,
+      status: subcategory.status,
+      sortOrder: subcategory.sortOrder,
+      homepageVisible: true,
+      homepageIconUrl: publicImageUrl(subcategory.homepageIcon),
+      categoryImageUrl: publicImageUrl(subcategory.categoryImage),
+      desktopBannerUrl: publicImageUrl(subcategory.desktopBanner),
+      mobileBannerUrl: publicImageUrl(subcategory.mobileBanner),
+      altText: subcategory.altText || subcategory.name,
+      productTypes: subcategory.productTypes.map((productType) => ({
+        id: productType.id,
+        name: productType.name,
+        slug: productType.slug,
+        entityType: 'productType' as const,
+        parentId: productType.subcategoryId,
+        subcategoryId: productType.subcategoryId,
+        status: productType.status,
+        sortOrder: productType.sortOrder,
+        homepageVisible: true,
+        homepageIconUrl: publicImageUrl(productType.homepageIcon),
+        categoryImageUrl: publicImageUrl(productType.categoryImage),
+        desktopBannerUrl: publicImageUrl(productType.desktopBanner),
+        mobileBannerUrl: publicImageUrl(productType.mobileBanner),
+        altText: productType.altText || productType.name,
+      })),
+    })),
+  }));
+}
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -14,127 +136,29 @@ function slugify(value: string) {
     .replace(/^-|-$/g, '');
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    await ensureCategoryAtelierSchema();
+    const requestStartedAt = performance.now();
+    const categories = await readPublicCategories();
+    const queryFinishedAt = performance.now();
+    const publicCategories = compactPublicCategories(categories);
+    const transformFinishedAt = performance.now();
+    const body = JSON.stringify({ categories: publicCategories });
+    const serializationFinishedAt = performance.now();
+    const forceFresh = new URL(request.url).searchParams.get('fresh') === '1';
 
-    const categories = await prisma.category.findMany({
-      where: {
-        status: 'ACTIVE',
-        archivedAt: null,
-      },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        status: true,
-        sortOrder: true,
-        archivedAt: true,
-        homepageIcon: true,
-        categoryImage: true,
-        desktopBanner: true,
-        mobileBanner: true,
-        altText: true,
-        subcategories: {
-          where: {
-            status: 'ACTIVE',
-            archivedAt: null,
-          },
-          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            status: true,
-            sortOrder: true,
-            archivedAt: true,
-            homepageIcon: true,
-            categoryImage: true,
-            desktopBanner: true,
-            mobileBanner: true,
-            altText: true,
-            categoryId: true,
-            productTypes: {
-              where: {
-                status: 'ACTIVE',
-                archivedAt: null,
-              },
-              orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                status: true,
-                sortOrder: true,
-                archivedAt: true,
-                homepageIcon: true,
-                categoryImage: true,
-                desktopBanner: true,
-                mobileBanner: true,
-                altText: true,
-                subcategoryId: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const publicCategories = categories.map((category) => ({
-      ...category,
-      entityType: 'category',
-      parentId: null,
-      homepageVisible: true,
-      homepageIconUrl: category.homepageIcon,
-      categoryImageUrl: category.categoryImage,
-      desktopBannerUrl: category.desktopBanner,
-      mobileBannerUrl: category.mobileBanner,
-      children: category.subcategories.map((subcategory) => ({
-        ...subcategory,
-        entityType: 'subcategory',
-        parentId: subcategory.categoryId,
-        homepageVisible: true,
-        homepageIconUrl: subcategory.homepageIcon,
-        categoryImageUrl: subcategory.categoryImage,
-        desktopBannerUrl: subcategory.desktopBanner,
-        mobileBannerUrl: subcategory.mobileBanner,
-        productTypes: subcategory.productTypes?.map((productType) => ({
-          ...productType,
-          entityType: 'productType',
-          parentId: productType.subcategoryId,
-          homepageVisible: true,
-          homepageIconUrl: productType.homepageIcon,
-          categoryImageUrl: productType.categoryImage,
-          desktopBannerUrl: productType.desktopBanner,
-          mobileBannerUrl: productType.mobileBanner,
-        })) || [],
-      })),
-      subcategories: category.subcategories.map((subcategory) => ({
-        ...subcategory,
-        entityType: 'subcategory',
-        parentId: subcategory.categoryId,
-        homepageVisible: true,
-        homepageIconUrl: subcategory.homepageIcon,
-        categoryImageUrl: subcategory.categoryImage,
-        desktopBannerUrl: subcategory.desktopBanner,
-        mobileBannerUrl: subcategory.mobileBanner,
-        productTypes: subcategory.productTypes?.map((productType) => ({
-          ...productType,
-          entityType: 'productType',
-          parentId: productType.subcategoryId,
-          homepageVisible: true,
-          homepageIconUrl: productType.homepageIcon,
-          categoryImageUrl: productType.categoryImage,
-          desktopBannerUrl: productType.desktopBanner,
-          mobileBannerUrl: productType.mobileBanner,
-        })) || [],
-      })),
-    }));
-
-    return NextResponse.json({ categories: publicCategories }, {
+    return new NextResponse(body, {
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': forceFresh
+          ? 'private, no-store'
+          : PUBLIC_CATEGORY_CACHE_CONTROL,
+        'Server-Timing': [
+          `db;dur=${(queryFinishedAt - requestStartedAt).toFixed(1)}`,
+          `transform;dur=${(transformFinishedAt - queryFinishedAt).toFixed(1)}`,
+          `serialize;dur=${(serializationFinishedAt - transformFinishedAt).toFixed(1)}`,
+        ].join(', '),
+        'X-Catalogue-Payload-Bytes': String(Buffer.byteLength(body)),
       },
     });
   } catch (error) {

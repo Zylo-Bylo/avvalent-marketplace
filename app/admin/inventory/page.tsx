@@ -26,7 +26,9 @@ type Row = {
   }[];
   vendor?: { storeName: string; user?: { email: string } } | null;
   inventory: {
+    warehouseId?: string | null;
     mpn?: string | null;
+    damagedStock?: number;
     currentStock: number;
     reservedStock: number;
     availableStock: number;
@@ -38,12 +40,24 @@ type Row = {
     restockDate?: string | null;
     lastStockUpdatedAt: string;
   };
+  warehouse?: Warehouse | null;
   signal: { label: string; tone: string };
+};
+
+type Warehouse = {
+  id: string;
+  code: string;
+  name: string;
+  vendorId: string;
+  isDefault: boolean;
+  isActive: boolean;
+  status: string;
 };
 
 type Data = {
   rows: Row[];
   movements: any[];
+  warehouses: Warehouse[];
   summary: {
     totalProducts: number;
     inStock: number;
@@ -57,6 +71,7 @@ type Data = {
 const emptyData: Data = {
   rows: [],
   movements: [],
+  warehouses: [],
   summary: { totalProducts: 0, inStock: 0, lowStock: 0, criticalStock: 0, outOfStock: 0, alerts: 0 },
 };
 
@@ -74,6 +89,7 @@ export default function AdminInventoryPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("ALL");
+  const [warehouseId, setWarehouseId] = useState("ALL");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [quantities, setQuantities] = useState<Record<string, string>>({});
@@ -82,7 +98,7 @@ export default function AdminInventoryPage() {
   async function loadData() {
     setLoading(true);
     setError("");
-    const params = new URLSearchParams({ q, status });
+    const params = new URLSearchParams({ q, status, warehouseId });
     const response = await fetch(`/api/admin/inventory?${params.toString()}`, { cache: "no-store" });
     const result = await response.json();
     setLoading(false);
@@ -90,7 +106,12 @@ export default function AdminInventoryPage() {
       setError(result.error || "Could not load inventory.");
       return;
     }
-    setData(result);
+    setData({
+      rows: result.rows || [],
+      movements: result.movements || [],
+      warehouses: result.warehouses || [],
+      summary: result.summary || emptyData.summary,
+    });
   }
 
   useEffect(() => {
@@ -123,7 +144,12 @@ export default function AdminInventoryPage() {
         return;
       }
       setMessage(result.message || "Inventory updated.");
-      setData({ rows: result.rows || [], movements: result.movements || [], summary: result.summary || emptyData.summary });
+      setData({
+        rows: result.rows || [],
+        movements: result.movements || [],
+        warehouses: result.warehouses || [],
+        summary: result.summary || emptyData.summary,
+      });
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Inventory action failed.");
     } finally {
@@ -134,7 +160,7 @@ export default function AdminInventoryPage() {
   }
 
   function exportReport(format: "csv" | "excel") {
-    const params = new URLSearchParams({ q, status, format });
+    const params = new URLSearchParams({ q, status, warehouseId, format });
     window.open(`/api/admin/inventory?${params.toString()}`, "_blank");
   }
 
@@ -169,10 +195,19 @@ export default function AdminInventoryPage() {
         </div>
 
         <div className="mt-5 rounded-2xl bg-white p-4 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
+          <div className="grid gap-3 md:grid-cols-[1fr_220px_240px_auto]">
             <input value={q} onChange={(event) => setQ(event.target.value)} placeholder="Search product, SKU, MPN, vendor" className="rounded-xl border border-slate-300 p-3 text-sm" />
             <select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-xl border border-slate-300 p-3 text-sm">
               {statuses.map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}
+            </select>
+            <select value={warehouseId} onChange={(event) => setWarehouseId(event.target.value)} className="rounded-xl border border-slate-300 p-3 text-sm">
+              <option value="ALL">All Warehouses</option>
+              <option value="UNASSIGNED">Unassigned</option>
+              {data.warehouses.map((warehouse) => (
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name} ({warehouse.code})
+                </option>
+              ))}
             </select>
             <button onClick={loadData} className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-bold text-white">Apply</button>
           </div>
@@ -188,14 +223,16 @@ export default function AdminInventoryPage() {
         ) : (
           <div className="mt-5 overflow-hidden rounded-2xl bg-white shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1120px] text-left text-sm">
+              <table className="w-full min-w-[1260px] text-left text-sm">
                 <thead className="bg-slate-100 text-xs uppercase text-slate-500">
                   <tr>
                     <th className="p-3">Product</th>
                     <th className="p-3">Vendor</th>
+                    <th className="p-3">Warehouse</th>
                     <th className="p-3">SKU / MPN</th>
                     <th className="p-3">Current</th>
                     <th className="p-3">Reserved</th>
+                    <th className="p-3">Damaged</th>
                     <th className="p-3">Available</th>
                     <th className="p-3">Status</th>
                     <th className="p-3">Updated</th>
@@ -220,9 +257,14 @@ export default function AdminInventoryPage() {
                         <p className="font-bold">{row.vendor?.storeName || "-"}</p>
                         <p className="text-xs text-slate-500">{row.vendor?.user?.email || "-"}</p>
                       </td>
+                      <td className="p-3">
+                        <p className="font-bold">{row.warehouse?.name || "Unassigned"}</p>
+                        <p className="text-xs text-slate-500">{row.warehouse?.code || "-"}</p>
+                      </td>
                       <td className="p-3">{row.product.sku || "-"}<br /><span className="text-xs text-slate-500">{row.inventory?.mpn || "-"}</span></td>
                       <td className="p-3 font-bold">{row.inventory?.currentStock || 0}</td>
                       <td className="p-3">{row.inventory?.reservedStock || 0}</td>
+                      <td className="p-3 text-red-700">{row.inventory?.damagedStock || 0}</td>
                       <td className="p-3 font-bold text-green-700">{row.inventory?.availableStock || 0}</td>
                       <td className="p-3">
                         <span className={`rounded-full px-2 py-1 text-xs font-bold ${badgeColors[row.signal.tone] || badgeColors.gray}`}>
@@ -233,8 +275,9 @@ export default function AdminInventoryPage() {
                       <td className="p-3">
                         <div className="flex flex-wrap gap-2">
                           <input value={quantities[row.product.id] || ""} onChange={(event) => setQuantities((current) => ({ ...current, [row.product.id]: event.target.value }))} type="number" placeholder="Qty" className="w-20 rounded-lg border p-2 text-xs" />
-                          <button onClick={() => action(row.product.id, { mode: "ADD", quantity: Number(quantities[row.product.id] || 0) })} className="rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white">Add</button>
-                          <button onClick={() => action(row.product.id, { mode: "REMOVE", quantity: Number(quantities[row.product.id] || 0) })} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white">Reduce</button>
+                          <button onClick={() => action(row.product.id, { mode: "ADD", quantity: Number(quantities[row.product.id] || 0), warehouseId: row.inventory?.warehouseId || null, reasonCode: "ADMIN_ADJUSTMENT" })} className="rounded-lg bg-green-600 px-3 py-2 text-xs font-bold text-white">Add</button>
+                          <button onClick={() => action(row.product.id, { mode: "REMOVE", quantity: Number(quantities[row.product.id] || 0), warehouseId: row.inventory?.warehouseId || null, reasonCode: "ADMIN_ADJUSTMENT" })} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white">Reduce</button>
+                          <button onClick={() => action(row.product.id, { mode: "DAMAGE", quantity: Number(quantities[row.product.id] || 0), warehouseId: row.inventory?.warehouseId || null, reasonCode: "DAMAGED_STOCK" })} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white">Damage</button>
                           <button
                             onClick={() => action(row.product.id, { action: "reminder" })}
                             disabled={sendingReminderId === row.product.id}
@@ -247,7 +290,7 @@ export default function AdminInventoryPage() {
                     </tr>
                     {(row.variants || []).length > 0 && (
                       <tr className="border-t bg-slate-50">
-                        <td colSpan={9} className="p-3">
+                        <td colSpan={11} className="p-3">
                           <div className="rounded-xl border border-slate-200 bg-white p-3">
                             <div className="mb-2 flex items-center justify-between gap-3">
                               <p className="text-xs font-black uppercase text-slate-500">Variant Stock by Size / Color</p>
@@ -324,16 +367,18 @@ export default function AdminInventoryPage() {
         <section className="mt-5 rounded-2xl bg-white p-4 shadow-sm">
           <h2 className="text-lg font-black">Stock Movement History</h2>
           <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left text-sm">
+            <table className="w-full min-w-[980px] text-left text-sm">
               <thead className="bg-slate-100 text-xs uppercase text-slate-500">
-                <tr><th className="p-3">Date</th><th className="p-3">Product</th><th className="p-3">Type</th><th className="p-3">Qty</th><th className="p-3">Old</th><th className="p-3">New</th><th className="p-3">Reason</th></tr>
+                <tr><th className="p-3">Date</th><th className="p-3">Product</th><th className="p-3">Warehouse</th><th className="p-3">Type</th><th className="p-3">Reason Code</th><th className="p-3">Qty</th><th className="p-3">Old</th><th className="p-3">New</th><th className="p-3">Reason</th></tr>
               </thead>
               <tbody>
                 {(data.movements || []).slice(0, 80).map((row) => (
                   <tr key={row.id} className="border-t">
                     <td className="p-3">{new Date(row.createdAt).toLocaleString("en-IN")}</td>
                     <td className="p-3">{row.productId?.slice(-8)}</td>
+                    <td className="p-3">{row.warehouse ? `${row.warehouse.name} (${row.warehouse.code})` : "Unassigned"}</td>
                     <td className="p-3 font-bold">{row.type}</td>
+                    <td className="p-3">{row.reasonCode || "-"}</td>
                     <td className="p-3">{row.quantity}</td>
                     <td className="p-3">{row.oldStock}</td>
                     <td className="p-3">{row.newStock}</td>

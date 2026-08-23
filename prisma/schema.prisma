@@ -130,6 +130,8 @@ enum StockStatus {
 enum StockMovementType {
   STOCK_ADDED
   STOCK_REMOVED
+  STOCK_RECEIVED
+  DAMAGED_STOCK
   ORDER_PLACED
   ORDER_CANCELLED
   ORDER_RETURNED
@@ -306,6 +308,7 @@ model VendorWarehouse {
   notes          String?
   inventories    Inventory[]
   stockMovements StockMovement[]
+  stockReservations StockReservation[]
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 
@@ -532,6 +535,9 @@ model ProductVariant {
   imageUrl          String?
   status            String   @default("IN_STOCK")
   lowStockThreshold Int      @default(3)
+  inventories       Inventory[]
+  stockMovements    StockMovement[]
+  stockReservations StockReservation[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -549,8 +555,13 @@ model Inventory {
   vendorId                 String
   warehouse                VendorWarehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
   warehouseId              String?
+  variant                  ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  variantId                String?
   sku                      String?
   mpn                      String?
+  openingStock             Int         @default(0)
+  receivedStock            Int         @default(0)
+  damagedStock             Int         @default(0)
   currentStock             Int         @default(0)
   reservedStock            Int         @default(0)
   availableStock           Int         @default(0)
@@ -572,6 +583,7 @@ model Inventory {
   @@unique([productId])
   @@index([vendorId])
   @@index([warehouseId])
+  @@index([variantId])
   @@index([sku])
   @@index([mpn])
   @@index([stockStatus])
@@ -585,7 +597,10 @@ model StockMovement {
   vendorId         String
   warehouse        VendorWarehouse?  @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
   warehouseId      String?
+  variant          ProductVariant?   @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  variantId        String?
   type             StockMovementType
+  reasonCode       String?
   quantity         Int
   oldStock         Int
   newStock         Int
@@ -599,6 +614,8 @@ model StockMovement {
   @@index([productId])
   @@index([vendorId])
   @@index([warehouseId])
+  @@index([variantId])
+  @@index([reasonCode])
   @@index([orderId])
   @@index([type])
   @@index([createdAt])
@@ -647,6 +664,10 @@ model StockReservation {
   id        String                 @id @default(cuid())
   product   Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId String
+  warehouse VendorWarehouse?       @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  warehouseId String?
+  variant   ProductVariant?        @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  variantId String?
   order     Order?                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId   String?
   quantity  Int
@@ -656,6 +677,8 @@ model StockReservation {
   updatedAt DateTime               @updatedAt
 
   @@index([productId])
+  @@index([warehouseId])
+  @@index([variantId])
   @@index([orderId])
   @@index([status])
   @@index([expiresAt])

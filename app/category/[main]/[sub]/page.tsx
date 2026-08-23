@@ -9,5 +9,11 @@ export default async function CategoryGroupPage({
 }) {
   const { main, sub } = await params;
 
-  return <CategoryListingClient mainSlug={main} partSlug={sub} />;
+  return (
+    <CategoryListingClient
+      key={`${main}/${sub}`}
+      mainSlug={main}
+      partSlug={sub}
+    />
+  );
 }

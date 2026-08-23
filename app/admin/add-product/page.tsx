@@ -117,7 +117,7 @@ export default function AddProductPage() {
 
       try {
         const [categoriesResponse, vendorsResponse] = await Promise.all([
-          fetch("/api/categories", { cache: "no-store" }),
+          fetch("/api/categories?fresh=1", { cache: "no-store" }),
           fetch("/api/admin/vendors", { cache: "no-store" }),
         ]);
         const categoriesData = await categoriesResponse.json();

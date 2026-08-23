@@ -302,7 +302,7 @@ function LegacyAdminCategoriesPage() {
   async function loadCategories() {
     setLoading(true);
     try {
-      const response = await fetch("/api/categories", { cache: "no-store" });
+      const response = await fetch("/api/categories?fresh=1", { cache: "no-store" });
       const data = await response.json();
 
       if (!response.ok) {
@@ -429,6 +429,7 @@ function LegacyAdminCategoriesPage() {
     }
 
     try {
+      query.set("fresh", "1");
       const response = await fetch(`/api/category-templates?${query.toString()}`, {
         cache: "no-store",
       });

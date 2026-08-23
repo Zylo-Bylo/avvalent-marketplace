@@ -20,6 +20,7 @@ function inventoryRowsToCsv(rows: any[]) {
   const header = [
     'Product Name',
     'Vendor Name',
+    'Warehouse',
     'SKU',
     'MPN',
     'Current Stock',
@@ -32,6 +33,7 @@ function inventoryRowsToCsv(rows: any[]) {
     [
       row.product?.name,
       row.vendor?.storeName,
+      row.warehouse ? `${row.warehouse.name} (${row.warehouse.code})` : 'Unassigned',
       row.product?.sku || row.inventory?.sku,
       row.inventory?.mpn,
       row.inventory?.currentStock,
@@ -68,6 +70,7 @@ export async function GET(request: NextRequest) {
     q: searchParams.get('q') || '',
     status: searchParams.get('status') || 'ALL',
     vendorId: searchParams.get('vendorId') || '',
+    warehouseId: searchParams.get('warehouseId') || 'ALL',
   });
   const format = searchParams.get('format') || '';
 
@@ -114,6 +117,7 @@ export async function POST(request: Request) {
         allowBackorder: Boolean(body.allowBackorder),
         isPreOrder: Boolean(body.isPreOrder),
         bulkPricingTiers: body.bulkPricingTiers || null,
+        warehouseId: body.warehouseId,
       });
     } else if (action === 'reminder') {
       const product = await prisma.product.findUnique({
@@ -172,13 +176,24 @@ export async function POST(request: Request) {
       await adjustProductStock({
         productId,
         quantity: Number(body.quantity || 0),
-        mode: body.mode === 'REMOVE' ? 'REMOVE' : body.mode === 'SET' ? 'SET' : 'ADD',
+        mode:
+          body.mode === 'REMOVE'
+            ? 'REMOVE'
+            : body.mode === 'SET'
+              ? 'SET'
+              : body.mode === 'DAMAGE'
+                ? 'DAMAGE'
+                : 'ADD',
+        warehouseId: body.warehouseId || null,
+        reasonCode: body.reasonCode || null,
         reason: String(body.reason || 'Admin stock update.'),
         adjustedByUserId: adminId,
       });
     }
 
-    const data = await getAdminInventoryData({});
+    const data = await getAdminInventoryData({
+      warehouseId: body.warehouseId || 'ALL',
+    });
     return NextResponse.json({ message: 'Inventory action completed.', ...data });
   } catch (error) {
     return NextResponse.json(

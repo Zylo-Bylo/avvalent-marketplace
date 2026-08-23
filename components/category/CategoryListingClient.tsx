@@ -14,6 +14,12 @@ import {
 import type { CategoryFilter, CategoryShortcut } from "@/lib/categoryFilters";
 import { findCategoryPart } from "@/data/category-tree";
 import {
+  cacheCategoryListing,
+  cachePublicCategoryTree,
+  getCachedCategoryListing,
+  getCachedPublicCategoryTree,
+} from "@/lib/category-listing-cache";
+import {
   categoryPlaceholderImage,
   findCategoryNodeByAnySlug,
   findCategoryNodeByPath,
@@ -197,6 +203,36 @@ function filtersFromTemplate(template: DynamicTemplate | null): CategoryFilter[]
   return [...fieldFilters, dynamicPriceFilter, dynamicSortFilter];
 }
 
+const categoryIdentityParams = new Set([
+  "categoryId",
+  "subcategoryId",
+  "productTypeId",
+]);
+
+function filtersFromSearchParams(searchParams: Pick<URLSearchParams, "forEach">) {
+  const filters: Record<string, string> = {};
+
+  searchParams.forEach((value, key) => {
+    if (value && !categoryIdentityParams.has(key)) {
+      filters[key] = value;
+    }
+  });
+
+  return filters;
+}
+
+function filtersMatch(
+  left: Record<string, string>,
+  right: Record<string, string>,
+) {
+  const leftEntries = Object.entries(left);
+  const rightEntries = Object.entries(right);
+  return (
+    leftEntries.length === rightEntries.length &&
+    leftEntries.every(([key, value]) => right[key] === value)
+  );
+}
+
 export default function CategoryListingClient({
   mainSlug,
   groupSlug = "",
@@ -236,8 +272,12 @@ export default function CategoryListingClient({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [totalProducts, setTotalProducts] = useState(0);
-  const [filterDraft, setFilterDraft] = useState<Record<string, string>>({});
-  const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({});
+  const [filterDraft, setFilterDraft] = useState<Record<string, string>>(() =>
+    filtersFromSearchParams(searchParams),
+  );
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>(() =>
+    filtersFromSearchParams(searchParams),
+  );
   const [desktopFilterOpen, setDesktopFilterOpen] = useState<string | null>(null);
   const [desktopFilterPosition, setDesktopFilterPosition] = useState<{
     left: number;
@@ -245,7 +285,7 @@ export default function CategoryListingClient({
     top: number;
   } | null>(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [filtersHydrated, setFiltersHydrated] = useState(false);
+  const [metadataReadyKey, setMetadataReadyKey] = useState("");
   const [dynamicCategoryNode, setDynamicCategoryNode] = useState<PublicCategoryNode | null>(null);
   const [dynamicBreadcrumb, setDynamicBreadcrumb] = useState<string[]>([]);
   const [dynamicShortcuts, setDynamicShortcuts] = useState<CategoryShortcut[]>([]);
@@ -253,6 +293,18 @@ export default function CategoryListingClient({
   const [useMobileBanner, setUseMobileBanner] = useState(false);
   const desktopFilterButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const desktopFilterPanelRef = useRef<HTMLDivElement | null>(null);
+  const metadataRequestIdRef = useRef(0);
+  const productRequestIdRef = useRef(0);
+  const searchParamsKey = searchParams.toString();
+  const routeIdentityKey = [
+    mainSlug,
+    groupSlug,
+    partSlug,
+    categoryIdFilter,
+    subcategoryIdFilter,
+    productTypeIdFilter,
+  ].join("|");
+  const metadataReady = metadataReadyKey === routeIdentityKey;
 
   const genericDynamicFilters = useMemo(() => [dynamicPriceFilter, dynamicSortFilter], []);
   const listingFilters = dynamicCategoryNode
@@ -305,14 +357,38 @@ export default function CategoryListingClient({
   }, []);
 
   useEffect(() => {
-    let isActive = true;
+    const controller = new AbortController();
+    const requestId = ++metadataRequestIdRef.current;
+    setMetadataReadyKey("");
+    setDynamicCategoryNode(null);
+    setDynamicBreadcrumb([]);
+    setDynamicShortcuts([]);
+    setDynamicFilters([]);
+    setProducts([]);
+    setTotalProducts(0);
+    setLoading(true);
+    setError("");
 
     async function loadDynamicCategoryMetadata() {
       try {
-        const response = await fetch(`/api/categories?t=${Date.now()}`, { cache: "no-store" });
-        const data = await response.json();
-        if (!isActive || !response.ok) return;
-        const tree = normalizePublicCategoryTree(data);
+        let tree = getCachedPublicCategoryTree();
+
+        if (!tree) {
+          const response = await fetch("/api/categories", {
+            signal: controller.signal,
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "Categories could not be loaded.");
+          }
+          tree = normalizePublicCategoryTree(data);
+          cachePublicCategoryTree(tree);
+        }
+
+        if (controller.signal.aborted || requestId !== metadataRequestIdRef.current) {
+          return;
+        }
+
         const category = tree.find((node) => node.slug === mainSlug) || null;
         const subcategory = category?.children.find((node) => node.slug === (groupSlug || partSlug)) || null;
         const productType = groupSlug
@@ -361,22 +437,37 @@ export default function CategoryListingClient({
         const categoryId = categoryIdFilter || selectedCategory?.id || "";
         const subcategoryId = subcategoryIdFilter || selectedSubcategory?.id || "";
         const productTypeId = productTypeIdFilter || (selectedNode?.entityType === "productType" ? selectedNode.id : "");
+        setMetadataReadyKey(routeIdentityKey);
+
         if (categoryId) {
           const templateParams = new URLSearchParams({ categoryId });
           if (subcategoryId) templateParams.set("subcategoryId", subcategoryId);
           if (productTypeId) templateParams.set("productTypeId", productTypeId);
-          const templateResponse = await fetch(`/api/category-templates?${templateParams.toString()}`, { cache: "no-store" });
+          const templateResponse = await fetch(`/api/category-templates?${templateParams.toString()}`, {
+            signal: controller.signal,
+          });
           const templateData = await templateResponse.json();
-          if (isActive && templateResponse.ok) {
+          if (
+            !controller.signal.aborted &&
+            requestId === metadataRequestIdRef.current &&
+            templateResponse.ok
+          ) {
             setDynamicFilters(filtersFromTemplate(templateData.template || null));
           }
         }
-      } catch {
-        if (isActive) {
+      } catch (metadataError) {
+        if (
+          !controller.signal.aborted &&
+          requestId === metadataRequestIdRef.current
+        ) {
           setDynamicCategoryNode(null);
           setDynamicBreadcrumb([]);
           setDynamicShortcuts([]);
           setDynamicFilters([]);
+          setMetadataReadyKey(routeIdentityKey);
+          if (metadataError instanceof Error) {
+            setError(metadataError.message);
+          }
         }
       }
     }
@@ -384,46 +475,32 @@ export default function CategoryListingClient({
     loadDynamicCategoryMetadata();
 
     return () => {
-      isActive = false;
+      controller.abort();
     };
-  }, [categoryIdFilter, groupSlug, mainSlug, partSlug, productTypeIdFilter, subcategoryIdFilter]);
+  }, [categoryIdFilter, groupSlug, mainSlug, partSlug, productTypeIdFilter, routeIdentityKey, subcategoryIdFilter]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const initialFilters: Record<string, string> = {};
-
-    listingFilters.forEach((filter) => {
-      const value = params.get(filter.key);
-      if (value) {
-        initialFilters[filter.key] = value;
-      }
-    });
-
-    const legacySort = params.get("sort");
-    if (legacySort && !initialFilters.sort) {
-      initialFilters.sort = legacySort;
-    }
-
-    setFilterDraft(initialFilters);
-    setAppliedFilters(initialFilters);
-    setFiltersHydrated(true);
-  }, [listingFilters]);
+    const nextFilters = filtersFromSearchParams(new URLSearchParams(searchParamsKey));
+    setFilterDraft((current) =>
+      filtersMatch(current, nextFilters) ? current : nextFilters,
+    );
+    setAppliedFilters((current) =>
+      filtersMatch(current, nextFilters) ? current : nextFilters,
+    );
+  }, [searchParamsKey]);
 
   useEffect(() => {
-    if (!filtersHydrated) {
+    if (!metadataReady) {
       return;
     }
 
-    let isActive = true;
+    const controller = new AbortController();
+    const requestId = ++productRequestIdRef.current;
 
     async function loadProducts() {
-      setLoading(true);
-      setError("");
-
       const params = new URLSearchParams({
-        limit: "48",
+        limit: "24",
         sort: appliedFilters.sort || "popular",
-        includeInventoryDetails: "true",
       });
 
       if (resolvedProductTypeId) {
@@ -441,9 +518,9 @@ export default function CategoryListingClient({
         params.set("offer", "true");
       }
 
-      const priceFilter = listingFilters
-        .find((filter) => filter.key === "price")
-        ?.options.find((option) => option.value === appliedFilters.price);
+      const priceFilter = dynamicPriceFilter.options.find(
+        (option) => option.value === appliedFilters.price,
+      );
 
       if (priceFilter?.minPrice) {
         params.set("minPrice", priceFilter.minPrice);
@@ -453,41 +530,86 @@ export default function CategoryListingClient({
         params.set("maxPrice", priceFilter.maxPrice);
       }
 
-      if (appliedFilters.brand) {
-        params.set("brand", appliedFilters.brand);
-      }
+      Object.entries(appliedFilters)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .forEach(([key, value]) => {
+          if (
+            value &&
+            !["sort", "price", "discount", "allDiscount"].includes(key)
+          ) {
+            params.set(key, value);
+          }
+        });
 
-      const response = await fetch(`/api/products?${params.toString()}`, {
-        cache: "no-store",
-      });
-      const data = await response.json();
-
-      if (!isActive) {
-        return;
-      }
-
-      if (!response.ok) {
-        setProducts([]);
-        setTotalProducts(0);
-        setError(data.error || "Products could not be loaded.");
+      const requestUrl = `/api/products?${params.toString()}`;
+      const cachedListing = getCachedCategoryListing<Product>(requestUrl);
+      if (cachedListing) {
+        setProducts(cachedListing.products);
+        setTotalProducts(cachedListing.total);
         setLoading(false);
+        setError("");
         return;
       }
 
-      setProducts(data.products || []);
-      setTotalProducts(Number(data.total || 0));
-      setLoading(false);
+      setProducts([]);
+      setTotalProducts(0);
+      setLoading(true);
+      setError("");
+
+      try {
+        const response = await fetch(requestUrl, {
+          signal: controller.signal,
+        });
+        const data = await response.json();
+
+        if (
+          controller.signal.aborted ||
+          requestId !== productRequestIdRef.current
+        ) {
+          return;
+        }
+
+        if (!response.ok) {
+          setError(data.error || "Products could not be loaded.");
+          return;
+        }
+
+        const listing = {
+          products: (data.products || []) as Product[],
+          total: Number(data.total || 0),
+        };
+        cacheCategoryListing(requestUrl, listing);
+        setProducts(listing.products);
+        setTotalProducts(listing.total);
+      } catch (productError) {
+        if (
+          !controller.signal.aborted &&
+          requestId === productRequestIdRef.current
+        ) {
+          setError(
+            productError instanceof Error
+              ? productError.message
+              : "Products could not be loaded.",
+          );
+        }
+      } finally {
+        if (
+          !controller.signal.aborted &&
+          requestId === productRequestIdRef.current
+        ) {
+          setLoading(false);
+        }
+      }
     }
 
     loadProducts();
 
     return () => {
-      isActive = false;
+      controller.abort();
     };
   }, [
     appliedFilters,
-    filtersHydrated,
-    listingFilters,
+    metadataReady,
     resolvedCategoryId,
     resolvedProductTypeId,
     resolvedSubcategoryId,
@@ -583,9 +705,13 @@ export default function CategoryListingClient({
     );
     const params = new URLSearchParams();
 
-    if (resolvedCategoryId) params.set("categoryId", resolvedCategoryId);
-    if (resolvedSubcategoryId) params.set("subcategoryId", resolvedSubcategoryId);
-    if (resolvedProductTypeId) params.set("productTypeId", resolvedProductTypeId);
+    if (resolvedProductTypeId) {
+      params.set("productTypeId", resolvedProductTypeId);
+    } else if (resolvedSubcategoryId) {
+      params.set("subcategoryId", resolvedSubcategoryId);
+    } else if (resolvedCategoryId) {
+      params.set("categoryId", resolvedCategoryId);
+    }
 
     Object.entries(cleanFilters).forEach(([key, value]) => {
       params.set(key, value);

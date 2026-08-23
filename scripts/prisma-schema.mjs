@@ -11,11 +11,21 @@ const root = path.resolve(__dirname, '..');
 dotenv.config({ path: path.join(root, '.env.local') });
 dotenv.config({ path: path.join(root, '.env') });
 
-const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
+const databaseUrl =
+  process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL || 'file:./dev.db';
+const isVercelBuild = Boolean(process.env.VERCEL || process.env.VERCEL_ENV);
 const provider =
   databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://')
     ? 'postgresql'
     : 'sqlite';
+
+if (isVercelBuild && provider !== 'postgresql') {
+  console.error(
+    'Refusing to generate a SQLite Prisma Client during a Vercel build. ' +
+      'Set DATABASE_URL or DIRECT_DATABASE_URL to the production PostgreSQL URL.'
+  );
+  process.exit(1);
+}
 const baseSchemaPath = path.join(root, 'prisma', 'schema.prisma');
 const generatedDir = path.join(root, 'prisma', '.generated');
 const generatedSchemaPath = path.join(generatedDir, `${provider}.schema.prisma`);
