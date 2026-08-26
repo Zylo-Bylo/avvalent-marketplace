@@ -80,7 +80,7 @@ type DynamicTemplate = {
   };
 };
 
-const fallbackImage = "https://placehold.co/900x1200/png?text=ZYLO+BUYLO";
+const fallbackImage = "/product-placeholder.svg";
 
 function titleFromSlug(value: string) {
   return value

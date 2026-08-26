@@ -47,7 +47,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
       name: product.name,
       category: product.category?.name || 'Product',
       price: product.price,
-      image: product.images[0] || '/placeholder.jpg',
+      image: product.images[0] || '/product-placeholder.svg',
     });
   };
 

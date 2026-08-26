@@ -384,7 +384,7 @@ export default function AdminOrdersPage() {
                         <img
                           src={
                             item.product?.images?.[0] ||
-                            "https://placehold.co/80x80/png?text=Product"
+                            "/product-placeholder.svg"
                           }
                           alt={item.product?.name || "Product"}
                           className="h-16 w-16 bg-stone-100 object-cover"

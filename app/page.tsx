@@ -52,7 +52,7 @@ type CurrentUser = {
   } | null;
 };
 
-const fallbackImage = "https://placehold.co/900x900/png?text=ZYLO+BUYLO";
+const fallbackImage = "/product-placeholder.svg";
 const visibleMegaSubcategoryLimit = 6;
 const visibleMegaProductTypeLimit = 8;
 

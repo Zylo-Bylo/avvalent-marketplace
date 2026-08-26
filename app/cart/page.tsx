@@ -69,7 +69,7 @@ export default function CartPage() {
                 <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-100">
                 <Image
                   src={
-                    item.image || "https://placehold.co/120x120/png?text=Product"
+                    item.image || "/product-placeholder.svg"
                   }
                   alt={item.name}
                   fill

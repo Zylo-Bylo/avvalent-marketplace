@@ -411,7 +411,7 @@ export default function VendorInventoryPage() {
                         <td className="p-3">
                           <div className="flex items-center gap-3">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={row.product.images?.[0] || "https://placehold.co/80x80/png?text=Product"} alt={row.product.name} className="h-14 w-14 rounded-lg object-cover" />
+                            <img src={row.product.images?.[0] || "/product-placeholder.svg"} alt={row.product.name} className="h-14 w-14 rounded-lg object-cover" />
                             <div>
                               <p className="font-bold">{row.product.name}</p>
                               <p className="text-xs text-slate-500">{row.product.category?.name || "No category"}</p>

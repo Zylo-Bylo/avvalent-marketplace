@@ -1664,7 +1664,7 @@
       "price": 1299,
       "sku": null,
       "images": [
-        "https://via.placeholder.com/600x600/9333EA/FFFFFF?text=Earbuds"
+        "/product-placeholder.svg"
       ],
       "inventory": 25,
       "vendorId": "cmowb7cnx0003r8v4przegi69",
@@ -1698,7 +1698,7 @@
       "price": 1499,
       "sku": null,
       "images": [
-        "https://via.placeholder.com/600x600/0F766E/FFFFFF?text=Watch"
+        "/product-placeholder.svg"
       ],
       "inventory": 20,
       "vendorId": "cmowb7cnx0003r8v4przegi69",
@@ -1732,7 +1732,7 @@
       "price": 1299,
       "sku": null,
       "images": [
-        "https://via.placeholder.com/600x600/1E40AF/FFFFFF?text=Jeans"
+        "/product-placeholder.svg"
       ],
       "inventory": 30,
       "vendorId": "cmowb7cnx0003r8v4przegi69",
@@ -1766,7 +1766,7 @@
       "price": 499,
       "sku": null,
       "images": [
-        "https://via.placeholder.com/600x600/FFB6C1/000000?text=T-Shirt"
+        "/product-placeholder.svg"
       ],
       "inventory": 50,
       "vendorId": "cmowb7cnx0003r8v4przegi69",

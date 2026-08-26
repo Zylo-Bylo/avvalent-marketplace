@@ -79,7 +79,7 @@ type ProductForm = {
   imageUrls: string;
 };
 
-const fallbackImage = "https://placehold.co/300x300/png?text=Product";
+const fallbackImage = "/product-placeholder.svg";
 
 function formFromProduct(product: Product): ProductForm {
   return {

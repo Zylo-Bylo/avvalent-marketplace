@@ -213,7 +213,7 @@ function getOrderShortId(orderId: string) {
 }
 
 function getProductImage(item: OrderItem) {
-  return item.product?.images?.[0] || 'https://placehold.co/96x96/png?text=Product';
+  return item.product?.images?.[0] || '/product-placeholder.svg';
 }
 
 function getPaymentLabel(paymentMethod: string) {
@@ -1036,7 +1036,7 @@ export default function OrderPage() {
                       <img
                         src={
                           item.product?.images?.[0] ||
-                          'https://placehold.co/80x80/png?text=Product'
+                          '/product-placeholder.svg'
                         }
                         alt={item.product?.name || 'Product'}
                         className="h-16 w-16 rounded-xl bg-slate-100 object-cover"

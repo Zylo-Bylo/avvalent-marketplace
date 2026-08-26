@@ -71,7 +71,7 @@ type Product = {
   };
 };
 
-const fallbackImage = "https://placehold.co/900x900/png?text=Product";
+const fallbackImage = "/product-placeholder.svg";
 
 function formatPrice(price: number) {
   return `Rs. ${Number(price || 0).toLocaleString("en-IN", {

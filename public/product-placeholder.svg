@@ -1,0 +1,12 @@
+<svg width="900" height="900" viewBox="0 0 900 900" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Product image placeholder</title>
+  <desc id="desc">A neutral Zylo-Buylo marketplace product placeholder.</desc>
+  <rect width="900" height="900" rx="36" fill="#F7F1E5"/>
+  <rect x="58" y="58" width="784" height="784" rx="28" fill="#FFFBF4" stroke="#D8C28A" stroke-width="3"/>
+  <path d="M300 360C300 277.157 367.157 210 450 210C532.843 210 600 277.157 600 360" stroke="#2B2721" stroke-width="24" stroke-linecap="round"/>
+  <path d="M236 330H664L704 704C707.572 737.408 681.387 766.5 647.789 766.5H252.211C218.613 766.5 192.428 737.408 196 704L236 330Z" fill="#EFE2C4" stroke="#2B2721" stroke-width="24" stroke-linejoin="round"/>
+  <circle cx="344" cy="438" r="20" fill="#B99146"/>
+  <circle cx="556" cy="438" r="20" fill="#B99146"/>
+  <path d="M350 548C378.5 589 416.5 609.5 450 609.5C483.5 609.5 521.5 589 550 548" stroke="#2B2721" stroke-width="20" stroke-linecap="round"/>
+  <path d="M168 164L216 118M734 774L780 728" stroke="#D8C28A" stroke-width="10" stroke-linecap="round"/>
+</svg>

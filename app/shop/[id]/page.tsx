@@ -37,7 +37,7 @@ type Category = {
   name: string;
 };
 
-const fallbackImage = "https://placehold.co/600x800/png?text=Product";
+const fallbackImage = "/product-placeholder.svg";
 
 function money(value: number | null | undefined) {
   return `Rs. ${Number(value || 0).toLocaleString("en-IN", {

@@ -1278,7 +1278,7 @@ export default function VendorDashboardPage() {
                       <img
                         src={
                           item.product?.images?.[0] ||
-                          "https://placehold.co/80x80/png?text=Product"
+                          "/product-placeholder.svg"
                         }
                         alt={item.product?.name || "Product"}
                         className="h-14 w-14 rounded-lg object-cover"
@@ -2191,7 +2191,7 @@ export default function VendorDashboardPage() {
                                   <img
                                     src={
                                       product.images?.[0] ||
-                                      "https://placehold.co/100x100/png?text=No+Image"
+                                      "/product-placeholder.svg"
                                     }
                                     alt={product.name}
                                     className="h-14 w-14 rounded-lg object-cover"

@@ -52,7 +52,7 @@ type Category = {
   subcategories?: Subcategory[];
 };
 
-const fallbackImage = "https://placehold.co/600x800/png?text=No+Image";
+const fallbackImage = "/product-placeholder.svg";
 
 const attributeFilterGroups = [
   { title: "Color", values: ["Black", "White", "Blue", "Pink", "Green"] },

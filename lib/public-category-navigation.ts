@@ -19,7 +19,7 @@ export type PublicCategoryNode = {
 };
 
 export const categoryPlaceholderImage =
-  "https://placehold.co/600x600/png?text=Zylo+Buylo";
+  "/product-placeholder.svg";
 
 function slugify(value: string) {
   return value

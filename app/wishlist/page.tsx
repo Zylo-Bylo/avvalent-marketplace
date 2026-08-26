@@ -62,7 +62,7 @@ export default function WishlistPage() {
                 <div className="relative h-40 overflow-hidden rounded mb-3">
 
                   <Image
-                    src={product.image || "https://placehold.co/320x320/png?text=Product"}
+                    src={product.image || "/product-placeholder.svg"}
                     alt={product.name}
                     fill
                     sizes="(min-width: 768px) 25vw, 50vw"

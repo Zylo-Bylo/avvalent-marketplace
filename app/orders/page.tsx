@@ -126,7 +126,7 @@ export default function OrdersPage() {
                           <img
                             src={
                               firstItem?.product?.images?.[0] ||
-                              'https://placehold.co/96x96/png?text=Order'
+                              '/product-placeholder.svg'
                             }
                             alt={firstItem?.product?.name || 'Order'}
                             className="h-20 w-20 rounded-xl bg-slate-100 object-cover"
