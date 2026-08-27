@@ -1,4 +1,5 @@
 import catalog from '@/data/fallback-catalog.json';
+import { normalizeProductImageFallback } from '@/lib/product-image-fallback';
 
 type FallbackProduct = (typeof catalog.products)[number];
 
@@ -98,16 +99,18 @@ export function getFallbackProducts(searchParams: URLSearchParams) {
   const total = products.length;
 
   return {
-    products: products.slice(offset, offset + limit),
+    products: products.slice(offset, offset + limit).map(normalizeProductImageFallback),
     total,
     hasMore: offset + limit < total,
   };
 }
 
 export function getFallbackProductById(id: string) {
-  return catalog.products.find((product) => product.id === id) || null;
+  const product = catalog.products.find((product) => product.id === id);
+  return product ? normalizeProductImageFallback(product) : null;
 }
 
 export function getFallbackProductBySlug(slug: string) {
-  return catalog.products.find((product) => product.slug === slug) || null;
+  const product = catalog.products.find((product) => product.slug === slug);
+  return product ? normalizeProductImageFallback(product) : null;
 }

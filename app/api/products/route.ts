@@ -4,6 +4,7 @@ import {
   getFallbackProducts,
   shouldUseFallbackCatalog,
 } from '@/lib/fallback-catalog';
+import { normalizeProductImageFallback } from '@/lib/product-image-fallback';
 
 const categoryAliases: Record<string, string[]> = {
   fashion: ['fashion', 'kurti-saree-lehenga', 'women-western', 'men', 'bags-footwear'],
@@ -326,8 +327,9 @@ export async function GET(request: NextRequest) {
       prisma.product.count({ where }),
     ]);
     const queryFinishedAt = performance.now();
+    const normalizedProducts = products.map(normalizeProductImageFallback);
     const body = JSON.stringify({
-      products,
+      products: normalizedProducts,
       total,
       hasMore: offset + limit < total,
     });

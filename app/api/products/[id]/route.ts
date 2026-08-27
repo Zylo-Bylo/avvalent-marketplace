@@ -6,6 +6,7 @@ import {
   getFallbackProductById,
   shouldUseFallbackCatalog,
 } from '@/lib/fallback-catalog';
+import { normalizeProductImageFallback } from '@/lib/product-image-fallback';
 import { adjustProductStock, ensureProductInventory } from '@/lib/inventory';
 import { calculateMarketplacePricing } from '@/lib/pricing';
 import type { ProductVariantRow } from '@/lib/variants';
@@ -148,7 +149,7 @@ export async function GET(
     return NextResponse.json(
       {
         product: {
-          ...product,
+          ...normalizeProductImageFallback(product),
           variants,
         },
       },

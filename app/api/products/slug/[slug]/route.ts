@@ -4,6 +4,7 @@ import {
   getFallbackProductBySlug,
   shouldUseFallbackCatalog,
 } from '@/lib/fallback-catalog';
+import { normalizeProductImageFallback } from '@/lib/product-image-fallback';
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   try {
@@ -41,7 +42,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ product });
+    return NextResponse.json({ product: normalizeProductImageFallback(product) });
   } catch (error) {
     console.error('Product fetch error:', error);
     if (shouldUseFallbackCatalog(error)) {

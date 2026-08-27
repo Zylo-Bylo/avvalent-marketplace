@@ -51,10 +51,10 @@ ON CONFLICT ("slug") DO UPDATE SET
   "updatedAt" = CURRENT_TIMESTAMP;
 
 INSERT INTO "Product" ("id", "name", "slug", "description", "price", "sku", "images", "inventory", "vendorId", "categoryId", "createdAt", "updatedAt") VALUES
-  ('prod_stylish_tshirt', 'Stylish T-Shirt', 'stylish-t-shirt', 'A comfortable and stylish t-shirt perfect for everyday wear.', 499, 'SEED-TSHIRT', '["https://via.placeholder.com/600x600/FFB6C1/000000?text=T-Shirt"]'::jsonb, 50, 'vendor_profile_sample', 'cat_fashion', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('prod_blue_jeans', 'Blue Jeans', 'blue-jeans', 'Classic blue jeans with a perfect fit for all occasions.', 1299, 'SEED-JEANS', '["https://via.placeholder.com/600x600/1E40AF/FFFFFF?text=Jeans"]'::jsonb, 30, 'vendor_profile_sample', 'cat_fashion', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('prod_smart_watch', 'Smart Watch', 'smart-watch', 'Feature-packed smart watch with health tracking and notifications.', 1499, 'SEED-WATCH', '["https://via.placeholder.com/600x600/0F766E/FFFFFF?text=Watch"]'::jsonb, 20, 'vendor_profile_sample', 'cat_electronics', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-  ('prod_bluetooth_earbuds', 'Bluetooth Earbuds', 'bluetooth-earbuds', 'Wireless earbuds with excellent sound quality and noise cancellation.', 1299, 'SEED-EARBUDS', '["https://via.placeholder.com/600x600/9333EA/FFFFFF?text=Earbuds"]'::jsonb, 25, 'vendor_profile_sample', 'cat_electronics', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  ('prod_stylish_tshirt', 'Stylish T-Shirt', 'stylish-t-shirt', 'A comfortable and stylish t-shirt perfect for everyday wear.', 499, 'SEED-TSHIRT', '["/product-placeholder.svg"]'::jsonb, 50, 'vendor_profile_sample', 'cat_fashion', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('prod_blue_jeans', 'Blue Jeans', 'blue-jeans', 'Classic blue jeans with a perfect fit for all occasions.', 1299, 'SEED-JEANS', '["/product-placeholder.svg"]'::jsonb, 30, 'vendor_profile_sample', 'cat_fashion', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('prod_smart_watch', 'Smart Watch', 'smart-watch', 'Feature-packed smart watch with health tracking and notifications.', 1499, 'SEED-WATCH', '["/product-placeholder.svg"]'::jsonb, 20, 'vendor_profile_sample', 'cat_electronics', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+  ('prod_bluetooth_earbuds', 'Bluetooth Earbuds', 'bluetooth-earbuds', 'Wireless earbuds with excellent sound quality and noise cancellation.', 1299, 'SEED-EARBUDS', '["/product-placeholder.svg"]'::jsonb, 25, 'vendor_profile_sample', 'cat_electronics', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT ("slug") DO UPDATE SET
   "name" = EXCLUDED."name",
   "description" = EXCLUDED."description",

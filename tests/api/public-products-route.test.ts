@@ -155,6 +155,52 @@ describe("public products API routes", () => {
     );
   });
 
+  it("normalizes placeholder product images at the public serialization boundary", async () => {
+    const validImage = "https://cdn.example.com/catalogue/real-product.webp";
+    mocks.prisma.product.findMany.mockResolvedValue([
+      {
+        id: "product-placeholder",
+        name: "Placeholder Product",
+        images: ["https://placehold.co/600x600"],
+      },
+      {
+        id: "product-real",
+        name: "Real Product",
+        images: [validImage, "https://via.placeholder.com/600x600"],
+      },
+      {
+        id: "product-missing",
+        name: "Missing Image Product",
+        images: [],
+      },
+    ]);
+    mocks.prisma.product.count.mockResolvedValue(3);
+
+    const response = await getProducts(
+      new Request("http://localhost/api/products?includeOutOfStock=true") as NextRequest,
+    );
+    const data = await response.json();
+    const serialized = JSON.stringify(data);
+
+    expect(data.products).toEqual([
+      expect.objectContaining({
+        id: "product-placeholder",
+        images: ["/product-placeholder.svg"],
+      }),
+      expect.objectContaining({
+        id: "product-real",
+        images: [validImage],
+      }),
+      expect.objectContaining({
+        id: "product-missing",
+        images: ["/product-placeholder.svg"],
+      }),
+    ]);
+    expect(serialized).not.toContain("placehold.co");
+    expect(serialized).not.toContain("via.placeholder.com");
+    expect(serialized).not.toContain("placeholder.com");
+  });
+
   it("applies dynamic category template filters to product text fields", async () => {
     const response = await getProducts(
       new Request("http://localhost/api/products?subcategoryId=sub-baby-diapers&packQuantity=20%20Pieces") as NextRequest,
@@ -180,6 +226,7 @@ describe("public products API routes", () => {
   it("returns product detail for approved vendor products", async () => {
     mocks.prisma.product.findUnique.mockResolvedValue({
       id: "product-1",
+      images: ["https://placehold.co/600x600"],
       vendor: {
         status: "APPROVED",
       },
@@ -194,10 +241,40 @@ describe("public products API routes", () => {
     await expect(response.json()).resolves.toEqual({
       product: {
         id: "product-1",
+        images: ["/product-placeholder.svg"],
         vendor: {
           status: "APPROVED",
         },
         variants: [],
+      },
+    });
+  });
+
+  it("preserves valid images on slug product detail responses", async () => {
+    const validImage = "https://cdn.example.com/catalogue/slug-product.webp";
+    mocks.prisma.product.findUnique.mockResolvedValue({
+      id: "product-1",
+      slug: "valid-product",
+      images: [validImage, "https://via.placeholder.com/600x600"],
+      vendor: {
+        status: "APPROVED",
+      },
+    });
+
+    const response = await getProductBySlug(
+      new Request("http://localhost/api/products/slug/valid-product"),
+      params({ slug: "valid-product" }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      product: {
+        id: "product-1",
+        slug: "valid-product",
+        images: [validImage],
+        vendor: {
+          status: "APPROVED",
+        },
       },
     });
   });
