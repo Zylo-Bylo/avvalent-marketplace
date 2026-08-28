@@ -48,8 +48,15 @@ describe("Phase-2 vendor warehouse SQL and schema", () => {
 
     expect(updateGrant).toContain('"status"');
     expect(insertGrant).toContain('"status"');
-    expect(migration).toContain('"status" = \'PENDING\'');
-    expect(migration).toContain('using (\n    "status" = \'PENDING\'');
+    expect(migration).toMatch(
+      /create policy "vendor_warehouse_insert_own"[\s\S]*?for insert[\s\S]*?with check\s*\([\s\S]*?"status"\s*=\s*'PENDING'[\s\S]*?private\.zylo_auth_owns_vendor\("vendorId"\)[\s\S]*?\);/i,
+    );
+    expect(migration).toMatch(
+      /create policy "vendor_warehouse_update_own"[\s\S]*?for update[\s\S]*?using\s*\([\s\S]*?"status"\s*=\s*'PENDING'[\s\S]*?private\.zylo_auth_owns_vendor\("vendorId"\)[\s\S]*?\)[\s\S]*?with check\s*\([\s\S]*?"status"\s*=\s*'PENDING'[\s\S]*?private\.zylo_auth_owns_vendor\("vendorId"\)[\s\S]*?\);/i,
+    );
+    expect(migration).toMatch(
+      /create policy "vendor_warehouse_delete_own"[\s\S]*?for delete[\s\S]*?using\s*\([\s\S]*?"status"\s*=\s*'PENDING'[\s\S]*?private\.zylo_auth_owns_vendor\("vendorId"\)[\s\S]*?\);/i,
+    );
   });
 
   it("rollback removes only Phase-2 objects and does not expose existing data", () => {
