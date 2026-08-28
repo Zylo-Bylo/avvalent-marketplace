@@ -4,6 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import ZyloBrandLogo from "@/components/brand/ZyloBrandLogo";
+import {
+  getCategoryHref,
+  normalizePublicCategoryTree,
+  type PublicCategoryNode,
+} from "@/lib/public-category-navigation";
 import { useCartStore } from "@/store/cart-store";
 
 type CurrentUser = {
@@ -33,6 +38,7 @@ export default function Navbar() {
   const cartCount = useCartStore((state) => state.getTotalItems());
   const clearCart = useCartStore((state) => state.clearCart);
   const [user, setUser] = useState<CurrentUser | null>(null);
+  const [categories, setCategories] = useState<PublicCategoryNode[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -71,6 +77,44 @@ export default function Navbar() {
     };
   }, [pathname]);
 
+  const isManagementPath =
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/vendor/dashboard") ||
+    pathname?.startsWith("/vendor/approval-pending");
+  const showCategoryBar = !isManagementPath;
+
+  useEffect(() => {
+    if (!showCategoryBar) {
+      setCategories([]);
+      return;
+    }
+
+    let isActive = true;
+
+    async function loadCategories() {
+      try {
+        const response = await fetch("/api/categories", { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json();
+        const normalized = normalizePublicCategoryTree(data);
+
+        if (isActive) {
+          setCategories(normalized.slice(0, 12));
+        }
+      } catch {
+        if (isActive) {
+          setCategories([]);
+        }
+      }
+    }
+
+    loadCategories();
+
+    return () => {
+      isActive = false;
+    };
+  }, [showCategoryBar]);
+
   const isVendor = user?.role === "VENDOR";
   const isAdmin = user?.role === "ADMIN";
   const displayName =
@@ -86,7 +130,7 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-40 w-full max-w-full overflow-x-clip border-b border-[#e7dcc8] bg-[#fffdf8]/95 backdrop-blur-xl">
+    <nav className="sticky top-0 z-40 w-full max-w-full overflow-x-clip border-b border-[#e7dcc8] bg-[#fffdf8]/95 shadow-[0_8px_24px_rgba(42,35,25,0.07)] backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl min-w-0 items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-8">
         <Link
           href="/"
@@ -131,26 +175,26 @@ export default function Navbar() {
             <div className="relative">
               <button
                 onClick={() => setMenuOpen((open) => !open)}
-                className="flex items-center gap-2 rounded-full border border-pink-600 bg-pink-50 px-4 py-2 text-sm font-medium text-pink-700 hover:bg-pink-100"
+                className="flex items-center gap-2 rounded-full border border-[#d9c7a6] bg-[#fffaf1] px-4 py-2 text-sm font-medium text-[#5f4a28] hover:border-[#b58b3b] hover:bg-white"
               >
                 <span className="max-w-32 truncate">{displayName}</span>
                 <span className="text-xs">v</span>
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
-                  <div className="border-b px-4 py-3">
-                    <p className="font-semibold text-slate-900">
+                <div className="absolute right-0 top-full mt-2 w-72 overflow-hidden rounded-md border border-[#e7dcc8] bg-[#fffdf8] shadow-[0_18px_45px_rgba(42,35,25,0.16)]">
+                  <div className="border-b border-[#eee5d6] px-4 py-3">
+                    <p className="font-semibold text-[#241f18]">
                       {displayName}
                     </p>
-                    <p className="text-xs text-slate-500">{user.email}</p>
+                    <p className="text-xs text-[#756a5e]">{user.email}</p>
                   </div>
 
                   {isAdmin ? (
                     <>
                       <Link
                         href="/admin/dashboard"
-                        className="block bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-700 hover:bg-pink-100"
+                        className="block bg-[#fff4dc] px-4 py-3 text-sm font-semibold text-[#5f4a28] hover:bg-[#f6e7bb]"
                         onClick={() => setMenuOpen(false)}
                       >
                         Open Admin Dashboard
@@ -158,7 +202,7 @@ export default function Navbar() {
 
                       <Link
                         href="/admin/vendors"
-                        className="block px-4 py-2 text-sm hover:bg-slate-100"
+                        className="block px-4 py-2 text-sm hover:bg-[#f8f4ec]"
                         onClick={() => setMenuOpen(false)}
                       >
                         Vendor Approvals
@@ -166,7 +210,7 @@ export default function Navbar() {
 
                       <Link
                         href="/admin/products"
-                        className="block px-4 py-2 text-sm hover:bg-slate-100"
+                        className="block px-4 py-2 text-sm hover:bg-[#f8f4ec]"
                         onClick={() => setMenuOpen(false)}
                       >
                         Product Management
@@ -176,7 +220,7 @@ export default function Navbar() {
                     <>
                       <Link
                         href="/vendor/dashboard"
-                        className="block bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-700 hover:bg-pink-100"
+                        className="block bg-[#fff4dc] px-4 py-3 text-sm font-semibold text-[#5f4a28] hover:bg-[#f6e7bb]"
                         onClick={() => setMenuOpen(false)}
                       >
                         Open Vendor Dashboard
@@ -186,7 +230,7 @@ export default function Navbar() {
                         <Link
                           key={item.label}
                           href={item.href}
-                          className="block px-4 py-2 text-sm hover:bg-slate-100"
+                          className="block px-4 py-2 text-sm hover:bg-[#f8f4ec]"
                           onClick={() => setMenuOpen(false)}
                         >
                           {item.label}
@@ -197,7 +241,7 @@ export default function Navbar() {
                     <>
                       <Link
                         href="/profile"
-                        className="block bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-700 hover:bg-pink-100"
+                        className="block bg-[#fff4dc] px-4 py-3 text-sm font-semibold text-[#5f4a28] hover:bg-[#f6e7bb]"
                         onClick={() => setMenuOpen(false)}
                       >
                         My Profile
@@ -205,7 +249,7 @@ export default function Navbar() {
 
                       <Link
                         href="/orders"
-                        className="block px-4 py-2 text-sm hover:bg-slate-100"
+                        className="block px-4 py-2 text-sm hover:bg-[#f8f4ec]"
                         onClick={() => setMenuOpen(false)}
                       >
                         My Orders
@@ -213,7 +257,7 @@ export default function Navbar() {
 
                       <Link
                         href="/wishlist"
-                        className="block px-4 py-2 text-sm hover:bg-slate-100"
+                        className="block px-4 py-2 text-sm hover:bg-[#f8f4ec]"
                         onClick={() => setMenuOpen(false)}
                       >
                         Wishlist
@@ -221,7 +265,7 @@ export default function Navbar() {
 
                       <Link
                         href="/vendor/register"
-                        className="block px-4 py-2 text-sm hover:bg-slate-100"
+                        className="block px-4 py-2 text-sm hover:bg-[#f8f4ec]"
                         onClick={() => setMenuOpen(false)}
                       >
                         Become a Vendor
@@ -231,7 +275,7 @@ export default function Navbar() {
 
                   <button
                     onClick={handleLogout}
-                    className="block w-full border-t px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50"
+                    className="block w-full border-t border-[#eee5d6] px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50"
                   >
                     Logout
                   </button>
@@ -242,21 +286,21 @@ export default function Navbar() {
             <>
               <Link
                 href="/login?role=customer&next=/profile"
-                className="hidden rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50 md:inline-block"
+                className="hidden rounded-full border border-[#d9c7a6] bg-white px-4 py-2 text-sm font-medium text-[#241f18] hover:bg-[#fffaf1] md:inline-block"
               >
                 Customer Login
               </Link>
 
               <Link
                 href="/login?role=vendor&next=/vendor/dashboard"
-                className="hidden rounded-full border border-pink-600 bg-white px-4 py-2 text-sm font-medium text-pink-700 hover:bg-pink-50 lg:inline-block"
+                className="hidden rounded-full border border-[#b58b3b] bg-white px-4 py-2 text-sm font-medium text-[#5f4a28] hover:bg-[#fffaf1] lg:inline-block"
               >
                 Vendor Login
               </Link>
 
               <Link
                 href="/login"
-                className="rounded-full border border-pink-600 bg-pink-50 px-4 py-2 text-sm font-medium text-pink-700 hover:bg-pink-100"
+                className="rounded-full border border-[#b58b3b] bg-[#fff4dc] px-4 py-2 text-sm font-medium text-[#5f4a28] hover:bg-[#f6e7bb]"
               >
                 Login / Signup
               </Link>
@@ -265,13 +309,28 @@ export default function Navbar() {
 
           <Link
             href="/cart"
-            className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-200"
+            className="flex items-center gap-2 rounded-full border border-[#e1d4c0] bg-white px-4 py-2 text-sm font-medium text-[#241f18] hover:border-[#b58b3b] hover:bg-[#fffaf1]"
           >
             <span>Cart</span>
             <span>{visibleCartCount}</span>
           </Link>
         </div>
       </div>
+      {showCategoryBar && categories.length > 0 && (
+        <div className="border-t border-[#eee5d6] bg-[#fffaf1]/98">
+          <div className="zylo-home-scroll-row mx-auto flex w-full max-w-7xl min-w-0 gap-2 overflow-x-auto overscroll-x-contain px-3 py-2 sm:px-6 lg:px-8">
+            {categories.map((category) => (
+              <Link
+                key={category.id}
+                href={getCategoryHref(category)}
+                className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-[#4f463b] transition hover:bg-white hover:text-[#8a6a30] md:text-sm"
+              >
+                {category.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
