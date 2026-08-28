@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import Navbar from "@/components/navbar/Navbar";
@@ -10,6 +10,8 @@ import {
   HomepageContent,
   HomepageHeroSlide,
   HomepageLinkItem,
+  HomepagePromoBanner,
+  HomepageSectionSetting,
   normalizeHomepageContent,
 } from "@/lib/homepage-content";
 
@@ -71,7 +73,7 @@ function FieldLabel({
   hint,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
   hint?: string;
 }) {
   return (
@@ -180,6 +182,33 @@ function HeroSlidePreview({ slide }: { slide: HomepageHeroSlide }) {
   );
 }
 
+const textAlignOptions = [
+  { label: "Left", value: "left" },
+  { label: "Center", value: "center" },
+  { label: "Right", value: "right" },
+];
+
+const textPositionOptions = [
+  { label: "Center left", value: "center-left" },
+  { label: "Center", value: "center" },
+  { label: "Center right", value: "center-right" },
+  { label: "Bottom left", value: "bottom-left" },
+];
+
+const overlayOptions = [
+  { label: "Light", value: "light" },
+  { label: "Medium", value: "medium" },
+  { label: "Strong", value: "strong" },
+];
+
+const promoPlacementOptions = [
+  { label: "Shopper banner", value: "shopper" },
+  { label: "Seller banner", value: "seller" },
+  { label: "Deals banner", value: "deals" },
+  { label: "New arrivals", value: "new-arrivals" },
+  { label: "Other", value: "other" },
+];
+
 export default function AdminHomepagePage() {
   const [content, setContent] = useState<HomepageContent>(cloneDefaultContent);
   const [quickLinksText, setQuickLinksText] = useState("");
@@ -224,6 +253,43 @@ export default function AdminHomepagePage() {
     }));
   }
 
+  function updatePromoBanner(index: number, patch: Partial<HomepagePromoBanner>) {
+    setContent((current) => ({
+      ...current,
+      promoBanners: updateArrayItem(current.promoBanners, index, patch),
+    }));
+  }
+
+  function addPromoBanner() {
+    setContent((current) => ({
+      ...current,
+      promoBanners: [
+        ...current.promoBanners,
+        {
+          ...defaultHomepageContent.promoBanners[0],
+          eyebrow: "New promo",
+          title: "Premium marketplace offer",
+          text: "Add a polished shopper or seller message for the homepage.",
+          ctaLabel: "Shop Now",
+          href: "/products",
+          image: "",
+          mobileImage: "",
+          imageAlt: "Homepage promotional banner",
+          placement: "other",
+          order: current.promoBanners.length + 1,
+          active: true,
+        },
+      ].slice(0, 8),
+    }));
+  }
+
+  function updateSection(index: number, patch: Partial<HomepageSectionSetting>) {
+    setContent((current) => ({
+      ...current,
+      sections: updateArrayItem(current.sections, index, patch),
+    }));
+  }
+
   function addHeroSlide() {
     setContent((current) => ({
       ...current,
@@ -235,6 +301,8 @@ export default function AdminHomepagePage() {
           title: "Premium marketplace banner",
           highlight: "Change image from admin",
           image: "/hero-marketplace-visual.png",
+          order: current.heroSlides.length + 1,
+          active: true,
         },
       ].slice(0, 6),
     }));
@@ -372,6 +440,46 @@ export default function AdminHomepagePage() {
                         ))}
                       </select>
                     </div>
+                    <div className="mb-3 grid gap-3 rounded-lg border border-stone-200 bg-white p-3 md:grid-cols-4">
+                      <label className="flex items-center gap-2 text-sm font-bold text-stone-800">
+                        <input
+                          type="checkbox"
+                          checked={slide.active !== false}
+                          onChange={(event) => updateHero(index, { active: event.target.checked })}
+                        />
+                        Active
+                      </label>
+                      <FieldLabel label="Sort order">
+                        <input
+                          type="number"
+                          value={slide.order}
+                          onChange={(event) => updateHero(index, { order: Number(event.target.value) })}
+                          className="rounded-lg border p-2"
+                        />
+                      </FieldLabel>
+                      <FieldLabel label="Text alignment">
+                        <select
+                          value={slide.textAlign}
+                          onChange={(event) => updateHero(index, { textAlign: event.target.value })}
+                          className="rounded-lg border p-2"
+                        >
+                          {textAlignOptions.map((item) => (
+                            <option key={item.value} value={item.value}>{item.label}</option>
+                          ))}
+                        </select>
+                      </FieldLabel>
+                      <FieldLabel label="Text position">
+                        <select
+                          value={slide.textPosition}
+                          onChange={(event) => updateHero(index, { textPosition: event.target.value })}
+                          className="rounded-lg border p-2"
+                        >
+                          {textPositionOptions.map((item) => (
+                            <option key={item.value} value={item.value}>{item.label}</option>
+                          ))}
+                        </select>
+                      </FieldLabel>
+                    </div>
                     <div className="grid gap-3 md:grid-cols-2">
                       <FieldLabel label={index === 0 ? "Hero small label" : "Backup small label"}>
                         <input value={slide.eyebrow} onChange={(event) => updateHero(index, { eyebrow: event.target.value })} placeholder="Zylo-Buylo sale" className="rounded-lg border p-3" />
@@ -385,6 +493,9 @@ export default function AdminHomepagePage() {
                       <FieldLabel label="Banner image/video URL" hint="Yahan direct .jpg/.png/.webp image URL, public path like /hero-banner.png, ya direct .mp4 video URL dalen. Webpage link mat dalen.">
                         <input value={slide.image} onChange={(event) => updateHero(index, { image: event.target.value })} placeholder="/hero-banner.png or https://.../image.jpg" className="rounded-lg border p-3" />
                       </FieldLabel>
+                      <FieldLabel label="Mobile image/video URL" hint="Optional. Mobile ke liye separate crop/image ho to yahan dalen. Empty hone par desktop media crop hoga.">
+                        <input value={slide.mobileImage} onChange={(event) => updateHero(index, { mobileImage: event.target.value })} placeholder="/mobile-hero.png or https://.../image.jpg" className="rounded-lg border p-3" />
+                      </FieldLabel>
                       <div className="md:col-span-2">
                         <FileUploadField
                           label="Upload banner image/video"
@@ -393,6 +504,37 @@ export default function AdminHomepagePage() {
                           onUploaded={(url) => updateHero(index, { image: url })}
                         />
                       </div>
+                      <div className="md:col-span-2">
+                        <FileUploadField
+                          label="Upload mobile banner image/video"
+                          purpose="homepage-banner"
+                          accept="image/*,video/mp4,video/webm,video/quicktime"
+                          onUploaded={(url) => updateHero(index, { mobileImage: url })}
+                        />
+                      </div>
+                      <FieldLabel label="Video poster URL" hint="Optional fallback image for video banners.">
+                        <input value={slide.videoPoster} onChange={(event) => updateHero(index, { videoPoster: event.target.value })} placeholder="/hero-poster.png" className="rounded-lg border p-3" />
+                      </FieldLabel>
+                      <FieldLabel label="Image crop position" hint="Examples: center, center top, 35% center.">
+                        <input value={slide.objectPosition} onChange={(event) => updateHero(index, { objectPosition: event.target.value })} placeholder="center" className="rounded-lg border p-3" />
+                      </FieldLabel>
+                      <FieldLabel label="Overlay strength">
+                        <select
+                          value={slide.overlayStrength}
+                          onChange={(event) => updateHero(index, { overlayStrength: event.target.value })}
+                          className="rounded-lg border p-3"
+                        >
+                          {overlayOptions.map((item) => (
+                            <option key={item.value} value={item.value}>{item.label}</option>
+                          ))}
+                        </select>
+                      </FieldLabel>
+                      <FieldLabel label="Start date/time" hint="Optional scheduling note. Leave empty for always visible.">
+                        <input value={slide.startsAt} onChange={(event) => updateHero(index, { startsAt: event.target.value })} placeholder="2026-08-25T10:00" className="rounded-lg border p-3" />
+                      </FieldLabel>
+                      <FieldLabel label="End date/time" hint="Optional scheduling note. Leave empty for no end date.">
+                        <input value={slide.endsAt} onChange={(event) => updateHero(index, { endsAt: event.target.value })} placeholder="2026-09-01T23:59" className="rounded-lg border p-3" />
+                      </FieldLabel>
                       <FieldLabel label={index === 0 ? "Shop Now button label" : "Backup primary label"}>
                         <input value={slide.primaryLabel} onChange={(event) => updateHero(index, { primaryLabel: event.target.value })} placeholder="Shop Now" className="rounded-lg border p-3" />
                       </FieldLabel>
@@ -421,6 +563,128 @@ export default function AdminHomepagePage() {
                       </div>
                       <HeroSlidePreview slide={slide} />
                     </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="bg-white p-5 shadow">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-black">Homepage V2 Promotional Banners</h2>
+                  <p className="mt-1 text-sm text-stone-600">
+                    Shopper, seller, deals aur other premium homepage banners yahin se control honge.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={addPromoBanner}
+                  className="rounded-sm border border-[#6b145d] px-4 py-2 text-sm font-black text-[#6b145d]"
+                >
+                  Add Promo Banner
+                </button>
+              </div>
+
+              <div className="mt-5 grid gap-4">
+                {content.promoBanners.map((banner, index) => (
+                  <div key={`${banner.placement}-${banner.order}-${index}`} className="rounded-xl border border-stone-200 bg-[#fffaf5] p-4">
+                    <div className="mb-3 grid gap-3 md:grid-cols-4">
+                      <label className="flex items-center gap-2 text-sm font-bold text-stone-800">
+                        <input
+                          type="checkbox"
+                          checked={banner.active !== false}
+                          onChange={(event) => updatePromoBanner(index, { active: event.target.checked })}
+                        />
+                        Active
+                      </label>
+                      <FieldLabel label="Placement">
+                        <select
+                          value={banner.placement}
+                          onChange={(event) => updatePromoBanner(index, { placement: event.target.value })}
+                          className="rounded-lg border p-2"
+                        >
+                          {promoPlacementOptions.map((item) => (
+                            <option key={item.value} value={item.value}>{item.label}</option>
+                          ))}
+                        </select>
+                      </FieldLabel>
+                      <FieldLabel label="Sort order">
+                        <input
+                          type="number"
+                          value={banner.order}
+                          onChange={(event) => updatePromoBanner(index, { order: Number(event.target.value) })}
+                          className="rounded-lg border p-2"
+                        />
+                      </FieldLabel>
+                      <FieldLabel label="Image alt text">
+                        <input value={banner.imageAlt} onChange={(event) => updatePromoBanner(index, { imageAlt: event.target.value })} placeholder="Promotional banner" className="rounded-lg border p-2" />
+                      </FieldLabel>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <FieldLabel label="Small label"><input value={banner.eyebrow} onChange={(event) => updatePromoBanner(index, { eyebrow: event.target.value })} placeholder="Fashion Fiesta" className="rounded-lg border p-3" /></FieldLabel>
+                      <FieldLabel label="Title"><input value={banner.title} onChange={(event) => updatePromoBanner(index, { title: event.target.value })} placeholder="Top Brands, Huge Savings" className="rounded-lg border p-3" /></FieldLabel>
+                      <FieldLabel label="Button label"><input value={banner.ctaLabel} onChange={(event) => updatePromoBanner(index, { ctaLabel: event.target.value })} placeholder="Shop Now" className="rounded-lg border p-3" /></FieldLabel>
+                      <FieldLabel label="Button route"><input value={banner.href} onChange={(event) => updatePromoBanner(index, { href: event.target.value })} placeholder="/products?offer=true" className="rounded-lg border p-3" /></FieldLabel>
+                      <FieldLabel label="Desktop image/video URL"><input value={banner.image} onChange={(event) => updatePromoBanner(index, { image: event.target.value })} placeholder="/hero-banner.png" className="rounded-lg border p-3" /></FieldLabel>
+                      <FieldLabel label="Mobile image/video URL"><input value={banner.mobileImage} onChange={(event) => updatePromoBanner(index, { mobileImage: event.target.value })} placeholder="/mobile-promo.png" className="rounded-lg border p-3" /></FieldLabel>
+                      <div>
+                        <FileUploadField
+                          label="Upload desktop promo media"
+                          purpose="homepage-banner"
+                          accept="image/*,video/mp4,video/webm,video/quicktime"
+                          onUploaded={(url) => updatePromoBanner(index, { image: url })}
+                        />
+                      </div>
+                      <div>
+                        <FileUploadField
+                          label="Upload mobile promo media"
+                          purpose="homepage-banner"
+                          accept="image/*,video/mp4,video/webm,video/quicktime"
+                          onUploaded={(url) => updatePromoBanner(index, { mobileImage: url })}
+                        />
+                      </div>
+                      <FieldLabel label="Description">
+                        <textarea value={banner.text} onChange={(event) => updatePromoBanner(index, { text: event.target.value })} placeholder="Short premium banner text" rows={3} className="rounded-lg border p-3 md:col-span-2" />
+                      </FieldLabel>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="bg-white p-5 shadow">
+              <h2 className="text-2xl font-black">Homepage Section Controls</h2>
+              <p className="mt-1 text-sm text-stone-600">
+                Public homepage sections, titles, display order and item limits stay controlled here.
+              </p>
+
+              <div className="mt-5 grid gap-3">
+                {content.sections.map((section, index) => (
+                  <div key={`${section.key}-${index}`} className="grid gap-3 rounded-xl border border-stone-200 bg-[#fffaf5] p-4 md:grid-cols-[140px_1fr_1fr_110px_110px]">
+                    <label className="flex items-center gap-2 text-sm font-bold text-stone-800">
+                      <input
+                        type="checkbox"
+                        checked={section.enabled !== false}
+                        onChange={(event) => updateSection(index, { enabled: event.target.checked })}
+                      />
+                      {section.key}
+                    </label>
+                    <FieldLabel label="Section title">
+                      <input value={section.title} onChange={(event) => updateSection(index, { title: event.target.value })} className="rounded-lg border p-2" />
+                    </FieldLabel>
+                    <FieldLabel label="Subtitle">
+                      <input value={section.subtitle} onChange={(event) => updateSection(index, { subtitle: event.target.value })} className="rounded-lg border p-2" />
+                    </FieldLabel>
+                    <FieldLabel label="Order">
+                      <input type="number" value={section.order} onChange={(event) => updateSection(index, { order: Number(event.target.value) })} className="rounded-lg border p-2" />
+                    </FieldLabel>
+                    <FieldLabel label="Limit">
+                      <input type="number" min={1} max={48} value={section.limit} onChange={(event) => updateSection(index, { limit: Number(event.target.value) })} className="rounded-lg border p-2" />
+                    </FieldLabel>
+                    <p className="text-xs font-semibold text-stone-500 md:col-span-5">
+                      Source: {section.source || "existing homepage/category/product controls"}
+                    </p>
                   </div>
                 ))}
               </div>

@@ -8,9 +8,19 @@ export type HomepageHeroSlide = {
   secondaryLabel: string;
   secondaryHref: string;
   image: string;
+  mobileImage: string;
+  videoPoster: string;
   imageAlt: string;
   theme: string;
   panel: string;
+  textAlign: string;
+  textPosition: string;
+  objectPosition: string;
+  overlayStrength: string;
+  order: number;
+  active: boolean;
+  startsAt: string;
+  endsAt: string;
 };
 
 export type HomepageLinkItem = {
@@ -31,7 +41,11 @@ export type HomepagePromoBanner = {
   ctaLabel: string;
   href: string;
   image: string;
+  mobileImage: string;
   imageAlt: string;
+  placement: string;
+  order: number;
+  active: boolean;
 };
 
 export type HomepageDiscountBanner = {
@@ -51,8 +65,20 @@ export type HomepageContent = {
   quickShopLinks: HomepageLinkItem[];
   brandShortcuts: HomepageBrandItem[];
   promoBanner: HomepagePromoBanner;
+  promoBanners: HomepagePromoBanner[];
   dealCards: HomepageLinkItem[];
   discountBanner: HomepageDiscountBanner;
+  sections: HomepageSectionSetting[];
+};
+
+export type HomepageSectionSetting = {
+  key: string;
+  title: string;
+  subtitle: string;
+  enabled: boolean;
+  order: number;
+  limit: number;
+  source: string;
 };
 
 export const defaultHomepageContent: HomepageContent = {
@@ -92,9 +118,19 @@ export const defaultHomepageContent: HomepageContent = {
       secondaryLabel: "Become a seller",
       secondaryHref: "/supplier",
       image: "/hero-marketplace-visual.png",
+      mobileImage: "",
+      videoPoster: "",
       imageAlt: "Zylo-Buylo marketplace shopping",
       theme: "bg-[#fff6fb]",
       panel: "bg-[#fff0f6]",
+      textAlign: "left",
+      textPosition: "center-left",
+      objectPosition: "center",
+      overlayStrength: "medium",
+      order: 1,
+      active: true,
+      startsAt: "",
+      endsAt: "",
     },
     {
       eyebrow: "Best deals today",
@@ -106,9 +142,19 @@ export const defaultHomepageContent: HomepageContent = {
       secondaryLabel: "New arrivals",
       secondaryHref: "/products?sort=new",
       image: "/hero-banner.png",
+      mobileImage: "",
+      videoPoster: "",
       imageAlt: "Zylo-Buylo deals and gifts",
       theme: "bg-[#fff8ec]",
       panel: "bg-[#2a140c]",
+      textAlign: "left",
+      textPosition: "center-left",
+      objectPosition: "center",
+      overlayStrength: "medium",
+      order: 2,
+      active: true,
+      startsAt: "",
+      endsAt: "",
     },
     {
       eyebrow: "Top seller highlights",
@@ -120,9 +166,19 @@ export const defaultHomepageContent: HomepageContent = {
       secondaryLabel: "View products",
       secondaryHref: "/products?sort=popular",
       image: "/hero-marketplace-visual.png",
+      mobileImage: "",
+      videoPoster: "",
       imageAlt: "Zylo-Buylo vendor marketplace",
       theme: "bg-[#f4f9ff]",
       panel: "bg-[#eef6ff]",
+      textAlign: "left",
+      textPosition: "center-left",
+      objectPosition: "center",
+      overlayStrength: "medium",
+      order: 3,
+      active: true,
+      startsAt: "",
+      endsAt: "",
     },
   ],
   promoBanner: {
@@ -132,8 +188,40 @@ export const defaultHomepageContent: HomepageContent = {
     ctaLabel: "Explore fashion",
     href: "/products?category=fashion&sort=trending",
     image: "/hero-banner.png",
+    mobileImage: "",
     imageAlt: "Luxury marketplace collection",
+    placement: "shopper",
+    order: 1,
+    active: true,
   },
+  promoBanners: [
+    {
+      eyebrow: "Fashion Fiesta",
+      title: "Top Brands, Huge Savings",
+      text: "Premium picks, fresh deals and curated products from approved Zylo-Buylo sellers.",
+      ctaLabel: "Shop Now",
+      href: "/products?offer=true",
+      image: "/hero-banner.png",
+      mobileImage: "",
+      imageAlt: "Fashion Fiesta marketplace banner",
+      placement: "shopper",
+      order: 1,
+      active: true,
+    },
+    {
+      eyebrow: "Grow Your Business",
+      title: "Reach shoppers with easy onboarding",
+      text: "Low commission, secure payments, seller tools and dedicated support for approved vendors.",
+      ctaLabel: "Become Vendor",
+      href: "/vendor/register",
+      image: "",
+      mobileImage: "",
+      imageAlt: "Seller growth banner",
+      placement: "seller",
+      order: 2,
+      active: true,
+    },
+  ],
   dealCards: [
     {
       title: "Up to 70% off",
@@ -156,6 +244,14 @@ export const defaultHomepageContent: HomepageContent = {
     image: "/hero-banner.png",
     imageAlt: "Mega discount products",
   },
+  sections: [
+    { key: "categories", title: "Shop by Category", subtitle: "", enabled: true, order: 1, limit: 12, source: "categories" },
+    { key: "shortcuts", title: "Quick Shop", subtitle: "", enabled: true, order: 2, limit: 8, source: "homepage-links" },
+    { key: "productsForYou", title: "Products For You", subtitle: "", enabled: true, order: 3, limit: 24, source: "popular-products" },
+    { key: "bestDeals", title: "Best Deals", subtitle: "", enabled: true, order: 4, limit: 12, source: "deals" },
+    { key: "newArrivals", title: "New Arrivals", subtitle: "", enabled: true, order: 5, limit: 12, source: "new-products" },
+    { key: "brands", title: "Shop by Brand", subtitle: "", enabled: true, order: 6, limit: 12, source: "brand-shortcuts" },
+  ],
 };
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -214,10 +310,57 @@ function cleanHeroSlide(value: unknown, fallback: HomepageHeroSlide): HomepageHe
     secondaryLabel: text(row.secondaryLabel, fallback.secondaryLabel, 40),
     secondaryHref: routeOrFallback(rawSecondaryHref, fallback.secondaryHref),
     image: repairedImage,
+    mobileImage: text(row.mobileImage, fallback.mobileImage || "", 1000),
+    videoPoster: text(row.videoPoster, fallback.videoPoster || "", 1000),
     imageAlt: text(row.imageAlt, fallback.imageAlt, 180),
     theme: text(row.theme, fallback.theme, 80),
     panel: text(row.panel, fallback.panel, 80),
+    textAlign: text(row.textAlign, fallback.textAlign || "left", 40),
+    textPosition: text(row.textPosition, fallback.textPosition || "center-left", 40),
+    objectPosition: text(row.objectPosition, fallback.objectPosition || "center", 80),
+    overlayStrength: text(row.overlayStrength, fallback.overlayStrength || "medium", 40),
+    order: Number(row.order || fallback.order || 0),
+    active: row.active === false ? false : fallback.active !== false,
+    startsAt: text(row.startsAt, fallback.startsAt || "", 80),
+    endsAt: text(row.endsAt, fallback.endsAt || "", 80),
   };
+}
+
+function cleanPromoBanner(
+  value: unknown,
+  fallback: HomepagePromoBanner,
+): HomepagePromoBanner {
+  const row = asObject(value);
+  return {
+    eyebrow: text(row.eyebrow, fallback.eyebrow, 80),
+    title: text(row.title, fallback.title, 140),
+    text: text(row.text, fallback.text, 500),
+    ctaLabel: text(row.ctaLabel, fallback.ctaLabel, 60),
+    href: routeOrFallback(text(row.href, fallback.href, 200), fallback.href),
+    image: text(row.image, fallback.image, 1000),
+    mobileImage: text(row.mobileImage, fallback.mobileImage || "", 1000),
+    imageAlt: text(row.imageAlt, fallback.imageAlt, 180),
+    placement: text(row.placement, fallback.placement || "shopper", 60),
+    order: Number(row.order || fallback.order || 0),
+    active: row.active === false ? false : fallback.active !== false,
+  };
+}
+
+function cleanSectionList(value: unknown, fallback: HomepageSectionSetting[]) {
+  const rows = Array.isArray(value) ? value : fallback;
+  return rows.slice(0, 16).map((item, index) => {
+    const row = asObject(item);
+    const source = fallback[index] || fallback[0];
+    return {
+      key: text(row.key, source.key, 80),
+      title: text(row.title, source.title, 120),
+      subtitle: text(row.subtitle, source.subtitle || "", 180),
+      enabled: row.enabled === false ? false : source.enabled !== false,
+      order: Number(row.order || source.order || index + 1),
+      limit: Math.max(1, Math.min(48, Number(row.limit || source.limit || 12))),
+      source: text(row.source, source.source || "", 80),
+    };
+  });
 }
 
 function cleanLinkList(
@@ -257,25 +400,31 @@ export function normalizeHomepageContent(value: unknown): HomepageContent {
     : defaults.heroSlides;
   const promo = asObject(input.promoBanner);
   const discount = asObject(input.discountBanner);
+  const legacyPromo = cleanPromoBanner(promo, defaults.promoBanner);
+  const promoRows = Array.isArray(input.promoBanners)
+    ? input.promoBanners
+    : [legacyPromo, ...defaults.promoBanners.slice(1)];
 
   return {
     heroSlides: heroRows
       .slice(0, 6)
       .map((slide, index) =>
         cleanHeroSlide(slide, defaults.heroSlides[index] || defaults.heroSlides[0]),
-      ),
+      )
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0)),
     utilityLinks: cleanLinkList(input.utilityLinks, defaults.utilityLinks, 8),
     quickShopLinks: cleanLinkList(input.quickShopLinks, defaults.quickShopLinks, 10),
     brandShortcuts: cleanBrandList(input.brandShortcuts, defaults.brandShortcuts),
-    promoBanner: {
-      eyebrow: text(promo.eyebrow, defaults.promoBanner.eyebrow, 80),
-      title: text(promo.title, defaults.promoBanner.title, 140),
-      text: text(promo.text, defaults.promoBanner.text, 500),
-      ctaLabel: text(promo.ctaLabel, defaults.promoBanner.ctaLabel, 60),
-      href: text(promo.href, defaults.promoBanner.href, 200),
-      image: text(promo.image, defaults.promoBanner.image, 1000),
-      imageAlt: text(promo.imageAlt, defaults.promoBanner.imageAlt, 180),
-    },
+    promoBanner: legacyPromo,
+    promoBanners: promoRows
+      .slice(0, 8)
+      .map((banner, index) =>
+        cleanPromoBanner(
+          banner,
+          defaults.promoBanners[index] || defaults.promoBanners[0],
+        ),
+      )
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0)),
     dealCards: cleanLinkList(input.dealCards, defaults.dealCards, 4),
     discountBanner: {
       eyebrow: text(discount.eyebrow, defaults.discountBanner.eyebrow, 80),
@@ -287,5 +436,8 @@ export function normalizeHomepageContent(value: unknown): HomepageContent {
       image: text(discount.image, defaults.discountBanner.image, 1000),
       imageAlt: text(discount.imageAlt, defaults.discountBanner.imageAlt, 180),
     },
+    sections: cleanSectionList(input.sections, defaults.sections).sort(
+      (a, b) => Number(a.order || 0) - Number(b.order || 0),
+    ),
   };
 }

@@ -18,6 +18,7 @@ import {
   cachePublicCategoryTree,
   getCachedCategoryListing,
   getCachedPublicCategoryTree,
+  getCategoryTreeVersion,
 } from "@/lib/category-listing-cache";
 import {
   categoryPlaceholderImage,
@@ -287,6 +288,7 @@ export default function CategoryListingClient({
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [metadataReadyKey, setMetadataReadyKey] = useState("");
   const [dynamicCategoryNode, setDynamicCategoryNode] = useState<PublicCategoryNode | null>(null);
+  const [categoryTreeVersion, setCategoryTreeVersion] = useState("");
   const [dynamicBreadcrumb, setDynamicBreadcrumb] = useState<string[]>([]);
   const [dynamicShortcuts, setDynamicShortcuts] = useState<CategoryShortcut[]>([]);
   const [dynamicFilters, setDynamicFilters] = useState<CategoryFilter[]>([]);
@@ -382,7 +384,13 @@ export default function CategoryListingClient({
             throw new Error(data.error || "Categories could not be loaded.");
           }
           tree = normalizePublicCategoryTree(data);
-          cachePublicCategoryTree(tree);
+          const responseVersion =
+            response.headers.get("X-Catalogue-Version") ||
+            String(data.catalogueVersion || getCategoryTreeVersion(tree));
+          cachePublicCategoryTree(tree, Date.now(), responseVersion);
+          setCategoryTreeVersion(responseVersion);
+        } else {
+          setCategoryTreeVersion(getCategoryTreeVersion(tree));
         }
 
         if (controller.signal.aborted || requestId !== metadataRequestIdRef.current) {
@@ -542,7 +550,12 @@ export default function CategoryListingClient({
         });
 
       const requestUrl = `/api/products?${params.toString()}`;
-      const cachedListing = getCachedCategoryListing<Product>(requestUrl);
+      const cacheKey = `${categoryTreeVersion || "unversioned"}::${requestUrl}`;
+      const cachedListing = getCachedCategoryListing<Product>(
+        cacheKey,
+        Date.now(),
+        categoryTreeVersion,
+      );
       if (cachedListing) {
         setProducts(cachedListing.products);
         setTotalProducts(cachedListing.total);
@@ -578,7 +591,8 @@ export default function CategoryListingClient({
           products: (data.products || []) as Product[],
           total: Number(data.total || 0),
         };
-        cacheCategoryListing(requestUrl, listing);
+        const listingVersion = String(data.catalogueVersion || categoryTreeVersion || "");
+        cacheCategoryListing(cacheKey, listing, Date.now(), listingVersion);
         setProducts(listing.products);
         setTotalProducts(listing.total);
       } catch (productError) {
@@ -614,6 +628,7 @@ export default function CategoryListingClient({
     resolvedProductTypeId,
     resolvedSubcategoryId,
     searchTerm,
+    categoryTreeVersion,
   ]);
 
   useEffect(() => {
@@ -978,7 +993,7 @@ export default function CategoryListingClient({
                         src={product.images?.[0] || fallbackImage}
                         alt={product.name}
                         fill
-                        priority={index < 4}
+                        priority={index < 2}
                         sizes="(min-width: 1280px) 220px, (min-width: 768px) 25vw, 50vw"
                         className="object-cover transition duration-300 group-hover:scale-105"
                       />

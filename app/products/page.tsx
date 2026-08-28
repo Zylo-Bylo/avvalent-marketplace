@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import ZyloBrandLogo from "@/components/brand/ZyloBrandLogo";
 import MobileNavbar from "@/components/MobileNavbar";
 import { getFashionCategoryHref } from "@/lib/categoryFilters";
 import { useCartStore } from "@/store/cart-store";
@@ -382,10 +383,14 @@ export default function ProductsPage() {
   return (
     <div className="min-h-screen bg-[#f6f0e8] pb-20 text-stone-950">
       <header className="border-b border-[#dfd1bd] bg-white">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto flex max-w-7xl min-w-0 flex-col gap-4 px-4 py-5 md:flex-row md:items-center md:justify-between">
           <div>
-            <Link href="/" className="text-3xl font-bold text-[#6b145d]">
-              Zylo-Buylo.com
+            <Link
+              href="/"
+              className="inline-flex min-w-0 items-center"
+              aria-label="Zylo-Buylo - Buy Smart, Sell Easy"
+            >
+              <ZyloBrandLogo mode="horizontal" />
             </Link>
             <p className="mt-1 text-sm text-stone-500">
               Browse products with category, price and stock filters.

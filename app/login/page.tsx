@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import ZyloBrandLogo from "@/components/brand/ZyloBrandLogo";
 
 type LoginUser = {
   role: "CUSTOMER" | "VENDOR" | "ADMIN";
@@ -94,8 +95,12 @@ function LoginForm() {
     <main className="flex min-h-screen items-center justify-center bg-gray-100 p-6">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
         <div className="mb-6 text-center">
-          <Link href="/" className="text-2xl font-bold text-pink-600">
-            ZYLO BUYLO
+          <Link
+            href="/"
+            className="inline-flex justify-center"
+            aria-label="Zylo-Buylo - Buy Smart, Sell Easy"
+          >
+            <ZyloBrandLogo mode="horizontal" />
           </Link>
           <h1 className="mt-4 text-3xl font-bold text-gray-900">
             {role === "vendor"

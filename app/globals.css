@@ -26,6 +26,19 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.zylo-home-scroll-row {
+  scrollbar-width: none;
+}
+
+.zylo-home-scroll-row::-webkit-scrollbar {
+  display: none;
+}
+
 input,
 textarea,
 select {

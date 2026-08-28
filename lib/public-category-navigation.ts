@@ -13,6 +13,7 @@ export type PublicCategoryNode = {
   categoryImageUrl: string;
   desktopBannerUrl: string;
   mobileBannerUrl: string;
+  imageVersion: string;
   altText: string;
   children: PublicCategoryNode[];
   productTypes: PublicCategoryNode[];
@@ -66,6 +67,7 @@ type RawCategoryNode = {
   categoryImageUrl?: string | null;
   desktopBannerUrl?: string | null;
   mobileBannerUrl?: string | null;
+  imageVersion?: string | null;
   altText?: string | null;
   parentId?: string | null;
   categoryId?: string | null;
@@ -123,6 +125,7 @@ function normalizeNode(
     sortOrder: Number(node.sortOrder || 0),
     status: node.status || "ACTIVE",
     homepageVisible: node.homepageVisible !== false,
+    imageVersion: String(node.imageVersion || ""),
     homepageIconUrl: permanentUrl(node.homepageIconUrl || node.homepageIcon),
     categoryImageUrl: permanentUrl(node.categoryImageUrl || node.categoryImage),
     desktopBannerUrl: permanentUrl(node.desktopBannerUrl || node.desktopBanner),

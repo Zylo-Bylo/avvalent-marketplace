@@ -1,0 +1,8 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Zylo-Buylo mark</title>
+  <desc id="desc">Shopping bag icon with stylized Z</desc>
+  <rect width="128" height="128" rx="28" fill="#1E1913"/>
+  <path d="M36 49C36 40.716 42.716 34 51 34H77C85.284 34 92 40.716 92 49V100H36V49Z" fill="#272119" stroke="#D8B866" stroke-width="4"/>
+  <path d="M50 39V30C50 22.268 56.268 16 64 16C71.732 16 78 22.268 78 30V39" stroke="#D8B866" stroke-width="7" stroke-linecap="round"/>
+  <path d="M49 55H80L53 88H83" stroke="#F1D78C" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

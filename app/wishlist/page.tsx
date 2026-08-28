@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import Navbar from "@/components/navbar/Navbar";
 import { useWishlistStore } from "@/store/wishlist-store";
 
 export default function WishlistPage() {
@@ -15,9 +16,10 @@ export default function WishlistPage() {
   );
 
   return (
-    <main className="min-h-screen bg-gray-100 p-6">
+    <main className="min-h-screen bg-gray-100">
+      <Navbar />
 
-      <div className="max-w-6xl mx-auto">
+      <div className="mx-auto max-w-6xl p-6">
 
         <div className="flex items-center justify-between mb-6">
 

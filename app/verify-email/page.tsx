@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import ZyloBrandLogo from "@/components/brand/ZyloBrandLogo";
 
 function VerifyEmailForm() {
   const searchParams = useSearchParams();
@@ -47,6 +48,13 @@ function VerifyEmailForm() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-100 p-6">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
+        <Link
+          href="/"
+          className="mb-4 inline-flex w-full justify-center"
+          aria-label="Zylo-Buylo - Buy Smart, Sell Easy"
+        >
+          <ZyloBrandLogo mode="horizontal" />
+        </Link>
         <h1 className="text-center text-3xl font-bold text-pink-600">
           Verify Email
         </h1>

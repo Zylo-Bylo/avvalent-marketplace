@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import ZyloBrandLogo from "@/components/brand/ZyloBrandLogo";
 import { useCartStore } from "@/store/cart-store";
 
 type CurrentUser = {
@@ -85,31 +86,41 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-pink-200 bg-white/95 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <Link href="/" className="text-xl font-bold text-pink-600">
-          ZYLO-Buylo.com
+    <nav className="sticky top-0 z-40 w-full max-w-full overflow-x-clip border-b border-[#e7dcc8] bg-[#fffdf8]/95 backdrop-blur-xl">
+      <div className="mx-auto flex max-w-7xl min-w-0 items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-8">
+        <Link
+          href="/"
+          className="flex min-w-0 shrink-0 items-center"
+          aria-label="Zylo-Buylo - Buy Smart, Sell Easy"
+        >
+          <ZyloBrandLogo />
         </Link>
 
-        <div className="hidden flex-1 items-center justify-center gap-6 text-sm text-slate-700 md:flex">
-          <Link href="/products" className="hover:text-pink-600">
+        <div className="hidden min-w-0 flex-1 items-center justify-center gap-5 text-sm text-[#4f463b] md:flex">
+          <Link href="/products" className="hover:text-[#8a6a30]">
             Products
           </Link>
 
-          <Link href="/wishlist" className="hover:text-pink-600">
-            Wishlist
+          <Link
+            href="/wishlist"
+            className="inline-flex items-center gap-1.5 font-semibold text-[#241f18] hover:text-[#8a6a30]"
+          >
+            <span className="text-base leading-none text-[#b58b3b]" aria-hidden="true">
+              ♡
+            </span>
+            <span>Wishlist</span>
           </Link>
 
           {isAdmin ? (
-            <Link href="/admin/dashboard" className="hover:text-pink-600">
+            <Link href="/admin/dashboard" className="hover:text-[#8a6a30]">
               Admin Dashboard
             </Link>
           ) : isVendor ? (
-            <Link href="/vendor/dashboard" className="hover:text-pink-600">
+            <Link href="/vendor/dashboard" className="hover:text-[#8a6a30]">
               Vendor Dashboard
             </Link>
           ) : (
-            <Link href="/vendor/register" className="hover:text-pink-600">
+            <Link href="/vendor/register" className="hover:text-[#8a6a30]">
               Become a Vendor
             </Link>
           )}
