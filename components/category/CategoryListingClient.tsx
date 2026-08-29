@@ -782,7 +782,7 @@ export default function CategoryListingClient({
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-[#f8f4ec] pb-20 text-[#241f18]">
+    <main className="min-h-screen max-w-full bg-[#f8f4ec] pb-20 text-[#241f18]">
       <Navbar />
 
       <section className="bg-[#241f18] text-[#fff8ed]">

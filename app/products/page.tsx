@@ -381,7 +381,7 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="min-h-screen max-w-full overflow-x-clip bg-[#f8f4ec] pb-20 text-[#241f18]">
+    <div className="min-h-screen max-w-full bg-[#f8f4ec] pb-20 text-[#241f18]">
       <Navbar />
 
       <main className="mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-6">

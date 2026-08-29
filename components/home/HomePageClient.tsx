@@ -555,24 +555,25 @@ export default function HomePageClient({
   }
 
   return (
-    <main className="min-h-screen w-full max-w-full overflow-x-clip bg-[#f8f4ec] pb-24 text-[#241f18] md:pb-0">
-      <header className="sticky top-0 z-50 w-full max-w-full overflow-x-clip border-b border-[#e7dcc8] bg-[#fffdf8]/96 backdrop-blur">
-        <div className="border-b border-[#eee5d6] bg-[#241f18] text-[#f8ead0]">
-          <div className="mx-auto flex max-w-7xl min-w-0 items-center justify-between gap-3 px-3 py-1.5 text-[11px] md:px-5">
-            <span className="hidden md:inline">Premium multivendor marketplace</span>
-            <div className="zylo-home-scroll-row flex min-w-0 max-w-full gap-4 overflow-x-auto overscroll-x-contain md:w-auto md:justify-end md:overflow-visible">
-              <Link href="/products?offer=true" className="shrink-0 hover:text-white">
-                Top Deals
-              </Link>
-              <Link href="/vendor/register" className="shrink-0 hover:text-white">
-                Sell on Zylo-Buylo
-              </Link>
-              <Link href="/orders" className="shrink-0 hover:text-white">
-                Track Order
-              </Link>
-            </div>
+    <main className="min-h-screen w-full max-w-full bg-[#f8f4ec] pb-24 text-[#241f18] md:pb-0">
+      <div className="border-b border-[#eee5d6] bg-[#241f18] text-[#f8ead0]">
+        <div className="mx-auto flex max-w-7xl min-w-0 items-center justify-between gap-3 px-3 py-1.5 text-[11px] md:px-5">
+          <span className="hidden md:inline">Premium multivendor marketplace</span>
+          <div className="zylo-home-scroll-row flex min-w-0 max-w-full gap-4 overflow-x-auto overscroll-x-contain md:w-auto md:justify-end md:overflow-visible">
+            <Link href="/products?offer=true" className="shrink-0 hover:text-white">
+              Top Deals
+            </Link>
+            <Link href="/vendor/register" className="shrink-0 hover:text-white">
+              Sell on Zylo-Buylo
+            </Link>
+            <Link href="/orders" className="shrink-0 hover:text-white">
+              Track Order
+            </Link>
           </div>
         </div>
+      </div>
+
+      <header className="sticky top-0 z-50 w-full max-w-full border-b border-[#e7dcc8] bg-[#fffdf8] shadow-[0_8px_24px_rgba(42,35,25,0.07)]">
         <div className="mx-auto flex max-w-7xl min-w-0 items-center gap-2 px-3 py-3 md:gap-4 md:px-5">
           <Link href="/" className="flex min-w-0 shrink-0 items-center" aria-label="Zylo-Buylo - Buy Smart, Sell Easy">
             <ZyloBrandLogo />

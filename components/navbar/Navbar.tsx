@@ -130,7 +130,7 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="sticky top-0 z-40 w-full max-w-full overflow-x-clip border-b border-[#e7dcc8] bg-[#fffdf8]/95 shadow-[0_8px_24px_rgba(42,35,25,0.07)] backdrop-blur-xl">
+    <nav className="sticky top-0 z-50 w-full max-w-full border-b border-[#e7dcc8] bg-[#fffdf8] shadow-[0_8px_24px_rgba(42,35,25,0.07)]">
       <div className="mx-auto flex max-w-7xl min-w-0 items-center justify-between gap-3 px-3 py-3 sm:px-6 lg:px-8">
         <Link
           href="/"
