@@ -530,7 +530,7 @@ export default function HomePageClient({
           <button
             type="button"
             onClick={(event) => addToCart(event, product)}
-            className="mt-2 h-8 w-full rounded-sm border border-[#2b261f] bg-[#2b261f] text-[11px] font-medium uppercase text-[#fffaf1] hover:bg-[#111] md:h-9 md:text-xs"
+            className="mt-2 inline-flex h-7 w-auto items-center justify-center rounded-full border border-[#2b261f] bg-[#2b261f] px-3 text-[10px] font-medium uppercase text-[#fffaf1] hover:bg-[#111] md:h-8 md:px-4 md:text-[11px]"
           >
             Add
           </button>
@@ -545,7 +545,7 @@ export default function HomePageClient({
     return (
       <section className="mx-auto max-w-7xl px-3 py-5 md:px-5">
         <SectionHeader title={title} href={href} />
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-5 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-4 min-[1440px]:grid-cols-5">
           {railProducts.map((product, index) => (
             <div key={product.id}>{renderProductCard(product, index < 2)}</div>
           ))}

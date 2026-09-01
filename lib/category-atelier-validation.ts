@@ -1,3 +1,9 @@
+import {
+  hasSizeGuideContent,
+  normalizeCategorySizeGuide,
+  normalizeSizeGuideKey,
+} from '@/lib/category-size-guide';
+
 export type AtelierCategorySummary = {
   id: string;
   name: string;
@@ -55,7 +61,7 @@ export type AtelierValidationInput = {
   productTypes: string[];
   specs: AtelierSpecFieldSummary[];
   variants: AtelierVariantSummary[];
-  sizeGuideRows: unknown[];
+  sizeGuideRows: unknown;
   businessRules: AtelierBusinessRulesSummary;
   categories: AtelierCategorySummary[];
 };
@@ -190,6 +196,16 @@ function hasDuplicates(values: string[]) {
   return false;
 }
 
+function getRawSizeGuideFields(input: unknown) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return [];
+  const fields = (input as { fields?: unknown }).fields;
+  return Array.isArray(fields) ? fields : [];
+}
+
+function text(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 export function validateCategoryMetadata(
   input: Pick<AtelierValidationInput, 'categoryId' | 'name' | 'slug' | 'categories'>,
 ) {
@@ -301,6 +317,69 @@ export function validateAtelierForPublish(input: AtelierValidationInput) {
       message: 'At least one variant row is required.',
       severity: 'error',
     });
+  }
+
+  const rawSizeGuideFields = getRawSizeGuideFields(input.sizeGuideRows);
+  const rawSizeGuideFieldKeys = rawSizeGuideFields.map((field) => {
+    const row = field as { key?: unknown; name?: unknown; label?: unknown };
+    if (Object.prototype.hasOwnProperty.call(row, 'key')) {
+      return normalizeSizeGuideKey(text(row.key));
+    }
+    return normalizeSizeGuideKey(text(row.name) || text(row.label));
+  });
+  const rawSizeGuideFieldLabels = rawSizeGuideFields
+    .map((field) => text((field as { label?: unknown })?.label))
+    .filter(Boolean);
+  const sizeGuide = normalizeCategorySizeGuide(input.sizeGuideRows);
+  const sizeGuideFieldKeys = sizeGuide.fields.map((field) => normalizeSizeGuideKey(field.key));
+  if (!sizeGuide.fields.length || !hasSizeGuideContent(sizeGuide)) {
+    issues.push({
+      tab: 'size-guide',
+      field: 'sizeGuide',
+      message: 'Add category-specific size guide fields and at least one measurement row.',
+      severity: 'error',
+    });
+  }
+
+  if (rawSizeGuideFields.some((_, index) => !rawSizeGuideFieldKeys[index])) {
+    issues.push({
+      tab: 'size-guide',
+      field: 'sizeGuide',
+      message: 'Size guide field keys cannot be empty.',
+      severity: 'error',
+    });
+  }
+
+  if (hasDuplicates(rawSizeGuideFieldKeys) || hasDuplicates(sizeGuideFieldKeys)) {
+    issues.push({
+      tab: 'size-guide',
+      field: 'sizeGuide',
+      message: 'Duplicate size guide field keys are not allowed.',
+      severity: 'error',
+    });
+  }
+
+  if (hasDuplicates(rawSizeGuideFieldLabels)) {
+    issues.push({
+      tab: 'size-guide',
+      field: 'sizeGuide',
+      message: 'Duplicate size guide field labels are not allowed.',
+      severity: 'error',
+    });
+  }
+
+  for (const row of sizeGuide.rows) {
+    for (const field of sizeGuide.fields) {
+      if (field.required && !String(row.values[field.key] || '').trim()) {
+        issues.push({
+          tab: 'size-guide',
+          field: field.key,
+          message: `${field.label || field.key} is required in every size guide row.`,
+          severity: 'error',
+        });
+        break;
+      }
+    }
   }
 
   if (hasDuplicates(variantSkus)) {

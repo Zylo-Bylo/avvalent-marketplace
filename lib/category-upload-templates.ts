@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import type { CategorySizeGuide } from '@/lib/category-size-guide';
 
 export type CategorySpecField = {
   name: string;
@@ -13,6 +14,10 @@ export type CategorySpecTemplate = {
   title: string;
   helpText: string;
   fields: CategorySpecField[];
+  filterConfig?: string[];
+  sizeGuide?: CategorySizeGuide | unknown[];
+  businessRules?: Record<string, unknown>;
+  templateMeta?: Record<string, unknown>;
 };
 
 export type CategoryVariantExample = {

@@ -8,6 +8,18 @@ import {
   type CsvCategoryRow,
   type CsvMappingResult,
 } from "@/lib/category-csv-mapping";
+import {
+  createEmptySizeGuide,
+  createSizeGuideFromTemplate,
+  formatSizeGuideChart,
+  getRecommendedSizeGuideTemplateKey,
+  hasSizeGuideContent,
+  localId,
+  normalizeCategorySizeGuide,
+  normalizeSizeGuideKey,
+  sizeGuideTemplates,
+  type CategorySizeGuide,
+} from "@/lib/category-size-guide";
 
 const fieldTypes = [
   "Text",
@@ -19,17 +31,6 @@ const fieldTypes = [
   "Measurement",
   "Date",
 ] as const;
-
-const guideTypes = [
-  "Men's shirts",
-  "Men's T-shirts",
-  "Trousers",
-  "Women's kurtis",
-  "Women's dresses",
-  "Kids clothing",
-  "Men's footwear",
-  "Women's footwear",
-];
 
 type Status = "ACTIVE" | "INACTIVE" | "ARCHIVED";
 
@@ -108,21 +109,6 @@ type VariantRow = {
   defaultVariant: boolean;
 };
 
-type SizeGuideRow = {
-  id: string;
-  guideType: string;
-  india: string;
-  uk: string;
-  us: string;
-  eu: string;
-  chest: string;
-  waist: string;
-  hip: string;
-  length: string;
-  footLength: string;
-  ageGroup: string;
-};
-
 type BusinessRules = {
   returnAllowed: boolean;
   returnWindow: string;
@@ -145,7 +131,7 @@ type TemplateRecord = {
     helpText?: string;
     fields?: Partial<SpecField>[];
     filterConfig?: string[];
-    sizeGuide?: SizeGuideRow[];
+    sizeGuide?: CategorySizeGuide | unknown[];
     businessRules?: BusinessRules;
     templateMeta?: {
       status?: "DRAFT" | "PUBLISHED";
@@ -264,12 +250,12 @@ function normalizeVariantRow(row: Partial<VariantRow>, index: number): VariantRo
 function completionFor(template?: TemplateRecord | null) {
   const fields = (template?.specTemplate?.fields || []).map(normalizeSpecField);
   const variants = (template?.variantConfig?.examples || []).map(normalizeVariantRow);
-  const sizeGuide = template?.specTemplate?.sizeGuide || [];
+  const sizeGuide = normalizeCategorySizeGuide(template?.specTemplate?.sizeGuide);
   const rules = template?.specTemplate?.businessRules;
   const checks = {
     specifications: fields.length > 0,
     variants: variants.length > 0,
-    sizeGuide: sizeGuide.length > 0 || Boolean(template?.sizeChart),
+    sizeGuide: hasSizeGuideContent(sizeGuide) || Boolean(template?.sizeChart),
     filters: fields.some((field) => field.filterable),
     returnRules: Boolean(rules),
   };
@@ -319,7 +305,7 @@ export default function CategoryAtelierManager() {
   const [productTypeOptions, setProductTypeOptions] = useState("");
   const [specFields, setSpecFields] = useState<SpecField[]>([]);
   const [variantRows, setVariantRows] = useState<VariantRow[]>([]);
-  const [sizeGuideRows, setSizeGuideRows] = useState<SizeGuideRow[]>([]);
+  const [sizeGuide, setSizeGuide] = useState<CategorySizeGuide>(() => createEmptySizeGuide());
   const [businessRules, setBusinessRules] = useState<BusinessRules>(emptyBusinessRules);
   const [templateStatus, setTemplateStatus] = useState<"DRAFT" | "PUBLISHED">("DRAFT");
   const [lastSaved, setLastSaved] = useState("");
@@ -331,6 +317,8 @@ export default function CategoryAtelierManager() {
   );
   const selectedCategory = categories.find((item) => item.id === templateCategoryId) || null;
   const selectedSubcategories = selectedCategory?.subcategories || [];
+  const selectedSubcategory = selectedSubcategories.find((item) => item.id === templateSubcategoryId) || null;
+  const sizeGuideContext = [selectedCategory?.name, selectedSubcategory?.name].filter(Boolean).join(" ");
   const currentTemplate = templates.find(
     (item) =>
       item.categoryId === templateCategoryId &&
@@ -419,12 +407,12 @@ export default function CategoryAtelierManager() {
     setProductTypeOptions((currentTemplate.productTypes || []).join("\n"));
     setSpecFields((currentTemplate.specTemplate?.fields || []).map(normalizeSpecField));
     setVariantRows((currentTemplate.variantConfig?.examples || []).map(normalizeVariantRow));
-    setSizeGuideRows(currentTemplate.specTemplate?.sizeGuide || []);
+    setSizeGuide(normalizeCategorySizeGuide(currentTemplate.specTemplate?.sizeGuide, sizeGuideContext));
     setBusinessRules(currentTemplate.specTemplate?.businessRules || emptyBusinessRules);
     setTemplateStatus(currentTemplate.specTemplate?.templateMeta?.status || "DRAFT");
     setLastSaved(currentTemplate.specTemplate?.templateMeta?.savedAt || currentTemplate.updatedAt || "");
     setSavedBy(currentTemplate.specTemplate?.templateMeta?.savedBy || "admin");
-  }, [currentTemplate]);
+  }, [currentTemplate, sizeGuideContext]);
 
   async function runAction(action: string, payload: Record<string, unknown> = {}) {
     setSaving(true);
@@ -494,24 +482,84 @@ export default function CategoryAtelierManager() {
     setVariantRows((rows) => [...rows, normalizeVariantRow({}, rows.length)]);
   }
 
+  function addSizeGuideField() {
+    setSizeGuide((current) => {
+      const displayOrder = current.fields.length + 1;
+      return {
+        ...current,
+        fields: [
+          ...current.fields,
+          {
+            id: localId("sg-field"),
+            key: `measurement_${displayOrder}`,
+            label: `Measurement ${displayOrder}`,
+            unit: "inch",
+            displayOrder,
+            required: false,
+          },
+        ],
+      };
+    });
+  }
+
+  function updateSizeGuideField(index: number, updates: Partial<CategorySizeGuide["fields"][number]>) {
+    setSizeGuide((current) => {
+      const previousKey = current.fields[index]?.key;
+      const fields = current.fields.map((field, fieldIndex) => {
+        if (fieldIndex !== index) return field;
+        const next = { ...field, ...updates };
+        if (updates.key) next.key = normalizeSizeGuideKey(updates.key);
+        return next;
+      });
+      const nextKey = fields[index]?.key;
+      const rows =
+        previousKey && nextKey && previousKey !== nextKey
+          ? current.rows.map((row) => {
+              const { [previousKey]: previousValue, ...values } = row.values;
+              return { ...row, values: { ...values, [nextKey]: values[nextKey] || previousValue || "" } };
+            })
+          : current.rows;
+      return { ...current, fields, rows };
+    });
+  }
+
+  function removeSizeGuideField(index: number) {
+    setSizeGuide((current) => {
+      const removed = current.fields[index];
+      if (!removed) return current;
+      return {
+        ...current,
+        fields: current.fields.filter((_, fieldIndex) => fieldIndex !== index).map((field, fieldIndex) => ({ ...field, displayOrder: fieldIndex + 1 })),
+        rows: current.rows.map((row) => {
+          const values = { ...row.values };
+          delete values[removed.key];
+          return { ...row, values };
+        }),
+      };
+    });
+  }
+
   function addSizeGuideRow() {
-    setSizeGuideRows((rows) => [
-      ...rows,
-      {
-        id: crypto.randomUUID(),
-        guideType: guideTypes[0],
-        india: "",
-        uk: "",
-        us: "",
-        eu: "",
-        chest: "",
-        waist: "",
-        hip: "",
-        length: "",
-        footLength: "",
-        ageGroup: "",
-      },
-    ]);
+    setSizeGuide((current) => ({
+      ...current,
+      rows: [
+        ...current.rows,
+        { id: localId("sg-row"), values: Object.fromEntries(current.fields.map((field) => [field.key, ""])) },
+      ],
+    }));
+  }
+
+  function updateSizeGuideRow(rowIndex: number, fieldKey: string, value: string) {
+    setSizeGuide((current) => ({
+      ...current,
+      rows: current.rows.map((row, index) =>
+        index === rowIndex ? { ...row, values: { ...row.values, [fieldKey]: value } } : row,
+      ),
+    }));
+  }
+
+  function removeSizeGuideRow(index: number) {
+    setSizeGuide((current) => ({ ...current, rows: current.rows.filter((_, rowIndex) => rowIndex !== index) }));
   }
 
   async function saveTemplate(status: "DRAFT" | "PUBLISHED") {
@@ -530,7 +578,7 @@ export default function CategoryAtelierManager() {
         helpText: "Vendor must complete the category-specific fields configured by admin.",
         fields: specFields.map((field, index) => ({ ...field, displayOrder: index + 1 })),
         filterConfig: specFields.filter((field) => field.filterable).map((field) => field.name),
-        sizeGuide: sizeGuideRows,
+        sizeGuide,
         businessRules,
         templateMeta: {
           status,
@@ -556,9 +604,7 @@ export default function CategoryAtelierManager() {
         brandMappingPlaceholder: "Brand size mapping",
         examples: variantRows,
       },
-      sizeChart: sizeGuideRows
-        .map((row) => `${row.guideType}: IN ${row.india}, UK ${row.uk}, US ${row.us}, EU ${row.eu}`)
-        .join("\n"),
+      sizeChart: formatSizeGuideChart(sizeGuide),
     };
 
     try {
@@ -630,7 +676,7 @@ export default function CategoryAtelierManager() {
 
   const templateCompletion = completionFor(currentTemplate || {
     categoryId: templateCategoryId,
-    specTemplate: { fields: specFields, sizeGuide: sizeGuideRows, businessRules },
+    specTemplate: { fields: specFields, sizeGuide, businessRules },
     variantConfig: { examples: variantRows },
   });
 
@@ -876,7 +922,7 @@ export default function CategoryAtelierManager() {
                 <button onClick={() => saveTemplate("DRAFT")} disabled={saving} className="border px-3 py-2 text-sm font-semibold">Save Draft</button>
                 <button onClick={() => saveTemplate("PUBLISHED")} disabled={saving} className="bg-stone-950 px-3 py-2 text-sm font-semibold text-white">Publish</button>
                 <button onClick={() => { setSpecFields([...specFields]); setVariantRows([...variantRows]); setMessage("Template duplicated in editor; save it to persist."); }} className="border px-3 py-2 text-sm font-semibold">Duplicate</button>
-                <button onClick={() => { setSpecFields([]); setVariantRows([]); setSizeGuideRows([]); setBusinessRules(emptyBusinessRules); }} className="border px-3 py-2 text-sm font-semibold">Reset</button>
+                <button onClick={() => { setSpecFields([]); setVariantRows([]); setSizeGuide(createEmptySizeGuide(sizeGuideContext)); setBusinessRules(emptyBusinessRules); }} className="border px-3 py-2 text-sm font-semibold">Reset</button>
                 <button onClick={() => runAction("restoreTemplate", { categoryId: templateCategoryId, subcategoryId: templateSubcategoryId || null })} className="border px-3 py-2 text-sm font-semibold">Restore previous version</button>
               </div>
             </div>
@@ -955,18 +1001,107 @@ export default function CategoryAtelierManager() {
                   <h3 className="font-bold">Size Guide Builder</h3>
                   <button onClick={addSizeGuideRow} className="border px-3 py-2 text-sm font-semibold">Add row</button>
                 </div>
-                <div className="mt-3 space-y-2">
-                  {sizeGuideRows.map((row, index) => (
-                    <div key={row.id} className="grid gap-2 border p-3 md:grid-cols-3">
-                      <select value={row.guideType} onChange={(event) => setSizeGuideRows((rows) => rows.map((item, i) => i === index ? { ...item, guideType: event.target.value } : item))} className="border px-2 py-2">
-                        {guideTypes.map((type) => <option key={type}>{type}</option>)}
+                  <div className="mt-3 grid gap-3">
+                    <div className="grid gap-2 border p-3 md:grid-cols-2">
+                      <input value={sizeGuide.guideName} onChange={(event) => setSizeGuide((current) => ({ ...current, guideName: event.target.value }))} placeholder="Guide name" className="border px-2 py-2" />
+                      <select onChange={(event) => setSizeGuide(createSizeGuideFromTemplate(event.target.value))} value={getRecommendedSizeGuideTemplateKey(sizeGuideContext)} className="border px-2 py-2">
+                        {sizeGuideTemplates.map((template) => <option key={template.key} value={template.key}>{template.name}</option>)}
                       </select>
-                      {(["india", "uk", "us", "eu", "chest", "waist", "hip", "length", "footLength", "ageGroup"] as const).map((key) => (
-                        <input key={key} value={row[key]} onChange={(event) => setSizeGuideRows((rows) => rows.map((item, i) => i === index ? { ...item, [key]: event.target.value } : item))} placeholder={key} className="min-w-0 border px-2 py-2" />
-                      ))}
-                      <button onClick={() => setSizeGuideRows((rows) => rows.filter((_, i) => i !== index))} className="text-left text-sm font-semibold text-red-600">Remove</button>
                     </div>
-                  ))}
+                    <div className="grid gap-3 border border-amber-200 bg-amber-50 p-3 md:grid-cols-3">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-amber-950">
+                        <input
+                          type="checkbox"
+                          checked={sizeGuide.smartSizeFinder?.enabled !== false}
+                          onChange={(event) => setSizeGuide((current) => ({
+                            ...current,
+                            smartSizeFinder: {
+                              enabled: event.target.checked,
+                              version: current.smartSizeFinder?.version || 1,
+                              fitPreferenceEnabled: current.smartSizeFinder?.fitPreferenceEnabled !== false,
+                              recommendationTolerance: current.smartSizeFinder?.recommendationTolerance || 1.5,
+                              notes: current.smartSizeFinder?.notes || "",
+                            },
+                          }))}
+                        />
+                        Smart Size Finder
+                      </label>
+                      <input
+                        type="number"
+                        min="0.5"
+                        step="0.5"
+                        value={sizeGuide.smartSizeFinder?.recommendationTolerance || 1.5}
+                        onChange={(event) => setSizeGuide((current) => ({
+                          ...current,
+                          smartSizeFinder: {
+                            enabled: current.smartSizeFinder?.enabled !== false,
+                            version: current.smartSizeFinder?.version || 1,
+                            fitPreferenceEnabled: current.smartSizeFinder?.fitPreferenceEnabled !== false,
+                            recommendationTolerance: Number(event.target.value || 1.5),
+                            notes: current.smartSizeFinder?.notes || "",
+                          },
+                        }))}
+                        className="border bg-white px-2 py-2"
+                        aria-label="Smart Size Finder tolerance"
+                      />
+                      <label className="flex items-center gap-2 text-sm font-semibold text-amber-950">
+                        <input
+                          type="checkbox"
+                          checked={sizeGuide.smartSizeFinder?.fitPreferenceEnabled !== false}
+                          onChange={(event) => setSizeGuide((current) => ({
+                            ...current,
+                            smartSizeFinder: {
+                              enabled: current.smartSizeFinder?.enabled !== false,
+                              version: current.smartSizeFinder?.version || 1,
+                              fitPreferenceEnabled: event.target.checked,
+                              recommendationTolerance: current.smartSizeFinder?.recommendationTolerance || 1.5,
+                              notes: current.smartSizeFinder?.notes || "",
+                            },
+                          }))}
+                        />
+                        Fit preference
+                      </label>
+                    </div>
+                    <div className="border p-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-bold">Fields</h4>
+                      <button onClick={addSizeGuideField} className="border px-2 py-1 text-xs font-semibold">Add Size Guide Field</button>
+                    </div>
+                    <div className="mt-2 grid gap-2">
+                      {sizeGuide.fields.map((field, index) => (
+                        <div key={field.id} className="grid gap-2 md:grid-cols-[1fr_1fr_0.6fr_auto]">
+                          <input value={field.key} onChange={(event) => updateSizeGuideField(index, { key: event.target.value })} placeholder="field_key" className="min-w-0 border px-2 py-2" />
+                          <input value={field.label} onChange={(event) => updateSizeGuideField(index, { label: event.target.value })} placeholder="Label" className="min-w-0 border px-2 py-2" />
+                          <input value={field.unit} onChange={(event) => updateSizeGuideField(index, { unit: event.target.value })} placeholder="unit" className="min-w-0 border px-2 py-2" />
+                          <button onClick={() => removeSizeGuideField(index)} className="text-left text-sm font-semibold text-red-600">Remove</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto border p-3">
+                    <table className="min-w-full border-collapse text-sm">
+                      <thead>
+                        <tr>
+                          {sizeGuide.fields.map((field) => <th key={field.id} className="border px-2 py-2 text-left">{field.label}</th>)}
+                          <th className="border px-2 py-2">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sizeGuide.rows.map((row, rowIndex) => (
+                          <tr key={row.id}>
+                            {sizeGuide.fields.map((field) => (
+                              <td key={field.id} className="border p-1">
+                                <input value={row.values[field.key] || ""} onChange={(event) => updateSizeGuideRow(rowIndex, field.key, event.target.value)} placeholder={field.label} className="w-full min-w-0 px-2 py-2" />
+                              </td>
+                            ))}
+                            <td className="border p-2">
+                              <button onClick={() => removeSizeGuideRow(rowIndex)} className="text-sm font-semibold text-red-600">Remove</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 

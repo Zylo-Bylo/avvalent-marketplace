@@ -107,6 +107,28 @@ describe("category atelier validation", () => {
     expect(issues.some((issue) => issue.message.includes("cannot both be enabled"))).toBe(true);
   });
 
+  it("rejects invalid structured size guide fields", () => {
+    const issues = validateAtelierForPublish({
+      ...validBase,
+      sizeGuideRows: {
+        guideType: "kurtis",
+        guideName: "Kurtis",
+        fields: [
+          { key: "size", label: "Size", required: true },
+          { key: "Size", label: "Size", required: false },
+          { key: "", label: "Bust", required: true },
+          { key: "bust", label: "Bust", required: true },
+        ],
+        rows: [{ values: { size: "M", bust: "" } }],
+      },
+    });
+
+    expect(issues.some((issue) => issue.message.includes("field keys cannot be empty"))).toBe(true);
+    expect(issues.some((issue) => issue.message.includes("Duplicate size guide field keys"))).toBe(true);
+    expect(issues.some((issue) => issue.message.includes("Duplicate size guide field labels"))).toBe(true);
+    expect(issues.some((issue) => issue.message.includes("Bust is required"))).toBe(true);
+  });
+
   it("loads exact metadata for category, subcategory, and product type nodes", () => {
     const men = resolveAtelierNode(categories, "category", "cat-men");
     const topWear = resolveAtelierNode(categories, "subcategory", "sub-top-wear");

@@ -2,19 +2,31 @@ import ProductDetailsClient from "@/components/products/ProductDetailsClient";
 import { prisma } from "@/lib/prisma";
 import {
   getFallbackProductById,
+  getFallbackProductBySlug,
   shouldUseFallbackCatalog,
 } from "@/lib/fallback-catalog";
+import { normalizeCategorySizeGuide, hasSizeGuideContent } from "@/lib/category-size-guide";
+import { getCategoryUploadTemplate } from "@/lib/category-upload-templates";
+import { normalizeProductImageFallback } from "@/lib/product-image-fallback";
+import { getProductRecommendations } from "@/lib/product-recommendations";
 import type { ProductVariantRow } from "@/lib/variants";
 
 export const dynamic = "force-dynamic";
 
-async function getProductDetail(id: string) {
+async function getProductDetail(idOrSlug: string) {
   try {
-    const [product, variants] = await Promise.all([
-      prisma.product.findUnique({
-        where: { id },
+    const product = await prisma.product.findFirst({
+        where: {
+          OR: [{ id: idOrSlug }, { slug: idOrSlug }],
+          vendor: {
+            is: {
+              status: "APPROVED",
+            },
+          },
+        },
         select: {
           id: true,
+          slug: true,
           name: true,
           description: true,
           price: true,
@@ -25,13 +37,24 @@ async function getProductDetail(id: string) {
           sku: true,
           inventory: true,
           images: true,
+          categoryId: true,
+          subcategoryId: true,
           category: {
             select: {
               id: true,
               name: true,
+              slug: true,
             },
           },
           subcategory: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+          productTypeId: true,
+          productType: {
             select: {
               id: true,
               name: true,
@@ -75,9 +98,14 @@ async function getProductDetail(id: string) {
             },
           },
         },
-      }),
-      prisma.productVariant.findMany({
-        where: { productId: id },
+      });
+
+    if (!product) {
+      return null;
+    }
+
+    const variants = await prisma.productVariant.findMany({
+        where: { productId: product.id },
         orderBy: [{ numericSize: "asc" }, { sizeLabel: "asc" }, { color: "asc" }],
         select: {
           id: true,
@@ -94,23 +122,39 @@ async function getProductDetail(id: string) {
           status: true,
           lowStockThreshold: true,
         },
-      }) as Promise<ProductVariantRow[]>,
-    ]);
-
-    if (!product) {
-      return null;
-    }
+      }) as ProductVariantRow[];
 
     return {
-      ...product,
+      ...normalizeProductImageFallback(product),
       variants,
     };
   } catch (error) {
     if (shouldUseFallbackCatalog(error)) {
-      return getFallbackProductById(id);
+      return getFallbackProductById(idOrSlug) || getFallbackProductBySlug(idOrSlug);
     }
 
     throw error;
+  }
+}
+
+async function getProductSizeGuide(product: Awaited<ReturnType<typeof getProductDetail>>) {
+  if (!product?.categoryId) return null;
+  const productTypeId =
+    "productTypeId" in product ? product.productTypeId : null;
+
+  try {
+    const template = await getCategoryUploadTemplate(
+      product.categoryId,
+      product.subcategoryId,
+      productTypeId,
+    );
+    const sizeGuide = normalizeCategorySizeGuide(
+      template?.specTemplate?.sizeGuide,
+      `${product.name} ${product.category?.name || ""} ${product.subcategory?.name || ""}`,
+    );
+    return hasSizeGuideContent(sizeGuide) ? sizeGuide : null;
+  } catch {
+    return null;
   }
 }
 
@@ -121,9 +165,24 @@ export default async function ProductDetailsPage({
 }) {
   const { id } = await params;
   const product = await getProductDetail(id);
+  const [sizeGuide, recommendations] = await Promise.all([
+    getProductSizeGuide(product),
+    getProductRecommendations(product),
+  ]);
   const serializedProduct = product
     ? JSON.parse(JSON.stringify(product))
     : null;
+  const serializedSizeGuide = sizeGuide
+    ? JSON.parse(JSON.stringify(sizeGuide))
+    : null;
+  const serializedRecommendations = JSON.parse(JSON.stringify(recommendations));
 
-  return <ProductDetailsClient initialProduct={serializedProduct} productId={id} />;
+  return (
+    <ProductDetailsClient
+      initialProduct={serializedProduct}
+      productId={serializedProduct?.id || id}
+      initialSizeGuide={serializedSizeGuide}
+      recommendations={serializedRecommendations}
+    />
+  );
 }

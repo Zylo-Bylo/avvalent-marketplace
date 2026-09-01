@@ -8,7 +8,6 @@ import MobileNavbar from "@/components/MobileNavbar";
 import Navbar from "@/components/navbar/Navbar";
 import {
   getCategoryListingConfig,
-  getDefaultSizes,
   getSizeGuideLabel,
 } from "@/lib/categoryFilters";
 import type { CategoryFilter, CategoryShortcut } from "@/lib/categoryFilters";
@@ -130,17 +129,6 @@ function getStockSignal(product: Product) {
   };
 }
 
-function getProductSizes(product: Product, fallbackSizes: string[]) {
-  const variantSizes =
-    product.variants
-      ?.map((variant) => variant.sizeLabel || variant.numericSize)
-      .filter((value): value is string => Boolean(value))
-      .filter((value, index, list) => list.indexOf(value) === index)
-      .slice(0, 5) || [];
-
-  return variantSizes.length > 0 ? variantSizes : fallbackSizes;
-}
-
 function getActiveChips(filters: Record<string, string>, filterDefs: CategoryFilter[]) {
   return Object.entries(filters)
     .filter(([, value]) => Boolean(value))
@@ -260,10 +248,6 @@ export default function CategoryListingClient({
         partName: categoryPart?.part.name || titleFromSlug(partSlug),
       }),
     [categoryPart, groupSlug, mainSlug, partSlug],
-  );
-  const fallbackSizes = useMemo(
-    () => getDefaultSizes(config.sizeGuideType),
-    [config.sizeGuideType],
   );
   const sizeGuideLabel = getSizeGuideLabel(config.sizeGuideType);
   const addWishlist = useWishlistStore((state) => state.addItem);
@@ -958,8 +942,8 @@ export default function CategoryListingClient({
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-4 xl:grid-cols-5">
             {Array.from({ length: 10 }).map((_, index) => (
               <div key={index} className="overflow-hidden rounded-md border border-[#e7dcc8] bg-[#fffdf8] shadow-sm">
-                <div className="aspect-[2/3] animate-pulse bg-stone-200 sm:aspect-square" />
-                <div className="space-y-2 p-3">
+                <div className="aspect-[2/3] animate-pulse bg-stone-200 sm:aspect-[4/5]" />
+                <div className="space-y-2 p-2.5 sm:p-3">
                   <div className="h-3 w-24 animate-pulse rounded bg-stone-200" />
                   <div className="h-4 w-full animate-pulse rounded bg-stone-200" />
                   <div className="h-4 w-20 animate-pulse rounded bg-stone-200" />
@@ -978,23 +962,22 @@ export default function CategoryListingClient({
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-4 xl:grid-cols-5">
             {products.map((product, index) => {
               const stock = getStockSignal(product);
-              const sizes = getProductSizes(product, fallbackSizes);
               const wishlistActive = isInWishlist(product.id);
               const categoryName = product.subcategory?.name || product.category?.name || listingDisplayName;
 
               return (
                 <article
                   key={product.id}
-                  className="group overflow-hidden rounded-lg border border-[#eadcc2] bg-[#fffdf8] shadow-[0_8px_20px_rgba(42,35,25,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(42,35,25,0.12)] sm:rounded-md"
+                  className="group overflow-hidden rounded-md border border-[#eadcc2] bg-[#fffdf8] shadow-[0_5px_18px_rgba(42,35,25,0.055)] transition hover:-translate-y-0.5 hover:border-[#d8bd83] hover:shadow-[0_14px_30px_rgba(42,35,25,0.11)] sm:rounded-sm"
                 >
-                  <div className="relative aspect-[2/3] overflow-hidden bg-[#e8dccb] sm:aspect-square">
+                  <div className="relative aspect-[2/3] overflow-hidden bg-[#e8dccb] sm:aspect-[4/5]">
                     <Link href={getProductHref(product)}>
                       <Image
                         src={product.images?.[0] || fallbackImage}
                         alt={product.name}
                         fill
                         priority={index < 2}
-                        sizes="(min-width: 1280px) 220px, (min-width: 768px) 25vw, 50vw"
+                        sizes="(min-width: 1440px) 220px, (min-width: 1024px) 23vw, (min-width: 768px) 31vw, 50vw"
                         className="object-cover transition duration-300 group-hover:scale-105"
                       />
                     </Link>
@@ -1016,54 +999,44 @@ export default function CategoryListingClient({
                           });
                         }
                       }}
-                      className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-white/95 text-lg font-medium text-[#5f4a28] shadow"
+                      className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-full bg-white/95 text-base font-medium text-[#5f4a28] shadow-sm ring-1 ring-[#eadcc2] transition hover:bg-[#fff7e8] sm:right-2 sm:top-2 sm:h-9 sm:w-9"
                     >
                       {wishlistActive ? "\u2665" : "\u2661"}
                     </button>
-                    <span className={`absolute left-2 top-2 rounded-full px-2 py-1 text-[10px] font-medium ${stock.className}`}>
+                    <span className={`absolute left-1.5 top-1.5 max-w-[calc(100%-3.25rem)] truncate rounded-full px-1.5 py-0.5 text-[9px] font-medium sm:left-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[10px] ${stock.className}`}>
                       {stock.label}
                     </span>
                   </div>
-                  <div className="p-3">
+                  <div className="p-2.5 sm:p-3">
                     <Link href={getProductHref(product)}>
-                      <h3 className="line-clamp-2 min-h-10 text-sm font-normal leading-5 text-[#241f18] hover:text-[#8a6a30]">
+                      <p className="hidden truncate text-[10px] font-medium uppercase tracking-[0.1em] text-[#9c7a34] sm:block">
+                        {categoryName}
+                      </p>
+                      <h3 className="line-clamp-2 min-h-8 text-[11px] font-normal leading-4 text-[#241f18] hover:text-[#8a6a30] sm:mt-1 sm:min-h-9 sm:text-[13px] sm:leading-[1.35]">
                         {product.name}
                       </h3>
                     </Link>
-                    <div className="mt-2 flex flex-wrap items-baseline gap-2">
-                      <span className="text-base font-semibold text-[#241f18]">
+                    <div className="mt-1.5 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 sm:mt-2">
+                      <span className="text-sm font-medium text-[#241f18] sm:text-base">
                         Rs. {Number(product.price || 0).toLocaleString("en-IN")}
                       </span>
                       {product.mrp && product.mrp > product.price && (
                         <>
-                          <span className="text-xs text-stone-500 line-through">
+                          <span className="text-[11px] text-stone-500 line-through sm:text-xs">
                             Rs. {Number(product.mrp).toLocaleString("en-IN")}
                           </span>
-                          <span className="text-xs font-medium text-[#8a6a30]">
+                          <span className="text-[11px] font-medium text-[#8a6a30] sm:text-xs">
                             {product.discountPercent || 0}% off
                           </span>
                         </>
                       )}
                     </div>
-                    <div className="mt-2 flex items-center gap-2 text-xs">
+                    <div className="mt-2 flex items-center gap-1.5 text-[11px] sm:text-xs">
                       <span className="rounded bg-[#241f18] px-1.5 py-0.5 font-medium text-[#fffaf1]">
                         4.{metric(product.id, 1, 8)}
                       </span>
                       <span className="text-stone-500">{metric(product.id, 24, 680)} ratings</span>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {sizes.map((size) => (
-                        <span
-                          key={size}
-                          className="rounded-full border border-[#e2cfaa] px-2 py-1 text-[10px] font-bold text-stone-700"
-                        >
-                          {size}
-                        </span>
-                      ))}
-                    </div>
-                    <p className="mt-3 text-xs font-medium text-[#8a6a30]">
-                      {sizeGuideLabel}
-                    </p>
                   </div>
                 </article>
               );

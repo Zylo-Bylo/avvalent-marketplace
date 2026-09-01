@@ -8,6 +8,7 @@ import MobileNavbar from "@/components/MobileNavbar";
 import Navbar from "@/components/navbar/Navbar";
 import { getFashionCategoryHref } from "@/lib/categoryFilters";
 import { useCartStore } from "@/store/cart-store";
+import { useWishlistStore } from "@/store/wishlist-store";
 
 type Product = {
   id: string;
@@ -88,6 +89,9 @@ function getMetric(seed: string, min: number, range: number) {
 export default function ProductsPage() {
   const router = useRouter();
   const addCartItem = useCartStore((state) => state.addItem);
+  const addWishlistItem = useWishlistStore((state) => state.addItem);
+  const removeWishlistItem = useWishlistStore((state) => state.removeItem);
+  const isInWishlist = useWishlistStore((state) => state.isInWishlist);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
@@ -380,6 +384,29 @@ export default function ProductsPage() {
     router.push("/checkout");
   }
 
+  function toggleWishlist(
+    event: React.MouseEvent<HTMLButtonElement>,
+    product: Product,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (isInWishlist(product.id)) {
+      removeWishlistItem(product.id);
+      return;
+    }
+
+    addWishlistItem({
+      id: product.id,
+      name: product.name,
+      category: getProductCategoryName(product),
+      price: product.price,
+      mrp: product.mrp || undefined,
+      discountPercent: product.discountPercent || undefined,
+      image: product.images?.[0] || fallbackImage,
+    });
+  }
+
   return (
     <div className="min-h-screen max-w-full bg-[#f8f4ec] pb-20 text-[#241f18]">
       <Navbar />
@@ -659,27 +686,27 @@ export default function ProductsPage() {
           )}
 
           {loading ? (
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 min-[1440px]:grid-cols-5">
               {Array.from({ length: 8 }).map((_, index) => (
                 <div
                   key={index}
                   className="overflow-hidden rounded-sm border border-[#e7dcc8] bg-[#fffdf8] shadow-sm"
                 >
-                  <div className="aspect-[2/3] animate-pulse bg-stone-200 sm:aspect-[3/4]" />
-                  <div className="space-y-1.5 p-1.5 sm:space-y-3 sm:p-4">
+                  <div className="aspect-[2/3] animate-pulse bg-stone-200 sm:aspect-[4/5]" />
+                  <div className="space-y-1.5 p-2 sm:space-y-2 sm:p-3">
                     <div className="h-3 w-20 animate-pulse rounded bg-stone-200" />
                     <div className="h-4 w-full animate-pulse rounded bg-stone-200" />
                     <div className="h-4 w-2/3 animate-pulse rounded bg-stone-200" />
-                    <div className="h-9 w-full animate-pulse rounded-full bg-stone-200" />
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 min-[1440px]:grid-cols-5">
               {visibleProducts.map((product, index) => {
                 const inventory = product.inventories?.[0];
                 const available = Number(inventory?.availableStock ?? product.inventory ?? 0);
+                const wishlistActive = isInWishlist(product.id);
                 const signal =
                   inventory?.isPreOrder
                     ? { label: "Pre Order Available", className: "bg-[#eef0f4] text-[#4f463b]" }
@@ -696,36 +723,44 @@ export default function ProductsPage() {
                 return (
                   <article
                     key={product.id}
-                  className="group h-full overflow-hidden rounded-lg border border-[#e7dcc8] bg-[#fffdf8] shadow-[0_8px_20px_rgba(42,35,25,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(42,35,25,0.12)] sm:rounded-sm"
+                  className="group h-full overflow-hidden rounded-md border border-[#eadcc2] bg-[#fffdf8] shadow-[0_5px_18px_rgba(42,35,25,0.055)] transition hover:-translate-y-0.5 hover:border-[#d8bd83] hover:shadow-[0_14px_30px_rgba(42,35,25,0.11)] sm:rounded-sm"
                 >
-                  <Link href={`/products/${product.id}`} className="block">
-                      <div className="relative aspect-[2/3] overflow-hidden bg-[#e8dccb] sm:aspect-square">
+                    <div className="relative aspect-[2/3] overflow-hidden bg-[#e8dccb] sm:aspect-[4/5]">
+                      <Link href={`/products/${product.id}`} className="block h-full">
                         <Image
                           src={product.images?.[0] || fallbackImage}
                           alt={product.name}
                           fill
                           priority={index < 2}
-                          sizes="(min-width: 1280px) 240px, (min-width: 768px) 33vw, 50vw"
+                          sizes="(min-width: 1440px) 190px, (min-width: 1024px) 22vw, (min-width: 768px) 31vw, 50vw"
                           className="object-cover transition duration-300 group-hover:scale-105"
                         />
-                        <span className={`absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium sm:left-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[11px] ${signal.className}`}>
+                      </Link>
+                        <span className={`absolute left-1.5 top-1.5 max-w-[calc(100%-3.25rem)] truncate rounded-full px-1.5 py-0.5 text-[9px] font-medium sm:left-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[10px] ${signal.className}`}>
                           {signal.label}
                         </span>
+                        <button
+                          type="button"
+                          aria-label={wishlistActive ? "Remove from wishlist" : "Add to wishlist"}
+                          onClick={(event) => toggleWishlist(event, product)}
+                          className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-full bg-white/95 text-base font-medium text-[#5f4a28] shadow-sm ring-1 ring-[#eadcc2] transition hover:bg-[#fff7e8] sm:right-2 sm:top-2 sm:h-9 sm:w-9"
+                        >
+                          {wishlistActive ? "♥" : "♡"}
+                        </button>
                       </div>
-                    </Link>
 
-                    <div className="p-1.5 sm:p-3">
+                    <div className="p-2 sm:p-3">
                       <Link href={`/products/${product.id}`} className="block">
                         <p className="hidden truncate text-[10px] font-medium uppercase tracking-[0.1em] text-[#9c7a34] sm:block">
                           {getProductCategoryName(product)}
                         </p>
-                        <h3 className="line-clamp-2 min-h-8 text-[11px] font-normal leading-4 text-[#241f18] hover:text-[#8a6a30] sm:mt-1.5 sm:min-h-10 sm:text-sm sm:leading-5">
+                        <h3 className="line-clamp-2 min-h-8 text-[11px] font-normal leading-4 text-[#241f18] hover:text-[#8a6a30] sm:mt-1 sm:min-h-9 sm:text-[13px] sm:leading-[1.35]">
                           {product.name}
                         </h3>
                       </Link>
-                      <div className="mt-1.5 flex flex-col gap-0.5 sm:mt-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
+                      <div className="mt-1.5 flex flex-col gap-0.5 sm:mt-2 sm:gap-1">
                         <div>
-                          <p className="text-sm font-semibold text-[#241f18] sm:text-lg">
+                          <p className="text-sm font-medium text-[#241f18] sm:text-base">
                             Rs. {product.price}
                           </p>
                           {product.mrp && product.mrp > product.price && (
@@ -744,25 +779,25 @@ export default function ProductsPage() {
                         </p>
                       </div>
                       <div className="mt-2 hidden items-center gap-1.5 sm:flex sm:gap-2">
-                        <span className="rounded-full bg-[#241f18] px-1.5 py-0.5 text-[10px] font-medium text-[#fffaf1] sm:px-2 sm:text-xs">
+                        <span className="rounded bg-[#241f18] px-1.5 py-0.5 text-[10px] font-medium text-[#fffaf1]">
                           3.{getMetric(product.id, 5, 5)}
                         </span>
                         <span className="truncate text-[10px] text-stone-500 sm:text-xs">
                           {getMetric(product.id, 24, 780)} Reviews
                         </span>
                       </div>
-                      <div className="mt-2 grid grid-cols-2 gap-1 sm:mt-3 sm:gap-2">
+                      <div className="mt-2 grid grid-cols-2 gap-1 sm:mt-2.5 sm:gap-1.5">
                         <button
                           type="button"
                           onClick={(event) => handleAddToCart(event, product)}
-                          className="rounded-lg bg-[#241f18] px-1.5 py-1.5 text-[9px] font-medium uppercase text-[#fffaf1] hover:bg-[#3a3329] sm:rounded-sm sm:px-2 sm:py-2 sm:text-xs"
+                          className="rounded-full bg-[#241f18] px-1.5 py-1.5 text-[9px] font-medium uppercase text-[#fffaf1] hover:bg-[#3a3329] sm:px-2 sm:py-1.5 sm:text-[10px]"
                         >
                           Add
                         </button>
                         <button
                           type="button"
                           onClick={(event) => handleBuyNow(event, product)}
-                          className="rounded-lg border border-[#b58b3b] bg-white px-1.5 py-1.5 text-[9px] font-medium uppercase text-[#5f4a28] hover:bg-[#fffaf1] sm:rounded-sm sm:px-2 sm:py-2 sm:text-xs"
+                          className="rounded-full border border-[#b58b3b] bg-white px-1.5 py-1.5 text-[9px] font-medium uppercase text-[#5f4a28] hover:bg-[#fffaf1] sm:px-2 sm:py-1.5 sm:text-[10px]"
                         >
                           Buy Now
                         </button>
