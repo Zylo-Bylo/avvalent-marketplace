@@ -236,6 +236,61 @@ function isFashionProduct(product: Product, details: Record<string, string>) {
   );
 }
 
+export function isPdpSizeFitApplicable(
+  product: Product,
+  details: Record<string, string>,
+  hasConfiguredSizeGuide: boolean,
+) {
+  const context = getProductContextText(product, details);
+  const isExplicitlySizedCategory =
+    /\b(apparel|fashion|clothing|women|men|kids clothing|kid clothing|kurti|kurtis|shirt|shirts|t-?shirt|dress|saree|lehenga|gown|top|tops|jean|jeans|trouser|trousers|pant|pants|ethnic|wear|shoe|shoes|footwear)\b/.test(
+      context,
+    );
+  const isExplicitlyNonApparel =
+    /\b(beauty|personal care|skincare|skin care|hair care|face wash|serum|cream|lotion|oil|shampoo|conditioner|home|living|decor|electronics|appliance|appliances|mobile|phone|laptop)\b/.test(
+      context,
+    );
+
+  if (isExplicitlySizedCategory) return true;
+  if (isExplicitlyNonApparel) return false;
+  return hasConfiguredSizeGuide;
+}
+
+export function getPdpSizeFitRows(
+  sizeOptions: Array<{ label: string }>,
+  hasConfiguredSizeGuide: boolean,
+  guideName: string | null | undefined,
+  showSizeFit: boolean,
+): DetailRow[] {
+  if (!showSizeFit) return [];
+
+  return [
+    sizeOptions.length > 0
+      ? { label: "Available options", value: sizeOptions.map((option) => option.label).join(", ") }
+      : null,
+    hasConfiguredSizeGuide
+      ? { label: "Guide", value: guideName || "Category size guide" }
+      : null,
+  ].filter((row): row is DetailRow => Boolean(row));
+}
+
+export function getPdpNonSizeOptionRows(
+  sizeOptions: Array<{ label: string }>,
+  optionLabel: string,
+  showSizeFit: boolean,
+): DetailRow[] {
+  if (showSizeFit || sizeOptions.length === 0) return [];
+
+  const label =
+    optionLabel === "Select Pack Size / Volume"
+      ? "Pack size / volume"
+      : optionLabel === "Select Storage"
+        ? "Storage options"
+        : "Available options";
+
+  return [{ label, value: sizeOptions.map((option) => option.label).join(", ") }];
+}
+
 function isPrivateSpecificationKey(key: string) {
   return /\b(sku|vendor price|settlement|payout|commission|bank|pan|gst|aadhaar|inventory|internal|admin|cost)\b/i.test(
     key,
@@ -312,6 +367,22 @@ export function getRecommendationCardPresentation(product: RecommendationItem) {
   };
 }
 
+export function getRecommendationRailLayout(productCount: number) {
+  if (productCount <= 0) return null;
+
+  const desktopGridClass =
+    productCount === 1
+      ? "md:inline-grid md:grid-cols-[minmax(210px,240px)]"
+      : productCount < 4
+        ? "md:inline-grid md:grid-cols-[repeat(var(--rail-count),minmax(210px,250px))]"
+        : "md:grid-flow-row md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5";
+
+  return {
+    railCount: Math.min(productCount, 3),
+    className: `grid grid-flow-col auto-cols-[58vw] gap-3 overflow-x-auto pb-2 [scrollbar-width:none] sm:auto-cols-[38vw] md:gap-4 md:overflow-visible [&::-webkit-scrollbar]:hidden ${desktopGridClass}`,
+  };
+}
+
 function RecommendationCard({
   product,
 }: {
@@ -328,7 +399,7 @@ function RecommendationCard({
   return (
     <Link
       href={`/products/${product.slug || product.id}`}
-      className="group block overflow-hidden rounded-2xl border border-[#eadfce] bg-white transition hover:-translate-y-0.5 hover:border-[#b88935] hover:shadow-sm"
+      className="group block overflow-hidden rounded-xl border border-[#eadfce] bg-[#fffdf8] transition hover:-translate-y-0.5 hover:border-[#c9a456] hover:shadow-[0_14px_32px_rgba(31,27,22,0.08)]"
     >
       <div className={`relative overflow-hidden bg-[#fffaf1] ${presentation.imageFrameClass}`}>
         <Image
@@ -342,20 +413,20 @@ function RecommendationCard({
           }}
         />
         <span
-          className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-sm text-[#2a241d] shadow-sm ring-1 ring-[#eadfce]"
+          className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-white/90 text-xs text-[#2a241d] shadow-sm ring-1 ring-[#eadfce]"
           aria-hidden="true"
         >
           ♥
         </span>
         {hasDeal && (
-          <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-[10px] font-semibold text-green-700 shadow-sm">
+          <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-1 text-[10px] font-medium text-green-700 shadow-sm">
             {discount}% off
           </span>
         )}
       </div>
       <div className="space-y-1.5 p-3">
         {presentation.categoryLabel && (
-          <p className="line-clamp-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[#9b7a2f]">
+          <p className="line-clamp-1 text-[10px] font-medium uppercase tracking-[0.13em] text-[#9b7a2f]">
             {presentation.categoryLabel}
           </p>
         )}
@@ -370,7 +441,6 @@ function RecommendationCard({
             </span>
           )}
         </div>
-        <p className="text-[11px] text-green-700">★ 4.3</p>
       </div>
     </Link>
   );
@@ -385,7 +455,7 @@ function DetailTabRow({
 
   return (
     <nav
-      className="mt-8 flex gap-2 overflow-x-auto rounded-2xl border border-[#eadfce] bg-white p-2 shadow-sm"
+      className="flex gap-2 overflow-x-auto rounded-2xl border border-[#eadfce] bg-white p-2 shadow-sm"
       aria-label="Product information sections"
     >
       {tabs.map((tab, index) => (
@@ -454,24 +524,20 @@ function RecommendationRail({
   products: ProductRecommendationGroups[keyof ProductRecommendationGroups];
 }) {
   if (!products.length) return null;
-  const desktopGridClass =
-    products.length === 1
-      ? "md:inline-grid md:grid-cols-[minmax(220px,260px)]"
-      : products.length < 4
-        ? "md:inline-grid md:grid-cols-[repeat(var(--rail-count),minmax(220px,280px))]"
-        : "md:grid-flow-row md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5";
+  const layout = getRecommendationRailLayout(products.length);
+  if (!layout) return null;
 
   return (
-    <section className="mt-8">
+    <section className="mt-7">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-semibold text-[#1f1b16]">{title}</h2>
+          <h2 className="text-xl font-medium text-[#1f1b16]">{title}</h2>
         </div>
       </div>
       <div
-        className={`grid grid-flow-col auto-cols-[64vw] gap-3 overflow-x-auto pb-3 [scrollbar-width:none] sm:auto-cols-[42vw] md:gap-4 md:overflow-visible [&::-webkit-scrollbar]:hidden ${desktopGridClass}`}
+        className={layout.className}
         style={
-          { "--rail-count": Math.min(products.length, 3) } as CSSProperties &
+          { "--rail-count": layout.railCount } as CSSProperties &
             Record<"--rail-count", number>
         }
       >
@@ -648,6 +714,9 @@ export default function ProductDetailsClient({
     ? getProductOptionLabel(product, parsedDescription.details, hasConfiguredSizeGuide)
     : "Select Option";
   const fashionProduct = product ? isFashionProduct(product, parsedDescription.details) : false;
+  const showSizeFit = product
+    ? isPdpSizeFitApplicable(product, parsedDescription.details, hasConfiguredSizeGuide)
+    : false;
   const materialFitRows = fashionProduct
     ? getDetailRows(parsedDescription.details, [
         { label: "Fit", keys: ["Fit", "Fit type", "Fit notes"] },
@@ -671,14 +740,13 @@ export default function ProductDetailsClient({
   const careRows = getDetailRows(parsedDescription.details, [
     { label: "Care", keys: ["Care", "Care instructions", "Wash care", "Washing instructions"] },
   ]);
-  const sizeFitRows: DetailRow[] = [
-    sizeOptions.length > 0
-      ? { label: "Available options", value: sizeOptions.map((option) => option.label).join(", ") }
-      : null,
-    hasConfiguredSizeGuide
-      ? { label: "Guide", value: initialSizeGuide?.guideName || "Category size guide" }
-      : null,
-  ].filter((row): row is DetailRow => Boolean(row));
+  const sizeFitRows = getPdpSizeFitRows(
+    sizeOptions,
+    hasConfiguredSizeGuide,
+    initialSizeGuide?.guideName,
+    showSizeFit,
+  );
+  const nonSizeOptionRows = getPdpNonSizeOptionRows(sizeOptions, optionLabel, showSizeFit);
   const deliveryReturnRows: DetailRow[] = [
     product?.shippingCharge != null
       ? {
@@ -704,7 +772,9 @@ export default function ProductDetailsClient({
       ].filter((row): row is DetailRow => Boolean(row))
     : [];
   const specificationRows = product
-    ? buildSpecificationRows(product, parsedDescription.details, [
+    ? [
+        ...nonSizeOptionRows,
+        ...buildSpecificationRows(product, parsedDescription.details, [
         "Available sizes",
         "Brand size mapping",
         "Care",
@@ -736,7 +806,8 @@ export default function ProductDetailsClient({
         "Stretch",
         "Style",
         "Top length",
-      ])
+      ]),
+      ]
     : [];
   const detailTabs = [
     bullets.length > 0 ? { id: "details", label: "Product Details", href: "#lower-product-details" } : null,
@@ -848,7 +919,7 @@ export default function ProductDetailsClient({
     <main className="min-h-screen overflow-x-hidden bg-[#f7f0e6] text-[#1f1b16]">
       <Navbar />
 
-      <div className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1560px] px-4 py-5 sm:px-6 lg:px-8">
         <nav className="mb-4 text-xs text-[#7a6b59] sm:text-sm" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-[#1f1b16]">Home</Link>
           <span> / </span>
@@ -857,7 +928,7 @@ export default function ProductDetailsClient({
           <span className="text-[#1f1b16]">{product.name}</span>
         </nav>
 
-        <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(330px,380px)] 2xl:grid-cols-[minmax(0,1fr)_minmax(360px,400px)]">
+        <section className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(310px,350px)] 2xl:grid-cols-[minmax(0,1fr)_minmax(330px,380px)]">
           <ProductImageGallery
             images={images}
             productName={product.name}
@@ -866,21 +937,21 @@ export default function ProductDetailsClient({
             presentationContext={galleryPresentationContext}
           />
 
-          <aside className="rounded-3xl bg-white shadow-sm ring-1 ring-[#eadfce] xl:sticky xl:top-28 xl:self-start">
-            <section className="p-5 sm:p-6">
+          <aside className="rounded-2xl bg-[#fffdf8] shadow-[0_18px_45px_rgba(31,27,22,0.06)] ring-1 ring-[#e7dac7] xl:sticky xl:top-28 xl:self-start">
+            <section className="p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-[#9b7a2f]">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#9b7a2f]">
                     {product.vendor?.storeName || "Zylo-Buylo seller"}
                   </p>
-                  <h1 className="mt-2 text-2xl font-semibold leading-snug text-[#1f1b16] sm:text-[1.7rem]">
+                  <h1 className="mt-2 text-[1.45rem] font-medium leading-snug text-[#1f1b16] sm:text-[1.6rem]">
                     {product.name}
                   </h1>
                 </div>
                 <button
                   type="button"
                   onClick={toggleWishlist}
-                  className={`grid h-11 w-11 flex-none place-items-center rounded-full border text-xl transition ${
+                  className={`grid h-10 w-10 flex-none place-items-center rounded-full border text-lg transition ${
                     wishlistActive
                       ? "border-[#b88935] bg-[#fff4d8] text-[#8a641c]"
                       : "border-[#eadfce] bg-white text-[#4a4035] hover:border-[#b88935]"
@@ -891,7 +962,7 @@ export default function ProductDetailsClient({
                 </button>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#6f6659]">
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-[#6f6659]">
                 <span className="rounded-full bg-[#1f1b16] px-2.5 py-1 font-medium text-white">
                   4.3 rating
                 </span>
@@ -899,9 +970,9 @@ export default function ProductDetailsClient({
                 <span>Verified listing</span>
               </div>
 
-              <div className="mt-5 border-y border-[#eadfce] py-4">
+              <div className="mt-4 border-y border-[#e7dac7] py-3.5">
                 <div className="flex flex-wrap items-end gap-2.5">
-                  <p className="text-3xl font-semibold leading-none text-[#1f1b16]">
+                  <p className="text-[1.85rem] font-semibold leading-none text-[#1f1b16]">
                     {formatPrice(currentPrice)}
                   </p>
                   {currentHasDeal && (
@@ -920,20 +991,20 @@ export default function ProductDetailsClient({
                     You save {formatPrice(currentMrp - currentPrice)}
                   </p>
                 )}
-                <p className="mt-1 text-xs text-[#6f6659]">
+                <p className="mt-1 text-[11px] text-[#6f6659]">
                   Inclusive of taxes. Delivery {product.shippingCharge ? `${formatPrice(product.shippingCharge)} included` : "included"}.
                 </p>
               </div>
 
               {hasVariants && hasMeaningfulColors && colorOptions.length > 0 && (
-                <div className="border-b border-[#eadfce] py-4">
+                <div className="border-b border-[#e7dac7] py-3.5">
                   <div>
-                    <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">Select Color</h2>
+                    <h2 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">Select Color</h2>
                     <p className="mt-1 text-xs text-[#6f6659]">
                       {selectedColor ? `Selected: ${selectedColor}` : "Choose a color"}
                     </p>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-2.5 flex flex-wrap gap-2">
                     {colorOptions.map(({ color, variant, availableCount }) => {
                       const isSelected = selectedColor === color;
                       const disabled = availableCount <= 0;
@@ -957,21 +1028,21 @@ export default function ProductDetailsClient({
                               setSelectedSize("");
                             }
                           }}
-                          className={`group flex items-center gap-2 rounded-full border bg-white p-1 pr-2.5 text-left transition ${
+                          className={`group flex items-center gap-2 rounded-full border bg-white p-1 pr-2.5 text-left shadow-[0_1px_0_rgba(31,27,22,0.03)] transition ${
                             disabled
                               ? "cursor-not-allowed border-[#eadfce] opacity-50"
                               : isSelected
-                                ? "border-[#9b7a2f] ring-2 ring-[#e6d3a5]"
+                                ? "border-[#9b7a2f] ring-2 ring-[#e9d8ab]"
                                 : "border-[#eadfce] hover:border-[#9b7a2f]"
                           }`}
                           aria-label={`Select color ${color}`}
                         >
-                          <span className="relative h-8 w-8 overflow-hidden rounded-full bg-[#fffaf1]">
+                          <span className="relative h-7 w-7 overflow-hidden rounded-full bg-[#fffaf1]">
                             <Image
                               src={variant.imageUrl || images[0] || fallbackImage}
                               alt=""
                               fill
-                              sizes="32px"
+                              sizes="28px"
                               className="object-cover"
                             />
                           </span>
@@ -984,10 +1055,10 @@ export default function ProductDetailsClient({
               )}
 
               {sizeOptions.length > 0 && (
-                <div className="border-b border-[#eadfce] py-4">
+                <div className="border-b border-[#e7dac7] py-3.5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">{optionLabel}</h2>
+                      <h2 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">{optionLabel}</h2>
                       {selectedColor && hasVariants && (
                         <p className="mt-1 text-xs text-[#6f6659]">
                           Showing options for {selectedColor}
@@ -995,7 +1066,7 @@ export default function ProductDetailsClient({
                       )}
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-2.5 flex flex-wrap gap-2">
                     {sizeOptions.map((option) => {
                       const isSelected =
                         selectedSize === option.label ||
@@ -1013,12 +1084,12 @@ export default function ProductDetailsClient({
                             selectSize(option.label);
                           }}
                           disabled={!option.available}
-                          className={`min-w-12 rounded-xl border px-3 py-2 text-sm font-medium leading-tight transition ${
+                          className={`min-w-11 rounded-lg border px-3 py-2 text-sm font-medium leading-tight shadow-[0_1px_0_rgba(31,27,22,0.03)] transition ${
                             !option.available
                               ? "cursor-not-allowed border-[#eadfce] bg-stone-100 text-stone-400"
                               : isSelected
                                 ? "border-[#1f1b16] bg-[#1f1b16] text-white"
-                                : "border-[#d8c7aa] text-[#2a241d] hover:border-[#9b7a2f]"
+                                : "border-[#d8c7aa] bg-white text-[#2a241d] hover:border-[#9b7a2f]"
                           }`}
                         >
                           {option.label}
@@ -1042,31 +1113,31 @@ export default function ProductDetailsClient({
                 </div>
               )}
 
-              <div className="py-4">
+              <div className="py-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-[#6f6659]">Availability</p>
+                    <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#6f6659]">Availability</p>
                     <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${stockBadge.className}`}>
                       {stockBadge.label}
                     </span>
                   </div>
-                  <div className="inline-flex items-center rounded-full border border-[#d8c7aa] bg-[#fffaf1]">
+                  <div className="inline-flex items-center rounded-full border border-[#d8c7aa] bg-white">
                     <button
                       type="button"
                       onClick={() => setQuantity((current) => Math.max(minimumOrderQuantity, current - 1))}
-                      className="h-10 w-10 text-lg font-semibold text-[#4a4035]"
+                      className="h-9 w-9 text-lg font-medium text-[#4a4035]"
                       disabled={!inStock}
                       aria-label="Decrease quantity"
                     >
                       -
                     </button>
-                    <span className="w-10 text-center text-sm font-semibold">
+                    <span className="w-9 text-center text-sm font-semibold">
                       {Math.max(minimumOrderQuantity, quantity)}
                     </span>
                     <button
                       type="button"
                       onClick={() => setQuantity((current) => Math.min(maxQuantity, current + 1))}
-                      className="h-10 w-10 text-lg font-semibold text-[#4a4035]"
+                      className="h-9 w-9 text-lg font-medium text-[#4a4035]"
                       disabled={!inStock}
                       aria-label="Increase quantity"
                     >
@@ -1076,18 +1147,18 @@ export default function ProductDetailsClient({
                 </div>
 
               {inStock ? (
-                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                <div className="mt-3.5 grid grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={() => addProductToCart(false)}
-                    className="rounded-full bg-[#1f1b16] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#332b22]"
+                    className="h-11 rounded-full bg-[#1f1b16] px-4 text-sm font-semibold text-white transition hover:bg-[#332b22]"
                   >
                     Add to Cart
                   </button>
                   <button
                     type="button"
                     onClick={() => addProductToCart(true)}
-                    className="rounded-full bg-[#d6ad55] px-4 py-3 text-sm font-semibold text-[#1f1b16] transition hover:bg-[#c79a37]"
+                    className="h-11 rounded-full bg-[#d6ad55] px-4 text-sm font-semibold text-[#1f1b16] transition hover:bg-[#c79a37]"
                   >
                     Buy Now
                   </button>
@@ -1096,7 +1167,7 @@ export default function ProductDetailsClient({
                 <button
                   type="button"
                   onClick={() => setAddedMessage("We will notify you when this product is available.")}
-                  className="mt-4 w-full rounded-full bg-[#1f1b16] px-5 py-3 text-sm font-semibold text-white"
+                  className="mt-4 h-11 w-full rounded-full bg-[#1f1b16] px-5 text-sm font-semibold text-white"
                 >
                   Notify Me When Available
                 </button>
@@ -1111,16 +1182,16 @@ export default function ProductDetailsClient({
               </div>
 
               {currentHasDeal ? (
-                <div className="border-t border-[#eadfce] py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">Offer</p>
+                <div className="border-t border-[#e7dac7] py-3.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">Offer</p>
                   <p className="mt-1 text-sm text-[#4a4035]">
                     {currentDiscount}% off on this listing.
                   </p>
                 </div>
               ) : null}
 
-              <div id="product-delivery" className="border-t border-[#eadfce] py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">Delivery</p>
+              <div id="product-delivery" className="border-t border-[#e7dac7] py-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">Delivery</p>
                 <p className="mt-1 text-sm font-medium text-[#2a241d]">
                   {product.shippingCharge ? `${formatPrice(product.shippingCharge)} shipping` : "Shipping included"}
                 </p>
@@ -1129,15 +1200,15 @@ export default function ProductDetailsClient({
                 </p>
               </div>
 
-              <div className="border-t border-[#eadfce] py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">Returns</p>
+              <div className="border-t border-[#e7dac7] py-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">Returns</p>
                 <p className="mt-1 text-sm text-[#4a4035]">
                   {parsedDescription.details["Return policy"] || "Returns as per product policy."}
                 </p>
               </div>
 
-              <div id="product-seller" className="border-t border-[#eadfce] pt-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">Sold By</p>
+              <div id="product-seller" className="border-t border-[#e7dac7] pt-3.5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#1f1b16]">Sold By</p>
                 <div className="mt-3 flex items-center gap-3">
                   <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-full bg-[#fff4d8] text-sm font-semibold text-[#8a641c]">
                     {product.vendor?.logoUrl ? (
@@ -1179,10 +1250,12 @@ export default function ProductDetailsClient({
           </aside>
         </section>
 
-        <DetailTabRow tabs={detailTabs} />
+        <div className="mt-6">
+          <DetailTabRow tabs={detailTabs} />
+        </div>
 
         {detailTabs.length > 0 && (
-          <div className="mt-5 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-[#eadfce]">
+          <div className="mt-4 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-[#eadfce]">
             {bullets.length > 0 && (
               <ProductInfoSection id="lower-product-details" eyebrow="Overview" title="Product Details">
                 <div className="grid gap-3 text-sm leading-6 text-[#4a4035] sm:grid-cols-2">

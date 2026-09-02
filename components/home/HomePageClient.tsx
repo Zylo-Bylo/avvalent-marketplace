@@ -159,12 +159,12 @@ function SectionHeader({
   label?: string;
 }) {
   return (
-    <div className="mb-3 flex items-center justify-between gap-3">
-      <h2 className="font-serif text-xl font-semibold text-[#241f18] md:text-3xl">{title}</h2>
+    <div className="mb-4 flex items-end justify-between gap-3 md:mb-5">
+      <h2 className="font-serif text-xl font-semibold leading-tight text-[#241f18] md:text-2xl lg:text-[1.7rem]">{title}</h2>
       {href && (
         <Link
           href={href}
-          className="shrink-0 text-xs font-medium uppercase text-[#8a6a30] hover:text-[#241f18]"
+          className="shrink-0 pb-0.5 text-[11px] font-medium uppercase tracking-[0.12em] text-[#8a6a30] hover:text-[#241f18]"
         >
           {label}
         </Link>
@@ -175,14 +175,14 @@ function SectionHeader({
 
 function heroOverlayClass(strength: string) {
   if (strength === "light") {
-    return "from-[#17130f]/62 via-[#17130f]/24 to-transparent";
+    return "from-[#17130f]/52 via-[#17130f]/18 to-transparent";
   }
 
   if (strength === "strong") {
-    return "from-[#17130f]/94 via-[#17130f]/54 to-[#17130f]/12";
+    return "from-[#17130f]/82 via-[#17130f]/44 to-[#17130f]/10";
   }
 
-  return "from-[#17130f]/88 via-[#17130f]/36 to-transparent";
+  return "from-[#17130f]/74 via-[#17130f]/30 to-transparent";
 }
 
 function heroTextPositionClass(position: string) {
@@ -543,9 +543,9 @@ export default function HomePageClient({
     if (!railProducts.length) return null;
 
     return (
-      <section className="mx-auto max-w-7xl px-3 py-5 md:px-5">
+      <section className="mx-auto w-full max-w-[1440px] px-4 py-7 md:px-6 md:py-8">
         <SectionHeader title={title} href={href} />
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-4 min-[1440px]:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5 min-[1440px]:grid-cols-5">
           {railProducts.map((product, index) => (
             <div key={product.id}>{renderProductCard(product, index < 2)}</div>
           ))}
@@ -669,8 +669,8 @@ export default function HomePageClient({
       </header>
 
       <section className="w-full max-w-full overflow-x-clip bg-[#fffaf1]">
-        <div className="w-full max-w-full py-0 md:py-4">
-          <div className="relative min-h-[360px] w-full max-w-full overflow-hidden bg-[#241f18] text-white sm:min-h-[390px] md:min-h-[590px]">
+        <div className="w-full max-w-full py-0 md:py-3">
+          <div className="relative min-h-[340px] w-full max-w-full overflow-hidden bg-[#241f18] text-white sm:min-h-[380px] md:min-h-[520px] lg:min-h-[560px]">
             <AdminMedia
               src={heroMediaSrc}
               alt={activeHero.imageAlt || activeHero.title}
@@ -680,21 +680,21 @@ export default function HomePageClient({
               objectPosition={activeHero.objectPosition || "center"}
             />
             <div className={`absolute inset-0 bg-gradient-to-r ${heroOverlayClass(activeHero.overlayStrength)}`} />
-            <div className={`absolute inset-0 flex px-4 py-8 md:px-14 md:py-10 ${heroTextPositionClass(activeHero.textPosition)}`}>
-              <div className={`w-[min(88vw,32rem)] md:w-[38vw] md:max-w-[34rem] ${heroTextAlignClass(activeHero.textAlign)}`}>
-                <p className="text-xs font-medium uppercase tracking-[0.24em] text-[#f2d28b]">
+            <div className={`absolute inset-0 flex px-4 py-8 sm:px-6 md:px-14 md:py-10 ${heroTextPositionClass(activeHero.textPosition)}`}>
+              <div className={`w-[min(88vw,30rem)] md:w-[36vw] md:max-w-[32rem] ${heroTextAlignClass(activeHero.textAlign)}`}>
+                <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#f2d28b] md:text-xs">
                   {activeHero.eyebrow}
                 </p>
-                <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight sm:text-4xl md:mt-4 md:text-7xl">
+                <h1 className="mt-3 font-serif text-3xl font-semibold leading-[1.04] sm:text-4xl md:mt-4 md:text-5xl lg:text-6xl">
                   {activeHero.title}
                 </h1>
-                <p className="mt-3 max-w-md text-sm font-light leading-6 text-white/86 md:mt-4 md:text-base">
+                <p className="mt-3 max-w-md text-sm font-light leading-6 text-white/84 md:mt-4 md:text-base">
                   {activeHero.text}
                 </p>
-                <div className="mt-5 flex flex-wrap gap-3 md:mt-6">
+                <div className="mt-5 flex flex-wrap gap-3">
                   <Link
                     href={safeInternalRoute(activeHero.primaryHref)}
-                    className="rounded-sm bg-[#fffaf1] px-5 py-2.5 text-xs font-medium uppercase text-[#241f18] md:px-6 md:py-3 md:text-sm"
+                    className="rounded-sm bg-[#fffaf1] px-5 py-2.5 text-xs font-medium uppercase tracking-[0.1em] text-[#241f18] shadow-[0_8px_20px_rgba(0,0,0,0.14)] hover:bg-white md:px-6 md:py-3 md:text-sm"
                   >
                     {activeHero.primaryLabel || "Shop Now"}
                   </Link>
@@ -719,16 +719,16 @@ export default function HomePageClient({
       </section>
 
       {isSectionEnabled("categories") && (
-      <section className="mx-auto w-full max-w-7xl min-w-0 px-3 py-6 md:px-5">
+      <section className="mx-auto w-full max-w-[1440px] min-w-0 px-4 py-7 md:px-6 md:py-8">
         <SectionHeader title={getSection("categories")?.title || "Shop by Category"} href="/products" />
-        <div className="zylo-home-scroll-row flex min-w-0 max-w-full gap-3 overflow-x-auto overscroll-x-contain pb-1 md:grid md:grid-cols-6 md:overflow-visible lg:grid-cols-8">
+        <div className="zylo-home-scroll-row flex min-w-0 max-w-full gap-3 overflow-x-auto overscroll-x-contain pb-1 md:grid md:grid-cols-6 md:gap-4 md:overflow-visible lg:grid-cols-8">
           {categoryShortcuts.slice(0, getSection("categories")?.limit || 12).map((category) => (
             <Link
               key={category.id}
               href={getCategoryHref(category)}
-              className="group w-[122px] shrink-0 rounded-sm bg-[#fffdf8] p-2 text-center shadow-[0_8px_22px_rgba(42,35,25,0.05)] ring-1 ring-[#e7dcc8] transition hover:-translate-y-0.5 hover:ring-[#c8a85f] md:w-auto"
+              className="group w-[124px] shrink-0 rounded-lg bg-[#fffdf9] p-2 text-center shadow-[0_5px_18px_rgba(42,35,25,0.04)] ring-1 ring-[#eadfce] transition hover:-translate-y-0.5 hover:ring-[#c8a85f] md:w-auto"
             >
-              <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-md bg-[#f5f3f6]">
+              <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-md bg-[#f4ecdf]">
                 <CategoryImage
                   src={getCategorySmallImage(category)}
                   alt={category.altText || category.name}
@@ -746,19 +746,19 @@ export default function HomePageClient({
       )}
 
       {isSectionEnabled("shortcuts") && (
-      <section className="mx-auto w-full max-w-7xl min-w-0 px-3 py-4 md:px-5">
-        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+      <section className="mx-auto w-full max-w-[1440px] min-w-0 px-4 py-5 md:px-6 md:py-6">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-5">
           <Link
             href={safeInternalRoute(shopperBanner.href)}
-            className="relative min-h-[250px] overflow-hidden rounded-sm bg-[#efe4d2]"
+            className="relative min-h-[230px] overflow-hidden rounded-lg bg-[#efe4d2] shadow-[0_8px_24px_rgba(42,35,25,0.055)]"
           >
             <AdminMedia src={shopperBannerImage} alt={shopperBanner.imageAlt} />
             <div className="absolute inset-0 bg-gradient-to-r from-[#fffaf1]/95 via-[#fffaf1]/72 to-transparent" />
-            <div className="absolute inset-0 flex max-w-sm flex-col justify-center p-7">
+            <div className="absolute inset-0 flex max-w-sm flex-col justify-center p-6 md:p-7">
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-[#8a6a30]">
                 {shopperBanner.eyebrow}
               </p>
-              <h2 className="mt-3 font-serif text-3xl font-semibold text-[#241f18] md:text-4xl">
+              <h2 className="mt-3 font-serif text-2xl font-semibold text-[#241f18] md:text-3xl">
                 {shopperBanner.title}
               </h2>
               <p className="mt-3 line-clamp-2 text-sm leading-6 text-[#63594e]">
@@ -771,13 +771,13 @@ export default function HomePageClient({
           </Link>
           <Link
             href={safeInternalRoute(sellerBanner.href, "/vendor/register")}
-            className="grid min-h-[250px] rounded-sm border border-[#d9c7a6] bg-[#241f18] p-7 text-[#fffaf1] md:grid-cols-[1fr_0.76fr]"
+            className="grid min-h-[230px] rounded-lg border border-[#d9c7a6] bg-[#241f18] p-6 text-[#fffaf1] shadow-[0_8px_24px_rgba(42,35,25,0.08)] md:grid-cols-[1fr_0.76fr] md:p-7"
           >
             <div className="self-center">
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-[#f2d28b]">
                 {sellerBanner.eyebrow}
               </p>
-              <h2 className="mt-3 font-serif text-3xl font-semibold md:text-4xl">
+              <h2 className="mt-3 font-serif text-2xl font-semibold md:text-3xl">
                 {sellerBanner.title}
               </h2>
               <p className="mt-3 text-sm leading-6 text-white/72">
@@ -795,13 +795,13 @@ export default function HomePageClient({
       )}
 
       {isSectionEnabled("shortcuts") && (
-      <section className="mx-auto max-w-7xl px-3 py-2 md:px-5">
+      <section className="mx-auto max-w-[1440px] px-4 py-4 md:px-6">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-8">
           {supportedDealShortcuts.slice(0, getSection("shortcuts")?.limit || 8).map((item) => (
             <Link
               key={`${item.title}-${item.href}`}
               href={safeInternalRoute(item.href)}
-              className="rounded-sm bg-[#fffdf8] px-3 py-3 shadow-sm ring-1 ring-[#e7dcc8] hover:ring-[#c8a85f]"
+              className="rounded-lg bg-[#fffdf9] px-3 py-3 shadow-[0_4px_14px_rgba(42,35,25,0.035)] ring-1 ring-[#eadfce] hover:ring-[#c8a85f]"
             >
               <p className="text-sm font-medium text-[#241f18]">{item.title}</p>
               {item.text && <p className="mt-1 text-xs text-[#756a5e]">{item.text}</p>}
@@ -818,22 +818,22 @@ export default function HomePageClient({
         bestDeals.length > 0 &&
         renderProductRail(getSection("bestDeals")?.title || "Best Deals", bestDeals.slice(0, getSection("bestDeals")?.limit || 12), "/products?offer=true")}
 
-      <section className="mx-auto max-w-7xl px-3 py-5 md:px-5">
+      <section className="mx-auto max-w-[1440px] px-4 py-7 md:px-6 md:py-8">
         <Link
           href={safeInternalRoute(discountBanner.href)}
-          className="relative grid min-h-[230px] overflow-hidden rounded-sm bg-[#2b261f] text-white md:grid-cols-[1fr_0.72fr]"
+          className="relative grid min-h-[220px] overflow-hidden rounded-lg bg-[#2b261f] text-white shadow-[0_8px_24px_rgba(42,35,25,0.075)] md:grid-cols-[1fr_0.72fr]"
         >
           <div className="relative z-10 p-6 md:p-8">
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-[#f2d28b]">
               {discountBanner.eyebrow}
             </p>
-            <h2 className="mt-2 font-serif text-3xl font-semibold md:text-5xl">
+            <h2 className="mt-2 font-serif text-3xl font-semibold md:text-4xl">
               {discountBanner.title}
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-white/80">
               {discountBanner.text}
             </p>
-            <span className="mt-5 inline-flex rounded-sm bg-[#fffaf1] px-5 py-3 text-sm font-medium uppercase text-[#241f18]">
+            <span className="mt-5 inline-flex rounded-sm bg-[#fffaf1] px-5 py-3 text-xs font-medium uppercase tracking-[0.1em] text-[#241f18] md:text-sm">
               {discountBanner.ctaLabel}
             </span>
           </div>
@@ -850,14 +850,14 @@ export default function HomePageClient({
         renderProductRail(getSection("newArrivals")?.title || "New Arrivals", newArrivals.slice(0, getSection("newArrivals")?.limit || 12), "/products?sort=new")}
 
       {isSectionEnabled("brands") && brandShortcuts.length > 0 && (
-        <section className="mx-auto max-w-7xl px-3 py-5 md:px-5">
+        <section className="mx-auto max-w-[1440px] px-4 py-7 md:px-6 md:py-8">
           <SectionHeader title={getSection("brands")?.title || "Shop by Brand"} href="/products" />
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-8">
             {brandShortcuts.slice(0, getSection("brands")?.limit || 12).map((brand) => (
               <Link
                 key={brand.slug}
                 href={`/products?brand=${encodeURIComponent(brand.slug)}`}
-                className="grid min-h-[92px] place-items-center rounded-sm bg-[#fffdf8] p-4 text-center shadow-sm ring-1 ring-[#e7dcc8] hover:ring-[#c8a85f]"
+                className="grid min-h-[88px] place-items-center rounded-lg bg-[#fffdf9] p-4 text-center shadow-[0_4px_14px_rgba(42,35,25,0.035)] ring-1 ring-[#eadfce] hover:ring-[#c8a85f]"
               >
                 <span className="text-sm font-medium text-[#241f18]">{brand.name}</span>
               </Link>
@@ -872,13 +872,13 @@ export default function HomePageClient({
         </div>
       ))}
 
-      <section className="mx-auto max-w-7xl px-3 py-5 md:px-5">
-        <div className="grid gap-4 rounded-sm bg-[#fffdf8] p-5 shadow-sm ring-1 ring-[#e7dcc8] md:grid-cols-[1.1fr_0.9fr] md:p-7">
+      <section className="mx-auto max-w-[1440px] px-4 py-7 md:px-6 md:py-8">
+        <div className="grid gap-4 rounded-lg bg-[#fffdf9] p-5 shadow-[0_6px_20px_rgba(42,35,25,0.045)] ring-1 ring-[#eadfce] md:grid-cols-[1.1fr_0.9fr] md:p-7">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-[#8a6a30]">
               Sell on Zylo-Buylo
             </p>
-            <h2 className="mt-2 font-serif text-2xl font-semibold md:text-4xl">
+            <h2 className="mt-2 font-serif text-2xl font-semibold md:text-3xl">
               Manage products, stock, dispatch and payouts in one dashboard
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-[#5d6674]">
@@ -889,13 +889,13 @@ export default function HomePageClient({
           <div className="flex flex-wrap items-center gap-3 md:justify-end">
             <Link
               href="/vendor/register"
-              className="rounded-sm bg-[#241f18] px-5 py-3 text-sm font-medium uppercase text-[#fffaf1]"
+              className="rounded-sm bg-[#241f18] px-5 py-3 text-xs font-medium uppercase tracking-[0.1em] text-[#fffaf1] md:text-sm"
             >
               Become a vendor
             </Link>
             <Link
               href="/login?role=vendor"
-              className="rounded-sm border border-[#241f18] px-5 py-3 text-sm font-medium uppercase text-[#241f18]"
+              className="rounded-sm border border-[#241f18] px-5 py-3 text-xs font-medium uppercase tracking-[0.1em] text-[#241f18] md:text-sm"
             >
               Vendor login
             </Link>
@@ -903,8 +903,8 @@ export default function HomePageClient({
         </div>
       </section>
 
-      <section className="border-y border-[#e7dcc8] bg-[#fffdf8]">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-3 py-5 text-sm md:grid-cols-4 md:px-5">
+      <section className="border-y border-[#eadfce] bg-[#fffdf9]">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-4 px-4 py-5 text-sm md:grid-cols-4 md:px-6">
           {[
             ["Trusted sellers", "Approved vendor catalogue"],
             ["Protected checkout", "Secure payment workflow"],
@@ -919,8 +919,8 @@ export default function HomePageClient({
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-3 py-6 md:px-5">
-        <div className="rounded-sm bg-[#241f18] p-5 text-white md:flex md:items-center md:justify-between md:p-7">
+      <section className="mx-auto max-w-[1440px] px-4 py-7 md:px-6 md:py-8">
+        <div className="rounded-lg bg-[#241f18] p-5 text-white shadow-[0_8px_24px_rgba(42,35,25,0.08)] md:flex md:items-center md:justify-between md:p-7">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-[#f2d28b]">
               App-ready shopping
@@ -931,7 +931,7 @@ export default function HomePageClient({
           </div>
           <Link
             href="/products"
-            className="mt-4 inline-flex rounded-sm bg-[#fffaf1] px-5 py-3 text-sm font-medium uppercase text-[#241f18] md:mt-0"
+            className="mt-4 inline-flex rounded-sm bg-[#fffaf1] px-5 py-3 text-xs font-medium uppercase tracking-[0.1em] text-[#241f18] md:mt-0 md:text-sm"
           >
             Continue shopping
           </Link>

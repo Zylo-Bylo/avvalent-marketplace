@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import MobileNavbar from "@/components/MobileNavbar";
 import Navbar from "@/components/navbar/Navbar";
+import { getProductListingImageTreatment } from "@/components/products/ProductCard";
 import {
   getCategoryListingConfig,
   getSizeGuideLabel,
@@ -81,6 +82,151 @@ type DynamicTemplate = {
 };
 
 const fallbackImage = "/product-placeholder.svg";
+const nonSizedCategoryPattern =
+  /\b(beauty|personal care|skincare|skin care|hair|makeup|fragrance|perfume|home|living|kitchen|electronics|appliance|mobile|gadget|device|jewellery|jewelry|accessories)\b/i;
+const sizedCategoryPattern =
+  /\b(kurti|kurtis|dress|dresses|shirt|shirts|t-shirt|tshirts|tee|jean|jeans|trouser|trousers|pant|pants|lingerie|apparel|clothing|fashion|kid|kids|boy|boys|girl|girls|footwear|shoe|shoes|sandal|sandals|slipper|slippers|heel|heels)\b/i;
+const sizeFilterPattern =
+  /\b(size|sizes|age group|age|waist|inseam|shoe size|india size|uk size|us size|eu size)\b|agegroup|india_size|uk_size|us_size|eu_size/i;
+const sizeOrder = [
+  "free size",
+  "xs",
+  "s",
+  "m",
+  "l",
+  "xl",
+  "xxl",
+  "2xl",
+  "3xl",
+  "4xl",
+  "5xl",
+  "2-3y",
+  "4-5y",
+  "6-7y",
+  "8-9y",
+  "9-12 years",
+  "13+ years",
+];
+
+export type ShopBySizeOption = {
+  label: string;
+  value: string;
+};
+
+type ShopBySizeProduct = {
+  variants?: Array<{
+    sizeLabel?: string | null;
+    numericSize?: string | null;
+    stockQuantity?: number | null;
+  }>;
+};
+
+function normalizeSizeValue(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function sizeSortScore(value: string) {
+  const normalized = normalizeSizeValue(value);
+  const orderIndex = sizeOrder.indexOf(normalized);
+  if (orderIndex >= 0) return orderIndex;
+
+  const numeric = Number(normalized.replace(/^(uk|us|eu|in|india)\s*/i, ""));
+  if (Number.isFinite(numeric)) return 100 + numeric;
+
+  return 1_000;
+}
+
+export function sortShopBySizeValues(values: ShopBySizeOption[]) {
+  return [...values].sort((left, right) => {
+    const scoreDiff = sizeSortScore(left.label) - sizeSortScore(right.label);
+    return scoreDiff || left.label.localeCompare(right.label, undefined, { numeric: true });
+  });
+}
+
+export function getShopBySizeFilter(filters: CategoryFilter[]) {
+  const candidates = filters.filter(
+    (filter) =>
+      !["price", "sort", "discount", "allDiscount", "brand", "category", "color"].includes(
+        filter.key,
+      ) && sizeFilterPattern.test(`${filter.key} ${filter.label}`),
+  );
+
+  return (
+    candidates.find((filter) => filter.key.toLowerCase() === "size") ||
+    candidates.find((filter) => /agegroup|age group/i.test(`${filter.key} ${filter.label}`)) ||
+    candidates[0] ||
+    null
+  );
+}
+
+function optionKey(value: string) {
+  return normalizeSizeValue(value).replace(/[^a-z0-9+]+/g, "-");
+}
+
+function dedupeSizeOptions(options: ShopBySizeOption[]) {
+  const seen = new Set<string>();
+  const unique: ShopBySizeOption[] = [];
+
+  for (const option of options) {
+    const key = optionKey(option.label || option.value);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(option);
+  }
+
+  return sortShopBySizeValues(unique);
+}
+
+function getVariantSizeOptions(products: ShopBySizeProduct[]) {
+  return dedupeSizeOptions(
+    products.flatMap((product) =>
+      (product.variants || [])
+        .filter((variant) => variant.stockQuantity == null || Number(variant.stockQuantity) > 0)
+        .map((variant) => variant.sizeLabel || variant.numericSize || "")
+        .filter(Boolean)
+        .map((label) => ({ label, value: label })),
+    ),
+  );
+}
+
+export function getShopBySizeStripConfig(input: {
+  context: string;
+  filters: CategoryFilter[];
+  products: ShopBySizeProduct[];
+  selectedValue?: string;
+}) {
+  if (nonSizedCategoryPattern.test(input.context)) return null;
+
+  const sizeFilter = getShopBySizeFilter(input.filters);
+  const variantOptions = getVariantSizeOptions(input.products);
+  const contextLooksSized =
+    sizedCategoryPattern.test(input.context) ||
+    Boolean(sizeFilter && (variantOptions.length > 0 || sizeFilter.options.length > 0));
+
+  if (!contextLooksSized || !sizeFilter) return null;
+
+  const filterOptionByLabel = new Map(
+    sizeFilter.options.map((option) => [
+      optionKey(option.label || option.value),
+      { label: option.label, value: option.value },
+    ]),
+  );
+  const options = variantOptions.length
+    ? variantOptions.map(
+        (option) => filterOptionByLabel.get(optionKey(option.label)) || option,
+      )
+    : sizeFilter.options.map((option) => ({ label: option.label, value: option.value }));
+  const dedupedOptions = dedupeSizeOptions(options);
+
+  if (!dedupedOptions.length) return null;
+
+  return {
+    filterKey: sizeFilter.key,
+    label: sizeFilter.label,
+    options: dedupedOptions,
+    selectedValue: input.selectedValue || "",
+  };
+}
 
 function titleFromSlug(value: string) {
   return value
@@ -333,6 +479,12 @@ export default function CategoryListingClient({
       : config.bannerImage;
   const bannerAlt =
     dynamicCategoryNode?.altText || `${listingDisplayName} category banner`;
+  const shopBySizeConfig = getShopBySizeStripConfig({
+    context: [mainSlug, groupSlug, partSlug, listingDisplayName, ...listingBreadcrumb].join(" "),
+    filters: listingFilters,
+    products,
+    selectedValue: filterDraft[getShopBySizeFilter(listingFilters)?.key || ""],
+  });
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
@@ -735,6 +887,19 @@ export default function CategoryListingClient({
     setFilterDraft(nextFilters);
   }
 
+  function selectShopBySize(value: string) {
+    if (!shopBySizeConfig) return;
+
+    const currentValue = filterDraft[shopBySizeConfig.filterKey] || "";
+    const nextFilters = { ...filterDraft };
+    if (optionKey(currentValue) === optionKey(value)) {
+      delete nextFilters[shopBySizeConfig.filterKey];
+    } else {
+      nextFilters[shopBySizeConfig.filterKey] = value;
+    }
+    applyFilters(nextFilters);
+  }
+
   function renderFilterControl(filter: CategoryFilter, compact = false) {
     return (
       <div key={filter.key} className={compact ? "border-b border-stone-200 py-4" : "relative"}>
@@ -770,7 +935,7 @@ export default function CategoryListingClient({
       <Navbar />
 
       <section className="bg-[#241f18] text-[#fff8ed]">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(520px,1.15fr)] lg:items-center md:py-10">
+        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-7 md:py-9 lg:grid-cols-[minmax(0,0.85fr)_minmax(520px,1.15fr)] lg:items-center">
           <div>
             <Link href="/" className="text-sm font-bold text-[#d5b46b] hover:text-white">
               Back to Home
@@ -778,13 +943,13 @@ export default function CategoryListingClient({
             <p className="mt-5 text-xs font-medium uppercase tracking-[0.28em] text-[#d5b46b]">
               Product Listing
             </p>
-            <h1 className="mt-3 text-4xl font-normal tracking-normal md:text-5xl">
+            <h1 className="mt-3 text-3xl font-normal tracking-normal md:text-4xl">
               {listingDisplayName}
             </h1>
             <p className="mt-3 text-sm font-medium text-[#decfb5]">
               {listingBreadcrumb.join(" / ")}
             </p>
-            <p className="mt-5 max-w-2xl text-sm leading-6 text-[#f0e3ca]">
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-[#f0e3ca]">
               Browse {listingDisplayName} products with category-specific filters,
               vendor stock, product details and fresh marketplace listings.
             </p>
@@ -837,7 +1002,53 @@ export default function CategoryListingClient({
       </section>
 
       <section className="mx-auto max-w-7xl px-4 py-5">
-        <div className="mb-4 rounded-md border border-[#e4d5bc] bg-white p-3 shadow-sm">
+        {shopBySizeConfig && (
+          <div className="mb-4 rounded-lg border border-[#eadfce] bg-[#fffdf9] px-3 py-3 shadow-[0_4px_16px_rgba(42,35,25,0.035)] sm:px-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#7a6426]">
+                  Shop by Size
+                </p>
+                <p className="text-xs text-stone-500">
+                  {shopBySizeConfig.label}
+                </p>
+              </div>
+              {shopBySizeConfig.selectedValue && (
+                <button
+                  type="button"
+                  onClick={() => selectShopBySize(shopBySizeConfig.selectedValue)}
+                  className="shrink-0 rounded-full border border-[#d5b46b] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-[#5f4a28] hover:bg-[#fbf7ef]"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+              {shopBySizeConfig.options.map((option) => {
+                const selected =
+                  optionKey(shopBySizeConfig.selectedValue) === optionKey(option.value);
+
+                return (
+                  <button
+                    key={`${shopBySizeConfig.filterKey}-${option.value}`}
+                    type="button"
+                    onClick={() => selectShopBySize(option.value)}
+                    className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-medium transition ${
+                      selected
+                        ? "border-[#241f18] bg-[#241f18] text-[#fffaf1]"
+                        : "border-[#e2cfaa] bg-[#fbf7ef] text-[#4f463b] hover:border-[#d2b679] hover:bg-white"
+                    }`}
+                    aria-pressed={selected}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="mb-4 rounded-lg border border-[#eadfce] bg-[#fffdf9] p-3 shadow-[0_4px_16px_rgba(42,35,25,0.04)]">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#7a6426]">
@@ -871,10 +1082,10 @@ export default function CategoryListingClient({
                       desktopFilterButtonRefs.current[filter.key] = element;
                     }}
                     onClick={() => toggleDesktopFilter(filter.key)}
-                    className={`rounded-full border px-4 py-2 text-xs font-medium uppercase tracking-[0.08em] ${
+                    className={`rounded-full border px-4 py-2 text-xs font-medium uppercase tracking-[0.08em] transition ${
                       selectedLabel
                         ? "border-[#241f18] bg-[#241f18] text-[#fffaf1]"
-                        : "border-[#e2cfaa] bg-[#fbf7ef] text-[#4f463b]"
+                        : "border-[#e2cfaa] bg-[#fbf7ef] text-[#4f463b] hover:border-[#d2b679] hover:bg-white"
                     }`}
                     aria-expanded={desktopFilterOpen === filter.key}
                   >
@@ -939,9 +1150,9 @@ export default function CategoryListingClient({
         )}
 
         {loading ? (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5 xl:grid-cols-5">
             {Array.from({ length: 10 }).map((_, index) => (
-              <div key={index} className="overflow-hidden rounded-md border border-[#e7dcc8] bg-[#fffdf8] shadow-sm">
+              <div key={index} className="overflow-hidden rounded-lg border border-[#eadfce] bg-[#fffdf9] shadow-sm">
                 <div className="aspect-[2/3] animate-pulse bg-stone-200 sm:aspect-[4/5]" />
                 <div className="space-y-2 p-2.5 sm:p-3">
                   <div className="h-3 w-24 animate-pulse rounded bg-stone-200" />
@@ -952,25 +1163,26 @@ export default function CategoryListingClient({
             ))}
           </div>
         ) : products.length === 0 ? (
-          <div className="rounded-md bg-[#fffdf8] p-8 text-center shadow-sm">
-            <h2 className="text-2xl font-normal">No products found yet</h2>
+          <div className="rounded-lg border border-[#eadfce] bg-[#fffdf9] p-8 text-center shadow-sm">
+            <h2 className="text-xl font-normal">No products found yet</h2>
             <p className="mt-2 text-stone-500">
               Vendors can add products for {listingDisplayName} from the vendor dashboard.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5 xl:grid-cols-5">
             {products.map((product, index) => {
               const stock = getStockSignal(product);
               const wishlistActive = isInWishlist(product.id);
               const categoryName = product.subcategory?.name || product.category?.name || listingDisplayName;
+              const imageTreatment = getProductListingImageTreatment(`${categoryName} ${product.name}`);
 
               return (
                 <article
                   key={product.id}
-                  className="group overflow-hidden rounded-md border border-[#eadcc2] bg-[#fffdf8] shadow-[0_5px_18px_rgba(42,35,25,0.055)] transition hover:-translate-y-0.5 hover:border-[#d8bd83] hover:shadow-[0_14px_30px_rgba(42,35,25,0.11)] sm:rounded-sm"
+                  className="group overflow-hidden rounded-lg border border-[#eadfce] bg-[#fffdf9] shadow-[0_4px_16px_rgba(42,35,25,0.045)] transition duration-200 hover:-translate-y-0.5 hover:border-[#d2b679] hover:shadow-[0_12px_26px_rgba(42,35,25,0.09)]"
                 >
-                  <div className="relative aspect-[2/3] overflow-hidden bg-[#e8dccb] sm:aspect-[4/5]">
+                  <div className={`relative aspect-[2/3] overflow-hidden sm:aspect-[4/5] ${imageTreatment.frameClassName}`}>
                     <Link href={getProductHref(product)}>
                       <Image
                         src={product.images?.[0] || fallbackImage}
@@ -978,7 +1190,7 @@ export default function CategoryListingClient({
                         fill
                         priority={index < 2}
                         sizes="(min-width: 1440px) 220px, (min-width: 1024px) 23vw, (min-width: 768px) 31vw, 50vw"
-                        className="object-cover transition duration-300 group-hover:scale-105"
+                        className={`${imageTreatment.imageClassName} transition duration-300 group-hover:scale-105`}
                       />
                     </Link>
                     <button
@@ -999,7 +1211,7 @@ export default function CategoryListingClient({
                           });
                         }
                       }}
-                      className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-full bg-white/95 text-base font-medium text-[#5f4a28] shadow-sm ring-1 ring-[#eadcc2] transition hover:bg-[#fff7e8] sm:right-2 sm:top-2 sm:h-9 sm:w-9"
+                      className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-full bg-white/95 text-base font-medium text-[#5f4a28] shadow-sm ring-1 ring-[#eadfce] transition hover:bg-[#fff7e8] hover:text-[#241f18] sm:right-2 sm:top-2 sm:h-9 sm:w-9"
                     >
                       {wishlistActive ? "\u2665" : "\u2661"}
                     </button>
@@ -1009,7 +1221,7 @@ export default function CategoryListingClient({
                   </div>
                   <div className="p-2.5 sm:p-3">
                     <Link href={getProductHref(product)}>
-                      <p className="hidden truncate text-[10px] font-medium uppercase tracking-[0.1em] text-[#9c7a34] sm:block">
+                      <p className="hidden truncate text-[10px] font-medium uppercase tracking-[0.08em] text-[#9a7b3f] sm:block">
                         {categoryName}
                       </p>
                       <h3 className="line-clamp-2 min-h-8 text-[11px] font-normal leading-4 text-[#241f18] hover:text-[#8a6a30] sm:mt-1 sm:min-h-9 sm:text-[13px] sm:leading-[1.35]">

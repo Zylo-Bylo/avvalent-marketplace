@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import MobileNavbar from "@/components/MobileNavbar";
 import Navbar from "@/components/navbar/Navbar";
+import { getProductListingImageTreatment } from "@/components/products/ProductCard";
 import { getFashionCategoryHref } from "@/lib/categoryFilters";
 import { useCartStore } from "@/store/cart-store";
 import { useWishlistStore } from "@/store/wishlist-store";
@@ -412,7 +413,7 @@ export default function ProductsPage() {
       <Navbar />
 
       <main className="mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-6">
-        <div className="mb-4 rounded-sm border border-[#e7dcc8] bg-[#fffdf8] px-4 py-4 shadow-[0_8px_22px_rgba(42,35,25,0.06)]">
+        <div className="mb-4 rounded-lg border border-[#eadfce] bg-[#fffdf9] px-4 py-4 shadow-[0_6px_18px_rgba(42,35,25,0.045)]">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#8a6a30]">
             Zylo-Buylo Catalogue
           </p>
@@ -424,7 +425,7 @@ export default function ProductsPage() {
           </p>
         </div>
 
-        <div className="sticky top-[104px] z-30 mb-4 rounded-sm border border-[#e7dcc8] bg-[#fffdf8]/95 p-3 shadow-[0_10px_24px_rgba(42,35,25,0.08)] backdrop-blur lg:hidden">
+        <div className="sticky top-[104px] z-30 mb-4 rounded-lg border border-[#eadfce] bg-[#fffdf9]/95 p-3 shadow-[0_8px_20px_rgba(42,35,25,0.07)] backdrop-blur lg:hidden">
           <div className="flex items-center justify-between gap-2">
             <button
               type="button"
@@ -462,17 +463,17 @@ export default function ProductsPage() {
           />
         )}
 
-        <div className="grid gap-5 lg:grid-cols-[280px_1fr]">
+        <div className="grid gap-5 lg:grid-cols-[270px_1fr] xl:gap-6">
         <aside
-          className={`h-fit border border-[#e7dcc8] bg-[#fffdf8] p-4 shadow-sm lg:sticky lg:top-28 ${
+          className={`h-fit rounded-lg border border-[#eadfce] bg-[#fffdf9] p-4 shadow-[0_4px_16px_rgba(42,35,25,0.04)] lg:sticky lg:top-28 ${
             filtersOpen
-              ? "fixed inset-y-0 left-0 z-50 w-[88vw] max-w-sm overflow-y-auto"
+              ? "fixed inset-y-0 left-0 z-50 w-[88vw] max-w-sm overflow-y-auto rounded-none"
               : "hidden lg:block"
           }`}
         >
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h1 className="text-lg font-medium uppercase tracking-[0.08em]">Filters</h1>
+              <h1 className="text-base font-medium uppercase tracking-[0.08em]">Filters</h1>
               <p className="text-xs text-[#756a5e]">
                 {visibleProducts.length} Products
               </p>
@@ -504,7 +505,7 @@ export default function ProductsPage() {
             />
 
             <div className="border-t border-stone-200 pt-4">
-              <p className="mb-3 text-sm font-bold">Category</p>
+              <p className="mb-3 text-sm font-medium text-[#241f18]">Category</p>
               <div className="max-h-56 space-y-2 overflow-auto pr-1">
                 <label className="flex items-center gap-2 text-sm text-stone-700">
                   <input
@@ -573,7 +574,7 @@ export default function ProductsPage() {
             </div>
 
             <div className="border-t border-stone-200 pt-4">
-              <p className="mb-3 text-sm font-bold">Brand / Vendor</p>
+              <p className="mb-3 text-sm font-medium text-[#241f18]">Brand / Vendor</p>
               <select
                 value={selectedBrand}
                 onChange={(event) => setSelectedBrand(event.target.value)}
@@ -590,7 +591,7 @@ export default function ProductsPage() {
 
             {attributeFilterGroups.map((group) => (
               <details key={group.title} className="border-t border-stone-200 pt-4" open={group.title === "Rating"}>
-                <summary className="cursor-pointer text-sm font-bold">
+                <summary className="cursor-pointer text-sm font-medium text-[#241f18]">
                   {group.title}
                 </summary>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -648,7 +649,7 @@ export default function ProductsPage() {
             </label>
 
             <div className="border-t border-stone-200 pt-4">
-              <p className="mb-3 text-sm font-bold">Stock status</p>
+              <p className="mb-3 text-sm font-medium text-[#241f18]">Stock status</p>
               <label className="flex items-center gap-2 text-sm font-semibold text-stone-700">
                 <input
                   type="checkbox"
@@ -662,9 +663,9 @@ export default function ProductsPage() {
         </aside>
 
         <section>
-          <div className="mb-4 flex flex-col justify-between gap-3 border border-[#e7dcc8] bg-[#fffdf8] px-4 py-3 shadow-sm md:flex-row md:items-center">
+          <div className="mb-4 flex flex-col justify-between gap-3 rounded-lg border border-[#eadfce] bg-[#fffdf9] px-4 py-3 shadow-[0_4px_16px_rgba(42,35,25,0.04)] md:flex-row md:items-center">
             <div>
-              <h2 className="text-2xl font-normal">Product Listing</h2>
+              <h2 className="text-xl font-normal md:text-2xl">Product Listing</h2>
               <p className="text-sm text-[#756a5e]">
                 {loading
                   ? "Loading..."
@@ -686,11 +687,11 @@ export default function ProductsPage() {
           )}
 
           {loading ? (
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 min-[1440px]:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-5 min-[1440px]:grid-cols-5">
               {Array.from({ length: 8 }).map((_, index) => (
                 <div
                   key={index}
-                  className="overflow-hidden rounded-sm border border-[#e7dcc8] bg-[#fffdf8] shadow-sm"
+                  className="overflow-hidden rounded-lg border border-[#eadfce] bg-[#fffdf9] shadow-sm"
                 >
                   <div className="aspect-[2/3] animate-pulse bg-stone-200 sm:aspect-[4/5]" />
                   <div className="space-y-1.5 p-2 sm:space-y-2 sm:p-3">
@@ -702,11 +703,13 @@ export default function ProductsPage() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 min-[1440px]:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-5 min-[1440px]:grid-cols-5">
               {visibleProducts.map((product, index) => {
                 const inventory = product.inventories?.[0];
                 const available = Number(inventory?.availableStock ?? product.inventory ?? 0);
                 const wishlistActive = isInWishlist(product.id);
+                const categoryName = getProductCategoryName(product);
+                const imageTreatment = getProductListingImageTreatment(`${categoryName} ${product.name}`);
                 const signal =
                   inventory?.isPreOrder
                     ? { label: "Pre Order Available", className: "bg-[#eef0f4] text-[#4f463b]" }
@@ -715,17 +718,17 @@ export default function ProductsPage() {
                       : available <= 0
                         ? { label: "Out of Stock", className: "bg-gray-200 text-gray-800" }
                         : available <= Number(inventory?.criticalStockThreshold ?? 3)
-                          ? { label: `Only ${available} left - Order Soon`, className: "bg-red-100 text-red-800" }
+                          ? { label: `Only ${available} left - Order Soon`, className: "bg-[#f7e5d8] text-[#7d3e20]" }
                           : available <= Number(inventory?.lowStockThreshold ?? 10)
-                            ? { label: `Only ${available} left`, className: "bg-orange-100 text-orange-800" }
+                            ? { label: `Only ${available} left`, className: "bg-[#f5ead2] text-[#7a5a1e]" }
                             : { label: "In Stock", className: "bg-[#f0eadf] text-[#5f4a28]" };
 
                 return (
                   <article
                     key={product.id}
-                  className="group h-full overflow-hidden rounded-md border border-[#eadcc2] bg-[#fffdf8] shadow-[0_5px_18px_rgba(42,35,25,0.055)] transition hover:-translate-y-0.5 hover:border-[#d8bd83] hover:shadow-[0_14px_30px_rgba(42,35,25,0.11)] sm:rounded-sm"
+                  className="group h-full overflow-hidden rounded-lg border border-[#eadfce] bg-[#fffdf9] shadow-[0_4px_16px_rgba(42,35,25,0.045)] transition duration-200 hover:-translate-y-0.5 hover:border-[#d2b679] hover:shadow-[0_12px_26px_rgba(42,35,25,0.09)]"
                 >
-                    <div className="relative aspect-[2/3] overflow-hidden bg-[#e8dccb] sm:aspect-[4/5]">
+                    <div className={`relative aspect-[2/3] overflow-hidden sm:aspect-[4/5] ${imageTreatment.frameClassName}`}>
                       <Link href={`/products/${product.id}`} className="block h-full">
                         <Image
                           src={product.images?.[0] || fallbackImage}
@@ -733,7 +736,7 @@ export default function ProductsPage() {
                           fill
                           priority={index < 2}
                           sizes="(min-width: 1440px) 190px, (min-width: 1024px) 22vw, (min-width: 768px) 31vw, 50vw"
-                          className="object-cover transition duration-300 group-hover:scale-105"
+                          className={`${imageTreatment.imageClassName} transition duration-300 group-hover:scale-105`}
                         />
                       </Link>
                         <span className={`absolute left-1.5 top-1.5 max-w-[calc(100%-3.25rem)] truncate rounded-full px-1.5 py-0.5 text-[9px] font-medium sm:left-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[10px] ${signal.className}`}>
@@ -743,7 +746,7 @@ export default function ProductsPage() {
                           type="button"
                           aria-label={wishlistActive ? "Remove from wishlist" : "Add to wishlist"}
                           onClick={(event) => toggleWishlist(event, product)}
-                          className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-full bg-white/95 text-base font-medium text-[#5f4a28] shadow-sm ring-1 ring-[#eadcc2] transition hover:bg-[#fff7e8] sm:right-2 sm:top-2 sm:h-9 sm:w-9"
+                          className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-full bg-white/95 text-base font-medium text-[#5f4a28] shadow-sm ring-1 ring-[#eadfce] transition hover:bg-[#fff7e8] hover:text-[#241f18] sm:right-2 sm:top-2 sm:h-9 sm:w-9"
                         >
                           {wishlistActive ? "♥" : "♡"}
                         </button>
@@ -751,8 +754,8 @@ export default function ProductsPage() {
 
                     <div className="p-2 sm:p-3">
                       <Link href={`/products/${product.id}`} className="block">
-                        <p className="hidden truncate text-[10px] font-medium uppercase tracking-[0.1em] text-[#9c7a34] sm:block">
-                          {getProductCategoryName(product)}
+                        <p className="hidden truncate text-[10px] font-medium uppercase tracking-[0.08em] text-[#9a7b3f] sm:block">
+                          {categoryName}
                         </p>
                         <h3 className="line-clamp-2 min-h-8 text-[11px] font-normal leading-4 text-[#241f18] hover:text-[#8a6a30] sm:mt-1 sm:min-h-9 sm:text-[13px] sm:leading-[1.35]">
                           {product.name}

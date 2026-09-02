@@ -223,6 +223,167 @@ describe("public products API routes", () => {
     );
   });
 
+  it("filters size queries against product variant size labels instead of generic product text", async () => {
+    const response = await getProducts(
+      new Request("http://localhost/api/products?categoryId=cat-kurtis&size=M") as NextRequest,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          categoryId: "cat-kurtis",
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              variants: {
+                some: expect.objectContaining({
+                  OR: expect.arrayContaining([
+                    { sizeLabel: expect.objectContaining({ equals: "M" }) },
+                    { numericSize: expect.objectContaining({ equals: "M" }) },
+                  ]),
+                }),
+              },
+            }),
+          ]),
+        }),
+      }),
+    );
+    expect(mocks.prisma.product.findMany).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              OR: expect.arrayContaining([
+                { name: expect.objectContaining({ contains: "M" }) },
+              ]),
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("matches numeric and slugged footwear sizes through variant size fields", async () => {
+    const response = await getProducts(
+      new Request("http://localhost/api/products?subcategoryId=sub-shoes&size=uk-8") as NextRequest,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          subcategoryId: "sub-shoes",
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              variants: {
+                some: expect.objectContaining({
+                  OR: expect.arrayContaining([
+                    { sizeLabel: expect.objectContaining({ equals: "uk-8" }) },
+                    { sizeLabel: expect.objectContaining({ equals: "uk 8" }) },
+                    { numericSize: expect.objectContaining({ equals: "8" }) },
+                  ]),
+                }),
+              },
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("handles case and whitespace safely for variant size comparison", async () => {
+    const response = await getProducts(
+      new Request("http://localhost/api/products?productTypeId=type-shirts&size=%20m%20") as NextRequest,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          productTypeId: "type-shirts",
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              variants: {
+                some: expect.objectContaining({
+                  OR: expect.arrayContaining([
+                    { sizeLabel: expect.objectContaining({ equals: "m" }) },
+                    { numericSize: expect.objectContaining({ equals: "m" }) },
+                  ]),
+                }),
+              },
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("combines size filtering with existing price and customer filter params", async () => {
+    const response = await getProducts(
+      new Request(
+        "http://localhost/api/products?categoryId=cat-denim&size=36&color=Blue&minPrice=500&maxPrice=2500&sort=price-desc",
+      ) as NextRequest,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          categoryId: "cat-denim",
+          price: { gte: 500, lte: 2500 },
+          AND: expect.arrayContaining([
+            expect.objectContaining({ variants: expect.any(Object) }),
+            expect.objectContaining({
+              OR: expect.arrayContaining([
+                { description: expect.objectContaining({ contains: "Blue" }) },
+              ]),
+            }),
+          ]),
+        }),
+        orderBy: { price: "desc" },
+      }),
+    );
+  });
+
+  it("keeps unknown non-size query parameters on the existing generic filter path", async () => {
+    const response = await getProducts(
+      new Request("http://localhost/api/products?category=beauty&packQuantity=100ml") as NextRequest,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          category: expect.any(Object),
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              OR: expect.arrayContaining([
+                { sku: expect.objectContaining({ contains: "100ml" }) },
+              ]),
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("does not add variant size filtering when non-sized category requests have no size query", async () => {
+    const response = await getProducts(
+      new Request("http://localhost/api/products?category=beauty&sort=popular") as NextRequest,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.not.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({ variants: expect.any(Object) }),
+          ]),
+        }),
+      }),
+    );
+  });
+
   it("returns product detail for approved vendor products", async () => {
     mocks.prisma.product.findUnique.mockResolvedValue({
       id: "product-1",

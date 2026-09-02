@@ -31,6 +31,19 @@ const brandAliases: Record<string, string[]> = {
 const supportsInsensitiveMode =
   process.env.DATABASE_URL?.startsWith('postgresql://') ||
   process.env.DATABASE_URL?.startsWith('postgres://');
+const sizeFilterKeys = new Set([
+  'size',
+  'sizes',
+  'sizeLabel',
+  'numericSize',
+  'ageGroup',
+  'age_group',
+  'india_size',
+  'uk_size',
+  'us_size',
+  'eu_size',
+  'shoe_size',
+]);
 
 function textEquals(value: string) {
   return supportsInsensitiveMode
@@ -42,6 +55,38 @@ function textContains(value: string) {
   return supportsInsensitiveMode
     ? { contains: value, mode: 'insensitive' as const }
     : { contains: value };
+}
+
+function normalizeSizeQueryValue(value: string) {
+  return value.trim().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ');
+}
+
+function getSizeQueryCandidates(value: string) {
+  const normalized = normalizeSizeQueryValue(value);
+  const candidates = new Set([value.trim(), normalized]);
+  const numeric = normalized.match(/\d+(?:\.\d+)?/)?.[0];
+  if (numeric) {
+    candidates.add(numeric);
+  }
+
+  return Array.from(candidates).filter(Boolean);
+}
+
+function variantSizeFilter(value: string) {
+  const candidates = getSizeQueryCandidates(value);
+
+  if (!candidates.length) return null;
+
+  return {
+    variants: {
+      some: {
+        OR: candidates.flatMap((candidate) => [
+          { sizeLabel: textEquals(candidate) },
+          { numericSize: textEquals(candidate) },
+        ]),
+      },
+    },
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -214,6 +259,14 @@ export async function GET(request: NextRequest) {
     for (const [key, value] of searchParams.entries()) {
       const trimmedValue = value.trim();
       if (!trimmedValue || knownParams.has(key)) continue;
+
+      if (sizeFilterKeys.has(key)) {
+        const sizeFilter = variantSizeFilter(trimmedValue);
+        if (sizeFilter) {
+          andFilters.push(sizeFilter);
+        }
+        continue;
+      }
 
       andFilters.push({
         OR: [
