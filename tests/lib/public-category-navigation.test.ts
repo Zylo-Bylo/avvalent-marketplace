@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   categoryPlaceholderImage,
   findCategoryNodeByAnySlug,
+  getCategoryDesktopBanner,
   getCategoryHref,
   getCategorySmallImage,
+  normalizeCategoryImageUrl,
   normalizePublicCategoryTree,
 } from "@/lib/public-category-navigation";
 
@@ -97,6 +99,45 @@ describe("public category navigation", () => {
     ]);
 
     expect(getCategorySmallImage(fallbackCategory)).toBe(categoryPlaceholderImage);
+  });
+
+  it("normalizes unsupported external placeholder category media to the local fallback", () => {
+    expect(normalizeCategoryImageUrl("https://placehold.co/1600x500/png?text=Banner")).toBe(
+      categoryPlaceholderImage,
+    );
+    expect(normalizeCategoryImageUrl("https://via.placeholder.com/800x800")).toBe(
+      categoryPlaceholderImage,
+    );
+    expect(normalizeCategoryImageUrl("https://placeholder.com/800x800")).toBe(
+      categoryPlaceholderImage,
+    );
+  });
+
+  it("preserves supported category media URLs", () => {
+    expect(
+      normalizeCategoryImageUrl(
+        "https://demo.supabase.co/storage/v1/object/public/categories/kurtis.webp",
+      ),
+    ).toBe("https://demo.supabase.co/storage/v1/object/public/categories/kurtis.webp");
+    expect(normalizeCategoryImageUrl("/category-banner.webp")).toBe(
+      "/category-banner.webp",
+    );
+  });
+
+  it("falls back from an invalid desktop banner to a valid category image", () => {
+    const [category] = normalizePublicCategoryTree([
+      {
+        id: "cat-kurtis",
+        name: "Kurtis",
+        slug: "kurtis",
+        desktopBanner: "https://placehold.co/1600x500/png?text=Broken",
+        categoryImage: "https://demo.supabase.co/storage/v1/object/public/categories/kurtis.webp",
+      },
+    ]);
+
+    expect(getCategoryDesktopBanner(category)).toBe(
+      "https://demo.supabase.co/storage/v1/object/public/categories/kurtis.webp",
+    );
   });
 
   it("routes main, subcategory, and product type nodes to listing filters", () => {

@@ -122,7 +122,7 @@ const productFamilies = [
   ["dress", ["dress", "dresses", "gown", "gowns", "jumpsuit", "jumpsuits"]],
   ["bag", ["bag", "bags", "backpack", "handbag", "purse", "wallet", "luggage"]],
   ["beauty", ["face", "wash", "cream", "oil", "serum", "lotion", "shampoo", "conditioner", "makeup", "beauty"]],
-  ["homeware", ["bottle", "steel", "kitchen", "home", "container", "tiffin", "flask", "utensil"]],
+  ["homeware", ["bottle", "steel", "kitchen", "home", "decor", "cushion", "cushions", "cover", "covers", "container", "tiffin", "flask", "utensil"]],
 ] as const;
 
 function serializeProduct(product: unknown): RecommendationProduct {
@@ -184,8 +184,11 @@ export function hasRecommendationAffinity(seed: ProductSeed, candidate: Recommen
 
   const seedFamilies = familySet(seed);
   const candidateFamilies = familySet(candidate);
-  if (seedFamilies.size && candidateFamilies.size && !intersects(seedFamilies, candidateFamilies)) {
-    return false;
+
+  if (seedFamilies.size) {
+    if (!candidateFamilies.size || !intersects(seedFamilies, candidateFamilies)) {
+      return false;
+    }
   }
 
   const seedAudience = audienceSet(seed);
@@ -194,7 +197,12 @@ export function hasRecommendationAffinity(seed: ProductSeed, candidate: Recommen
     return false;
   }
 
-  return seedFamilies.size > 0 || seedAudience.size > 0;
+  if (seedFamilies.size && candidateFamilies.size) return true;
+  if (seedAudience.size && candidateAudience.size && intersects(seedAudience, candidateAudience)) {
+    return true;
+  }
+
+  return false;
 }
 
 function relevanceScore(seed: ProductSeed, candidate: RecommendationProduct) {

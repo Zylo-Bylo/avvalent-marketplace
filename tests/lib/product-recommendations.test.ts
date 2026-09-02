@@ -62,6 +62,19 @@ const seed = {
   productType: { id: "type-school-shoes", name: "School Shoes" },
 };
 
+const kurtiSeed = {
+  id: "kurti-current",
+  name: "Fake Staging Pink Kurti",
+  vendorId: "vendor-1",
+  categoryId: "cat-fashion",
+  subcategoryId: "sub-kurtis",
+  productTypeId: "type-kurtis",
+  price: 799,
+  category: { id: "cat-fashion", name: "Staging Fashion" },
+  subcategory: { id: "sub-kurtis", name: "Staging Kurtis" },
+  productType: { id: "type-kurtis", name: "Kurtis" },
+};
+
 describe("product recommendations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -101,6 +114,144 @@ describe("product recommendations", () => {
         take: 12,
       }),
     );
+  });
+
+  it("accepts same Kurti product type matches", () => {
+    expect(
+      hasRecommendationAffinity(
+        kurtiSeed,
+        product("kurti-match", {
+          name: "Embroidered Kurti",
+          categoryId: "cat-fashion",
+          subcategoryId: "sub-kurtis",
+          productTypeId: "type-kurtis",
+          category: { id: "cat-fashion", name: "Staging Fashion" },
+          subcategory: { id: "sub-kurtis", name: "Staging Kurtis" },
+          productType: { id: "type-kurtis", name: "Kurtis" },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts compatible apparel candidates without requiring audience metadata", () => {
+    expect(
+      hasRecommendationAffinity(
+        kurtiSeed,
+        product("apparel-match", {
+          name: "Cotton Tunic",
+          categoryId: "cat-fashion",
+          subcategoryId: "sub-tunics",
+          productTypeId: "type-tunics",
+          category: { id: "cat-fashion", name: "Fashion" },
+          subcategory: { id: "sub-tunics", name: "Tunics" },
+          productType: { id: "type-tunics", name: "Tunics" },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects Cushion Cover as a similar product for Kurti", () => {
+    expect(
+      hasRecommendationAffinity(
+        kurtiSeed,
+        product("cushion-cover", {
+          name: "Fake Staging Cushion Cover",
+          categoryId: "cat-fashion",
+          subcategoryId: "sub-home-decor",
+          productTypeId: "type-cushion-covers",
+          category: { id: "cat-fashion", name: "Staging Fashion" },
+          subcategory: { id: "sub-home-decor", name: "Staging Decor" },
+          productType: { id: "type-cushion-covers", name: "Cushion Covers" },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects unrelated home decor candidates for Kurti", () => {
+    expect(
+      hasRecommendationAffinity(
+        kurtiSeed,
+        product("home-decor", {
+          name: "Decor Table Runner",
+          categoryId: "cat-fashion",
+          subcategoryId: "sub-home-decor",
+          productTypeId: "type-home-decor",
+          category: { id: "cat-fashion", name: "Staging Fashion" },
+          subcategory: { id: "sub-home-decor", name: "Home Decor" },
+          productType: { id: "type-home-decor", name: "Home Decor" },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects unclassified fallback candidates when the seed has a recognized family", () => {
+    expect(
+      hasRecommendationAffinity(
+        kurtiSeed,
+        product("unclassified", {
+          name: "Limited Edition Bundle",
+          categoryId: "cat-fashion",
+          subcategoryId: "sub-misc",
+          productTypeId: "type-misc",
+          category: { id: "cat-fashion", name: "Staging Fashion" },
+          subcategory: { id: "sub-misc", name: "Seasonal Picks" },
+          productType: { id: "type-misc", name: "Featured Picks" },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps exact subcategory and product type matches accepted even without family tokens", () => {
+    expect(
+      hasRecommendationAffinity(
+        kurtiSeed,
+        product("same-subcategory", {
+          name: "Limited Edition Bundle",
+          categoryId: "cat-fashion",
+          subcategoryId: "sub-kurtis",
+          productTypeId: "type-misc",
+          category: { id: "cat-fashion", name: "Staging Fashion" },
+          subcategory: { id: "sub-kurtis", name: "Seasonal Picks" },
+          productType: { id: "type-misc", name: "Featured Picks" },
+        }),
+      ),
+    ).toBe(true);
+
+    expect(
+      hasRecommendationAffinity(
+        kurtiSeed,
+        product("same-product-type", {
+          name: "Limited Edition Bundle",
+          categoryId: "cat-fashion",
+          subcategoryId: "sub-misc",
+          productTypeId: "type-kurtis",
+          category: { id: "cat-fashion", name: "Staging Fashion" },
+          subcategory: { id: "sub-misc", name: "Seasonal Picks" },
+          productType: { id: "type-kurtis", name: "Featured Picks" },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects conflicting explicit audiences", () => {
+    expect(
+      hasRecommendationAffinity(
+        {
+          ...kurtiSeed,
+          name: "Women Pink Kurti",
+          category: { id: "cat-fashion", name: "Women Fashion" },
+        },
+        product("men-shirt", {
+          name: "Men Cotton Shirt",
+          categoryId: "cat-fashion",
+          subcategoryId: "sub-shirts",
+          productTypeId: "type-shirts",
+          category: { id: "cat-fashion", name: "Men Fashion" },
+          subcategory: { id: "sub-shirts", name: "Shirts" },
+          productType: { id: "type-shirts", name: "Shirts" },
+        }),
+      ),
+    ).toBe(false);
   });
 
   it("uses parent-category fallback only when shopper affinity remains relevant", async () => {
@@ -148,6 +299,29 @@ describe("product recommendations", () => {
       subcategory: { id: "sub-bottle", name: "Water Bottles" },
       productType: { id: "type-bottle", name: "Steel Bottle" },
     }))).toBe(false);
+  });
+
+  it("keeps Similar Products empty instead of filling with unrelated Cushion Cover", async () => {
+    mocks.prisma.product.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        product("cushion-cover", {
+          name: "Fake Staging Cushion Cover",
+          categoryId: "cat-fashion",
+          subcategoryId: "sub-home-decor",
+          productTypeId: "type-cushion-covers",
+          category: { id: "cat-fashion", name: "Staging Fashion" },
+          subcategory: { id: "sub-home-decor", name: "Staging Decor" },
+          productType: { id: "type-cushion-covers", name: "Cushion Covers" },
+        }),
+      ])
+      .mockResolvedValueOnce([]);
+
+    const result = await getProductRecommendations(kurtiSeed);
+
+    expect(result.similarProducts).toEqual([]);
+    expect(result.youMayAlsoLike).toEqual([]);
   });
 
   it("excludes the current product and avoids duplicates across groups", async () => {

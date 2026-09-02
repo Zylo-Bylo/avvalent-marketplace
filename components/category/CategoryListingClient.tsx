@@ -423,6 +423,7 @@ export default function CategoryListingClient({
   const [dynamicShortcuts, setDynamicShortcuts] = useState<CategoryShortcut[]>([]);
   const [dynamicFilters, setDynamicFilters] = useState<CategoryFilter[]>([]);
   const [useMobileBanner, setUseMobileBanner] = useState(false);
+  const [bannerRenderSrc, setBannerRenderSrc] = useState(categoryPlaceholderImage);
   const desktopFilterButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const desktopFilterPanelRef = useRef<HTMLDivElement | null>(null);
   const metadataRequestIdRef = useRef(0);
@@ -485,6 +486,10 @@ export default function CategoryListingClient({
     products,
     selectedValue: filterDraft[getShopBySizeFilter(listingFilters)?.key || ""],
   });
+
+  useEffect(() => {
+    setBannerRenderSrc(bannerImage || categoryPlaceholderImage);
+  }, [bannerImage]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
@@ -956,12 +961,17 @@ export default function CategoryListingClient({
           </div>
           <div className="relative min-h-48 overflow-hidden rounded-md border border-[#d5b46b]/30 bg-[#efe2c9] sm:min-h-64 lg:aspect-[16/5] lg:min-h-0">
             <Image
-              src={bannerImage}
+              src={bannerRenderSrc}
               alt={bannerAlt}
               fill
               priority
               sizes="(min-width: 1024px) 680px, 100vw"
               className="object-contain"
+              onError={() => {
+                if (bannerRenderSrc !== categoryPlaceholderImage) {
+                  setBannerRenderSrc(categoryPlaceholderImage);
+                }
+              }}
             />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#132238]/45 via-transparent to-transparent" />
             <div className="absolute bottom-4 left-4 rounded-full bg-white/95 px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-[#241f18]">

@@ -22,6 +22,12 @@ export type PublicCategoryNode = {
 export const categoryPlaceholderImage =
   "/product-placeholder.svg";
 
+const placeholderImageHosts = new Set([
+  "placehold.co",
+  "placeholder.com",
+  "via.placeholder.com",
+]);
+
 function slugify(value: string) {
   return value
     .toLowerCase()
@@ -32,15 +38,32 @@ function slugify(value: string) {
 }
 
 export function isRenderableCategoryImage(value: unknown) {
-  return (
-    typeof value === "string" &&
-    Boolean(value.trim()) &&
-    !/^(blob|data):/i.test(value.trim())
-  );
+  if (typeof value !== "string") return false;
+
+  const trimmed = value.trim();
+  if (!trimmed || /^(blob|data):/i.test(trimmed)) return false;
+
+  try {
+    const host = new URL(trimmed).hostname.toLowerCase();
+    return !(
+      placeholderImageHosts.has(host) ||
+      host.endsWith(".placehold.co") ||
+      host.endsWith(".placeholder.com")
+    );
+  } catch {
+    return true;
+  }
+}
+
+export function normalizeCategoryImageUrl(value: unknown) {
+  return isRenderableCategoryImage(value)
+    ? String(value).trim()
+    : categoryPlaceholderImage;
 }
 
 function permanentUrl(value: unknown) {
-  return isRenderableCategoryImage(value) ? String(value).trim() : "";
+  const normalized = normalizeCategoryImageUrl(value);
+  return normalized === categoryPlaceholderImage ? "" : normalized;
 }
 
 function sortNodes<T extends { sortOrder?: number; name?: string }>(nodes: T[]) {
