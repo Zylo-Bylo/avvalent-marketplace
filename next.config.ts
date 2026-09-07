@@ -4,6 +4,10 @@ import { join } from "path";
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
+  // pg reads the CA named by Preview's DATABASE_URL sslrootcert option at runtime.
+  outputFileTracingIncludes: {
+    '/*': ['./certificates/supabase-root-2021.crt'],
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 7,

@@ -1,14 +1,20 @@
 import { prisma } from '@/lib/prisma';
 import type { CategorySizeGuide } from '@/lib/category-size-guide';
+import type { Prisma } from '@prisma/client';
+import {
+  SpecificationInheritanceError,
+  prepareSpecificationSave,
+  publishedParentSpecifications,
+  resolveCategorySpecifications,
+  validateSpecificationScope,
+  type SpecificationHierarchy,
+  type SpecificationInheritance,
+  type PublishedSpecifications,
+  type SpecificationScope,
+} from '@/lib/category-specification-inheritance';
 
-export type CategorySpecField = {
-  name: string;
-  label: string;
-  placeholder: string;
-  multiline?: boolean;
-  options?: string[];
-  required?: boolean;
-};
+export type { VendorSpecField as CategorySpecField } from "@/lib/vendor-specifications";
+import type { VendorSpecField as CategorySpecField } from "@/lib/vendor-specifications";
 
 export type CategorySpecTemplate = {
   title: string;
@@ -18,6 +24,8 @@ export type CategorySpecTemplate = {
   sizeGuide?: CategorySizeGuide | unknown[];
   businessRules?: Record<string, unknown>;
   templateMeta?: Record<string, unknown>;
+  inheritance?: SpecificationInheritance;
+  publishedSpecifications?: PublishedSpecifications;
 };
 
 export type CategoryVariantExample = {
@@ -212,6 +220,55 @@ export async function getCategoryUploadTemplate(
   return rows[0] ? toTemplate(rows[0]) : null;
 }
 
+export async function getExactCategoryUploadTemplate(
+  scope: SpecificationScope,
+  database: Pick<Prisma.TransactionClient, '$queryRaw'> = prisma,
+) {
+  const rows = await database.$queryRaw<TemplateRow[]>`
+    SELECT * FROM "CategoryUploadTemplate"
+    WHERE "categoryId" = ${scope.categoryId}
+      AND COALESCE("subcategoryId", '') = ${scope.subcategoryId || ''}
+      AND COALESCE("productTypeId", '') = ${scope.productTypeId || ''}
+    ORDER BY "updatedAt" DESC
+    LIMIT 1
+  `;
+  return rows[0] ? toTemplate(rows[0]) : null;
+}
+
+async function readSpecificationHierarchy(scope: SpecificationScope, database: Pick<Prisma.TransactionClient, 'category' | 'subcategory' | 'productType'> = prisma): Promise<SpecificationHierarchy> {
+  if (!scope.categoryId || !scope.subcategoryId) throw new SpecificationInheritanceError('Category and Subcategory IDs are required.');
+  const [category, subcategory, productType] = await Promise.all([
+    database.category.findUnique({ where: { id: scope.categoryId }, select: { id: true } }),
+    database.subcategory.findUnique({ where: { id: scope.subcategoryId }, select: { id: true, categoryId: true } }),
+    scope.productTypeId ? database.productType.findUnique({ where: { id: scope.productTypeId }, select: { id: true, subcategoryId: true } }) : null,
+  ]);
+  if (!category || !subcategory || (scope.productTypeId && !productType)) throw new SpecificationInheritanceError('Specification scope does not exist.');
+  const hierarchy = { category, subcategory, productType: productType || undefined };
+  validateSpecificationScope(scope, hierarchy);
+  return hierarchy;
+}
+
+export async function getResolvedCategorySpecifications(scope: SpecificationScope) {
+  if (!scope.productTypeId) throw new SpecificationInheritanceError('Resolved specifications require a ProductType ID.');
+  const hierarchy = await readSpecificationHierarchy(scope);
+  const child = await getExactCategoryUploadTemplate(scope);
+  if (!child || !child.specTemplate.inheritance?.enabled) {
+    // No metadata, disabled metadata, and missing child records retain the old
+    // whole-template lookup. Reading never creates or opts in a child template.
+    if (child?.specTemplate.inheritance) resolveCategorySpecifications({ scope, child: child.specTemplate });
+    return { template: child || await getCategoryUploadTemplate(scope.categoryId, scope.subcategoryId, scope.productTypeId), resolution: { inheritanceApplied: false, parentVersion: null, provenance: [] } };
+  }
+  const parentScope = { categoryId: scope.categoryId, subcategoryId: scope.subcategoryId, productTypeId: null };
+  const parent = await getExactCategoryUploadTemplate(parentScope);
+  if (!parent) throw new SpecificationInheritanceError('The immediate Subcategory has no specification template.');
+  const result = resolveCategorySpecifications({ scope, hierarchy, child: child.specTemplate, parent: { scope: parentScope, specTemplate: publishedParentSpecifications(parent.specTemplate) } });
+  return {
+    // A separate projection: the persisted child and its local fields are untouched.
+    template: { ...child, specificationView: 'resolved-specifications', specTemplate: { ...child.specTemplate, fields: result.fields } },
+    resolution: { inheritanceApplied: true, parentVersion: parent.specTemplate.publishedSpecifications!.publishedAt, provenance: result.provenance },
+  };
+}
+
 export async function saveCategoryUploadTemplate(
   template: CategoryUploadTemplatePayload,
 ) {
@@ -220,15 +277,29 @@ export async function saveCategoryUploadTemplate(
   const id = template.id || crypto.randomUUID();
   const subcategoryId = template.subcategoryId || null;
   const productTypeId = template.productTypeId || null;
-
-  await prisma.$executeRaw`
+  const scope = { categoryId: template.categoryId, subcategoryId, productTypeId };
+  // Keep the retained published snapshot and replacement row in one transaction.
+  await prisma.$transaction(async (database) => {
+    const existing = await getExactCategoryUploadTemplate(scope, database);
+    const specTemplate = prepareSpecificationSave({ incoming: template.specTemplate, existing: existing?.specTemplate, scope, now: new Date().toISOString() });
+    if (specTemplate.inheritance) {
+      const hierarchy = await readSpecificationHierarchy(scope, database);
+      if (specTemplate.inheritance.enabled) {
+        const parentScope = { categoryId: scope.categoryId, subcategoryId, productTypeId: null };
+        const parent = await getExactCategoryUploadTemplate(parentScope, database);
+        // Draft configuration may be prepared before parent publication. Validate
+        // ownership and local differences against its working definition here.
+        resolveCategorySpecifications({ scope, hierarchy, child: specTemplate, parent: parent ? { scope: parentScope, specTemplate: parent.specTemplate } : null });
+      }
+    }
+    await database.$executeRaw`
     DELETE FROM "CategoryUploadTemplate"
     WHERE "categoryId" = ${template.categoryId}
       AND COALESCE("subcategoryId", '') = ${subcategoryId || ''}
       AND COALESCE("productTypeId", '') = ${productTypeId || ''}
   `;
 
-  await prisma.$executeRaw`
+    await database.$executeRaw`
     INSERT INTO "CategoryUploadTemplate" (
       "id",
       "categoryId",
@@ -247,7 +318,7 @@ export async function saveCategoryUploadTemplate(
       ${subcategoryId},
       ${productTypeId},
       ${JSON.stringify(template.productTypes || [])},
-      ${JSON.stringify(template.specTemplate || {})},
+      ${JSON.stringify(specTemplate || {})},
       ${JSON.stringify(template.variantConfig || {})},
       ${template.sizeChart || ''},
       ${JSON.stringify(template.requiredFields || [])},
@@ -255,6 +326,7 @@ export async function saveCategoryUploadTemplate(
       CURRENT_TIMESTAMP
     )
   `;
+  }, { isolationLevel: 'Serializable' });
 
   return getCategoryUploadTemplate(template.categoryId, subcategoryId, productTypeId);
 }

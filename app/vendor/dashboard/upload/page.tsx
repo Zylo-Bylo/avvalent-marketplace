@@ -6,6 +6,15 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/navbar/Navbar";
 import FileUploadField from "@/components/forms/FileUploadField";
 import LanguageAssistPanel from "@/components/forms/LanguageAssistPanel";
+import VendorSpecificationField from "@/components/forms/VendorSpecificationField";
+import {
+  normalizeVendorSpecField,
+  missingRequiredSpecification,
+  vendorCanEditSpecification,
+  vendorSpecificationLines,
+  type VendorSpecField as SpecField,
+} from "@/lib/vendor-specifications";
+import { useVendorProductTypeSpecifications, vendorSpecificationScopeKey } from "@/lib/vendor-product-type-specifications";
 import { applianceCategoryTree } from "@/data/category-tree";
 import {
   PACKAGE_SIZE_OPTIONS,
@@ -27,10 +36,13 @@ type Category = {
   subcategories?: Subcategory[];
 };
 
+type PersistedProductType = { id: string; name: string; subcategoryId: string };
+
 type Subcategory = {
   id: string;
   name: string;
   categoryId: string;
+  productTypes?: PersistedProductType[];
 };
 
 type VendorUser = {
@@ -111,15 +123,6 @@ type BulkProductRow = {
   productId?: string;
 };
 
-type SpecField = {
-  name: string;
-  label: string;
-  placeholder: string;
-  multiline?: boolean;
-  options?: string[];
-  required?: boolean;
-};
-
 type SpecTemplate = {
   title: string;
   helpText: string;
@@ -132,36 +135,6 @@ type ManagedUploadTemplate = {
   variantConfig?: VariantFieldConfig;
   sizeChart?: string;
 };
-
-function normalizeManagedSpecField(field: SpecField): SpecField {
-  const rawLabel = String(field.label || field.name || "").trim();
-  const colonIndex = rawLabel.indexOf(":");
-  const hasEmbeddedOptions =
-    colonIndex > 0 && (!field.options || field.options.length === 0);
-  const label = hasEmbeddedOptions
-    ? rawLabel.slice(0, colonIndex).trim()
-    : rawLabel;
-  const embeddedOptions = hasEmbeddedOptions
-    ? rawLabel
-        .slice(colonIndex + 1)
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean)
-    : [];
-  const name = (label || field.name)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 48);
-
-  return {
-    ...field,
-    name: name || field.name,
-    label: label || "Product Detail",
-    placeholder: field.placeholder || `Select or enter ${label || "value"}`,
-    options: field.options?.length ? field.options : embeddedOptions,
-  };
-}
 
 const imageRules = [
   "Front image should clearly show the product.",
@@ -924,7 +897,9 @@ export default function ProductUploadPage() {
   const [categorySearch, setCategorySearch] = useState("");
   const [managedTemplate, setManagedTemplate] = useState<ManagedUploadTemplate | null>(null);
 
-  const [form, setForm] = useState({
+  const [productTypeId, setProductTypeId] = useState("");
+  const [specificationValues, setSpecificationValues] = useState<{ scope: string; values: Record<string, string> }>({ scope: "", values: {} });
+  const [baseForm, setForm] = useState({
     title: "",
     description: "",
     brand: "",
@@ -979,6 +954,11 @@ export default function ProductUploadPage() {
     treeGroup: "",
     treePart: "",
   });
+  const specificationScope = { categoryId: baseForm.categoryId, subcategoryId: baseForm.subcategoryId, productTypeId };
+  const specificationScopeKey = vendorSpecificationScopeKey(specificationScope);
+  const form = { ...baseForm, ...(specificationValues.scope === specificationScopeKey ? specificationValues.values : {}) };
+  const resolvedSpecifications = useVendorProductTypeSpecifications(specificationScope);
+  const specificationLoadingError = resolvedSpecifications.loading ? "Loading specifications. Please wait." : resolvedSpecifications.error;
   const [variants, setVariants] = useState<VariantFormRow[]>([
     createVariantRow(0),
   ]);
@@ -999,6 +979,8 @@ export default function ProductUploadPage() {
   const selectedSubcategory = subcategoryOptions.find(
     (subcategory) => subcategory.id === form.subcategoryId,
   );
+  const persistedProductTypes = (selectedSubcategory?.productTypes || []).filter((item) => item.subcategoryId === selectedSubcategory?.id);
+  const selectedProductType = persistedProductTypes.find((item) => item.id === productTypeId);
   const selectedTreeMain = applianceCategoryTree.find(
     (category) => category.slug === form.treeMain,
   );
@@ -1093,8 +1075,12 @@ export default function ProductUploadPage() {
     [variants],
   );
   const specTemplate = useMemo(
-    () => managedTemplate?.specTemplate || getSpecTemplate(categoryContext),
-    [categoryContext, managedTemplate?.specTemplate],
+    () => {
+      if (productTypeId && specificationLoadingError) return { title: "Product Specifications", helpText: "", fields: [] };
+      const template = (productTypeId ? resolvedSpecifications.template : null) || managedTemplate?.specTemplate || getSpecTemplate(categoryContext);
+      return { ...template, fields: template.fields.map(normalizeVendorSpecField) };
+    },
+    [categoryContext, managedTemplate?.specTemplate, productTypeId, resolvedSpecifications.template, specificationLoadingError],
   );
 
   useEffect(() => {
@@ -1182,9 +1168,7 @@ export default function ProductUploadPage() {
                 specTemplate: template.specTemplate
                   ? {
                       ...template.specTemplate,
-                      fields: (template.specTemplate.fields || []).map(
-                        normalizeManagedSpecField,
-                      ),
+                      fields: template.specTemplate.fields || [],
                     }
                   : undefined,
                 variantConfig: template.variantConfig
@@ -1219,18 +1203,27 @@ export default function ProductUploadPage() {
     };
   }, [form.categoryId, form.subcategoryId]);
 
+  function changeSpecification(name: string, value: string) {
+    const field = specTemplate.fields.find((item) => item.name === name);
+    if (!field || !vendorCanEditSpecification(field)) return;
+    setSpecificationValues((current) => ({ scope: specificationScopeKey, values: { ...(current.scope === specificationScopeKey ? current.values : {}), [name]: value } }));
+  }
+
   function handleChange(
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >,
   ) {
     const { name, value } = e.target;
+    const specification = specTemplate.fields.find((field) => field.name === name);
+    if (specification) { changeSpecification(name, value); return; }
     const nextValue =
       e.target instanceof HTMLInputElement && e.target.type === "checkbox"
         ? e.target.checked
         : value;
 
     if (name === "categoryId") {
+      setProductTypeId("");
       setForm((currentForm) => ({
         ...currentForm,
         categoryId: value,
@@ -1265,6 +1258,7 @@ export default function ProductUploadPage() {
   }
 
   function selectCategory(categoryId: string) {
+    setProductTypeId("");
     setForm((currentForm) => ({
       ...currentForm,
       categoryId,
@@ -1273,6 +1267,7 @@ export default function ProductUploadPage() {
   }
 
   function selectSubcategory(subcategoryId: string) {
+    setProductTypeId("");
     setForm((currentForm) => ({
       ...currentForm,
       subcategoryId,
@@ -1510,6 +1505,7 @@ export default function ProductUploadPage() {
     const categoryTrail = [
       selectedCategory?.name,
       selectedSubcategory?.name,
+      selectedProductType?.name,
       selectedTreeMain?.name,
       selectedTreeGroup?.name,
       selectedTreePart?.name,
@@ -1555,14 +1551,7 @@ export default function ProductUploadPage() {
       "material",
       "brandSizeMapping",
     ]);
-    const managedSpecs = specTemplate.fields
-      .filter((field) => !managedSpecNames.has(field.name))
-      .map((field) => [
-        field.label,
-        String((form as Record<string, unknown>)[field.name] || "").trim(),
-      ])
-      .filter(([, value]) => value)
-      .map(([label, value]) => `${label}: ${value}`);
+    const managedSpecs = vendorSpecificationLines(specTemplate.fields, form, managedSpecNames);
     const allSpecs = [...extraSpecs, ...managedSpecs];
 
     return [
@@ -1762,6 +1751,14 @@ export default function ProductUploadPage() {
     e.preventDefault();
     setError("");
 
+    if (specificationLoadingError) { setError(specificationLoadingError); setStep("specs"); return; }
+    const missingRequiredField = missingRequiredSpecification(specTemplate.fields, form);
+    if (missingRequiredField) {
+      setError(`Please complete required field: ${missingRequiredField.label}.`);
+      setStep("specs");
+      return;
+    }
+
     if (!form.title || !form.vendorPrice || !form.categoryId) {
       setError("Please fill product name, vendor price and category.");
       return;
@@ -1931,12 +1928,9 @@ export default function ProductUploadPage() {
   }
 
   function goToVariants() {
+    if (specificationLoadingError) { setError(specificationLoadingError); return; }
     setError("");
-    const missingRequiredField = specTemplate.fields.find(
-      (field) =>
-        field.required &&
-        !String((form as Record<string, unknown>)[field.name] || "").trim(),
-    );
+    const missingRequiredField = missingRequiredSpecification(specTemplate.fields, form);
     if (missingRequiredField) {
       setError(`Please complete required field: ${missingRequiredField.label}.`);
       return;
@@ -2259,6 +2253,10 @@ export default function ProductUploadPage() {
 
         {mode === "single" && (
           <form onSubmit={handleSubmit} className="space-y-5">
+            {productTypeId && specificationLoadingError && <div role={resolvedSpecifications.error ? "alert" : "status"} className="rounded-xl border bg-amber-50 p-3 text-sm">
+              {specificationLoadingError}
+              {resolvedSpecifications.error && <button type="button" onClick={resolvedSpecifications.retry} className="ml-3 font-bold underline">Retry specifications</button>}
+            </div>}
             <section className="rounded-2xl bg-white p-5 shadow-sm">
               <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
                 <div>
@@ -2399,11 +2397,17 @@ export default function ProductUploadPage() {
                     )}
                   </div>
                   <div className="rounded-xl border bg-[#f8f6ff] p-5">
+                    {persistedProductTypes.length > 0 && <label className="mb-4 grid gap-2 text-sm font-bold">Catalog ProductType
+                      <select value={productTypeId} onChange={(event) => setProductTypeId(event.target.value)} className="rounded-xl border bg-white p-3">
+                        <option value="">Select ProductType (optional)</option>
+                        {persistedProductTypes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                      </select>
+                    </label>}
                     <p className="text-sm font-bold text-[#4b2bbf]">
                       Selected path
                     </p>
                     <h4 className="mt-2 text-xl font-black text-slate-950">
-                      {[selectedCategory?.name, selectedSubcategory?.name]
+                      {[selectedCategory?.name, selectedSubcategory?.name, selectedProductType?.name]
                         .filter(Boolean)
                         .join(" / ") || "No category selected"}
                     </h4>
@@ -2586,51 +2590,10 @@ export default function ProductUploadPage() {
                       </p>
                     )}
                     <div className="mt-5 grid gap-4 md:grid-cols-2">
-                      {specTemplate.fields.map((field) =>
-                        field.multiline ? (
-                          <label key={field.name} className="grid gap-2 text-sm font-bold text-slate-700 md:col-span-2">
-                            {field.label}
-                            <textarea
-                              name={field.name}
-                              value={String((form as Record<string, unknown>)[field.name] || "")}
-                              onChange={handleChange}
-                              placeholder={field.placeholder}
-                              required={field.required}
-                              className="h-24 rounded-xl border p-3 font-normal text-slate-900"
-                            />
-                          </label>
-                        ) : field.options && field.options.length > 0 ? (
-                          <label key={field.name} className="grid gap-2 text-sm font-bold text-slate-700">
-                            {field.label}{field.required ? " *" : ""}
-                            <select
-                              name={field.name}
-                              value={String((form as Record<string, unknown>)[field.name] || "")}
-                              onChange={handleChange}
-                              required={field.required}
-                              className="rounded-xl border bg-white p-3 font-normal text-slate-900"
-                            >
-                              <option value="">{field.placeholder}</option>
-                              {field.options.map((option) => (
-                                <option key={option} value={option}>
-                                  {option}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        ) : (
-                          <label key={field.name} className="grid gap-2 text-sm font-bold text-slate-700">
-                            {field.label}{field.required ? " *" : ""}
-                            <input
-                              name={field.name}
-                              value={String((form as Record<string, unknown>)[field.name] || "")}
-                              onChange={handleChange}
-                              placeholder={field.placeholder}
-                              required={field.required}
-                              className="rounded-xl border p-3 font-normal text-slate-900"
-                            />
-                          </label>
-                        ),
-                      )}
+                      {specTemplate.fields.map((field) => (
+                        <VendorSpecificationField key={field.name} field={field} value={(form as Record<string, unknown>)[field.name]}
+                          onChange={(value) => changeSpecification(field.name, value)} />
+                      ))}
                       <input name="availableSizes" value={form.availableSizes} onChange={handleChange} placeholder={variantConfig.availableSizesPlaceholder} className="rounded-xl border p-3" />
                       <input name="color" value={form.color} onChange={handleChange} placeholder="Default color / shade" className="rounded-xl border p-3" />
                     </div>

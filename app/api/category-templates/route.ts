@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { requireAdminApiUser } from '@/lib/admin-auth';
 import {
   getCategoryUploadTemplate,
+  getResolvedCategorySpecifications,
   saveCategoryUploadTemplate,
 } from '@/lib/category-upload-templates';
+import { SpecificationInheritanceError } from '@/lib/category-specification-inheritance';
 
 export const runtime = 'nodejs';
 
@@ -22,16 +24,19 @@ export async function GET(request: Request) {
       );
     }
 
-    const template = await getCategoryUploadTemplate(categoryId, subcategoryId, productTypeId);
+    const resolved = searchParams.get('mode') === 'resolved-specifications';
+    const payload = resolved
+      ? await getResolvedCategorySpecifications({ categoryId, subcategoryId, productTypeId })
+      : { template: await getCategoryUploadTemplate(categoryId, subcategoryId, productTypeId) };
     const queryFinishedAt = performance.now();
-    const body = JSON.stringify({ template });
+    const body = JSON.stringify(payload);
     const serializationFinishedAt = performance.now();
     const forceFresh = searchParams.get('fresh') === '1';
 
     return new NextResponse(body, {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': forceFresh
+        'Cache-Control': forceFresh || resolved
           ? 'private, no-store'
           : 'public, max-age=30, s-maxage=120, stale-while-revalidate=60',
         'Server-Timing': [
@@ -42,6 +47,9 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof SpecificationInheritanceError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.code === 'PUBLISHED_SPECIFICATIONS_UNAVAILABLE' ? 409 : 400 });
+    }
     console.error('Category template fetch error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch category template' },
@@ -56,6 +64,9 @@ export async function POST(request: Request) {
     if (auth.response) return auth.response;
 
     const body = await request.json();
+    if (body.specificationView === 'resolved-specifications' || body.resolution?.inheritanceApplied) {
+      throw new SpecificationInheritanceError('Resolved specifications are read-only. Save child-local definitions instead.');
+    }
     if (!body.categoryId || typeof body.categoryId !== 'string') {
       return NextResponse.json(
         { error: 'Category is required' },
@@ -96,6 +107,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ template });
   } catch (error) {
+    if (error instanceof SpecificationInheritanceError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: 400 });
+    }
     console.error('Category template save error:', error);
     return NextResponse.json(
       { error: 'Category template could not be saved' },

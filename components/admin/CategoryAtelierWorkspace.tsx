@@ -51,6 +51,8 @@ import {
   type CategoryMetadataImageField,
 } from "@/lib/category-metadata-images";
 
+import { publishedParentSpecifications, resolveCategorySpecifications, prepareSpecificationSave, validateSpecificationScope, type SpecificationInheritance, type SpecificationDocument, type SpecificationScope, type SpecificationHierarchy, type PublishedSpecifications } from "@/lib/category-specification-inheritance";
+
 const tabLabels: Record<AtelierTab, string> = {
   metadata: "Metadata",
   "product-types": "Product Types",
@@ -119,7 +121,10 @@ type Category = {
   subcategories: Subcategory[];
 };
 
+const specRowId = Symbol("specification editor identity");
+
 type SpecField = {
+  [specRowId]: string;
   name: string;
   label: string;
   fieldType: (typeof fieldTypes)[number];
@@ -160,6 +165,8 @@ type TemplateRecord = {
   productTypes?: string[];
   specTemplate?: {
     fields?: Partial<SpecField>[];
+    inheritance?: SpecificationInheritance;
+    publishedSpecifications?: PublishedSpecifications;
     filterConfig?: string[];
     sizeGuide?: CategorySizeGuide | unknown[];
     businessRules?: Partial<BusinessRules>;
@@ -250,7 +257,7 @@ function linesToList(value: string) {
     .filter(Boolean);
 }
 
-function normalizeSpecField(field: Partial<SpecField>, index: number): SpecField {
+export function normalizeSpecField(field: Partial<SpecField>, index: number): SpecField {
   const legacy = field as Partial<SpecField> & { options?: string[]; multiline?: boolean };
   const label = String(field.label || field.name || `Field ${index + 1}`).trim();
   const fieldType = fieldTypes.includes(legacy.fieldType as (typeof fieldTypes)[number])
@@ -261,6 +268,7 @@ function normalizeSpecField(field: Partial<SpecField>, index: number): SpecField
         ? "Textarea"
         : "Text";
   return {
+    [specRowId]: localId("spec"),
     name: String(field.name || normalizeAtelierSlug(label).replace(/-/g, "_") || `field_${index + 1}`),
     label,
     fieldType,
@@ -275,6 +283,150 @@ function normalizeSpecField(field: Partial<SpecField>, index: number): SpecField
     adminOnly: Boolean(field.adminOnly),
     displayOrder: Number(field.displayOrder ?? index + 1),
   };
+}
+
+export function createSpecification(fields: SpecField[]): SpecField {
+  const keys = new Set(fields.map((field) => field.name.trim().toLowerCase()));
+  let number = 1;
+  while (keys.has(`field_${number}`)) number += 1;
+  return normalizeSpecField({ name: `field_${number}`, label: `Field ${number}`, fieldType: "Text" }, fields.length);
+}
+
+export function serializeSpecifications(fields: SpecField[]) {
+  return fields.map((field, index) => {
+    const { [specRowId]: editorId, ...stored } = field;
+    void editorId;
+    return { ...stored, displayOrder: index + 1 };
+  });
+}
+
+export function specificationIdentityIssues(fields: SpecField[]): AtelierValidationIssue[] {
+  return fields.flatMap((field, index) => {
+    const messages = [];
+    if (!field.name.trim()) messages.push("Field Key is required.");
+    if (!field.label.trim()) messages.push("Display Label is required.");
+    if (field.name.trim() && fields.some((other, i) => i !== index && other.name.trim().toLowerCase() === field.name.trim().toLowerCase())) {
+      messages.push("Field Key must be unique.");
+    }
+    return messages.map((message) => ({ tab: "specifications" as const, field: field.name, message: `Specification ${index + 1}: ${message}`, severity: "error" as const }));
+  });
+}
+
+const specificationFlags = {
+  required: "Required", customerVisible: "Customer Visible", filterable: "Filterable",
+  searchable: "Searchable", vendorEditable: "Vendor Editable", adminOnly: "Admin Only",
+} as const;
+
+function SpecificationRow({ field, index, fields, onChange, onRemove, override = false }: {
+  field: SpecField; index: number; fields: SpecField[];
+  onChange: (updates: Partial<SpecField>) => void; onRemove: () => void; override?: boolean;
+}) {
+  // Keep the untrimmed text locally so Enter and pasted blank lines survive editing.
+  // The parent always has the normalized array, including when Save precedes blur.
+  const [optionsText, setOptionsText] = useState(() => field.dropdownValues.join("\n"));
+  const hasOptions = field.fieldType === "Dropdown" || field.fieldType === "Multi-select";
+  const hasUnit = field.fieldType === "Measurement" || field.fieldType === "Number" || Boolean(field.unit);
+  const issues = specificationIdentityIssues(fields).filter((issue) => issue.message.startsWith(`Specification ${index + 1}:`));
+  const inputClass = "w-full min-w-0 border bg-white px-2 py-2 font-normal text-stone-900";
+  return (
+    <div className="min-w-0 border p-3">
+      <h3 className="mb-2 text-sm font-semibold">Specification {index + 1}{field.label ? ` — ${field.label}` : ""}</h3>
+      <div className="grid gap-2 text-sm md:grid-cols-2 xl:grid-cols-4">
+        <label className="grid min-w-0 gap-1">Field Key<input readOnly={override} data-field={field.name} value={field.name} onChange={(event) => onChange({ name: event.target.value })} placeholder="product_type" className={inputClass} /></label>
+        <label className="grid min-w-0 gap-1">Display Label<input value={field.label} onChange={(event) => onChange({ label: event.target.value })} placeholder="Product Type" className={inputClass} /></label>
+        <label className="grid min-w-0 gap-1">Field Type<select value={field.fieldType} onChange={(event) => onChange({ fieldType: event.target.value as SpecField["fieldType"] })} className={inputClass}>{fieldTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
+        {hasUnit && <label className="grid min-w-0 gap-1">Unit<input value={field.unit} onChange={(event) => onChange({ unit: event.target.value })} placeholder="inch" className={inputClass} /></label>}
+        <label className="grid min-w-0 gap-1 md:col-span-2">Placeholder<input value={field.placeholder} onChange={(event) => onChange({ placeholder: event.target.value })} placeholder="Select product type" className={inputClass} /></label>
+        {hasOptions && <label className="grid min-w-0 gap-1 md:col-span-2">Dropdown / Multi-select Values
+          <textarea value={optionsText} onChange={(event) => { setOptionsText(event.target.value); onChange({ dropdownValues: linesToList(event.target.value) }); }} onBlur={() => setOptionsText(linesToList(optionsText).join("\n"))} rows={4} placeholder="One option per line" className={inputClass} />
+          <span className="text-xs text-stone-500">Enter one option per line.</span>
+        </label>}
+      </div>
+      {issues.map((issue) => <p key={issue.message} role="alert" className="mt-1 text-xs text-red-700">{issue.message}</p>)}
+      <div className="mt-2 flex flex-wrap gap-3 text-xs">
+        {(Object.keys(specificationFlags) as (keyof typeof specificationFlags)[]).map((key) => <label key={key} className="flex items-center gap-1"><input type="checkbox" checked={field[key]} onChange={(event) => onChange({ [key]: event.target.checked })} />{specificationFlags[key]}</label>)}
+        <button onClick={onRemove} className="font-semibold text-red-600">{override ? "Revert to Inherited" : "Remove"}</button>
+      </div>
+    </div>
+  );
+}
+
+export type AdminInheritanceContext = {
+  scope: SpecificationScope;
+  hierarchy?: SpecificationHierarchy;
+  parentName: string;
+  parent?: SpecificationDocument;
+  metadata?: SpecificationInheritance;
+  onMetadataChange: (metadata: SpecificationInheritance) => void;
+};
+
+export function previewAdminSpecifications(fields: SpecField[], context: AdminInheritanceContext) {
+  const child = { fields: serializeSpecifications(fields), inheritance: context.metadata };
+  try {
+    prepareSpecificationSave({ incoming: child, scope: context.scope, now: "" });
+    if (context.metadata?.enabled) {
+      if (!context.hierarchy) throw new Error("Verified immediate Subcategory relationship is unavailable.");
+      validateSpecificationScope(context.scope, context.hierarchy);
+    }
+    const parent = context.metadata?.enabled && context.parent
+      ? { scope: { categoryId: context.scope.categoryId, subcategoryId: context.scope.subcategoryId }, specTemplate: publishedParentSpecifications(context.parent) }
+      : undefined;
+    if (context.metadata?.enabled && !parent) throw new Error("The parent has no retained published specification snapshot.");
+    return { result: resolveCategorySpecifications({ scope: context.scope, hierarchy: context.hierarchy, child, parent }), error: "" };
+  } catch (error) {
+    return { result: null, error: error instanceof Error ? error.message : "Invalid specification inheritance." };
+  }
+}
+
+export function SpecificationsEditor({ fields, onChange, inheritance }: {
+  fields: SpecField[]; onChange: (fields: SpecField[]) => void; inheritance?: AdminInheritanceContext;
+}) {
+  const [collision, setCollision] = useState("");
+  const enabled = Boolean(inheritance?.metadata?.enabled);
+  const preview = inheritance ? previewAdminSpecifications(fields, inheritance) : null;
+  const parentFields = enabled ? inheritance?.parent?.publishedSpecifications?.fields || [] : [];
+  const excluded = inheritance?.metadata?.excludedKeys || [];
+  const updateExclusions = (keys: string[]) => {
+    if (inheritance?.metadata) inheritance.onMetadataChange({ ...inheritance.metadata, excludedKeys: keys });
+  };
+  const inherited = preview?.result?.provenance.filter((entry) => entry.origin === "inherited") || [];
+  return <section className="min-w-0 bg-white p-4 shadow-sm">
+    <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-xl font-bold">Specifications</h2><button onClick={() => onChange([...fields, createSpecification([...fields, ...parentFields.map(normalizeSpecField), ...excluded.map((name, i) => normalizeSpecField({ name }, i))])])} className="border px-3 py-2 text-sm font-semibold">Add Specification</button></div>
+    {inheritance && <div className="my-3 border bg-stone-50 p-3 text-sm">
+      {inheritance.scope.productTypeId ? <>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={enabled} onChange={(event) => inheritance.onMetadataChange({ version: 1, enabled: event.target.checked, source: { categoryId: inheritance.scope.categoryId, subcategoryId: inheritance.scope.subcategoryId! }, excludedKeys: excluded, provideToProductTypes: false })} />Inherit specifications from {inheritance.parentName}</label>
+        <p className="mt-1 text-xs">Immediate Subcategory: {inheritance.parentName}. {enabled ? "Preview uses published specifications." : "Inheritance is off. Existing same-key child fields become overrides only when enabled."}</p>
+      </> : <label className="flex items-center gap-2"><input type="checkbox" checked={inheritance.metadata?.provideToProductTypes || false} onChange={(event) => inheritance.onMetadataChange({ version: 1, enabled: false, excludedKeys: [], provideToProductTypes: event.target.checked })} />Provide published specifications to immediate ProductTypes</label>}
+      {preview?.error && <p role="alert" className="mt-2 text-red-700">{preview.error}{enabled && !inheritance.parent?.publishedSpecifications?.provideToProductTypes && " Inheritance cannot be activated for vendor-facing resolution until the immediate parent has a valid published specification snapshot with sharing enabled. Publish the parent explicitly; nothing is published automatically."}</p>}
+    </div>}
+    {enabled && <div className="my-3 rounded border border-blue-200 bg-blue-50 p-3 text-sm">
+      <h3 className="font-semibold">Inherited from {inheritance?.parentName}</h3>
+      {inherited.map((entry) => {
+        const field = preview!.result!.fields.find((item) => item.name === entry.name)!;
+        return <div key={entry.name} className="flex flex-wrap items-center justify-between gap-2 border-t py-2">
+          <span>{field.label} <span className="text-xs text-stone-600">({field.name}) · {field.fieldType || "Text"} · From {inheritance?.parentName}</span></span>
+          <span className="flex gap-3"><button onClick={() => onChange([...fields, normalizeSpecField(field, fields.length)])}>Override</button><button onClick={() => updateExclusions([...excluded, field.name])}>Exclude</button></span>
+        </div>;
+      })}
+    </div>}
+    {enabled && <h3 className="text-sm font-semibold">This ProductType — local fields and overrides</h3>}
+    {collision && <p role="alert" className="text-sm text-red-700">{collision}</p>}
+    <div className="mt-3 grid gap-3">{fields.map((field, index) => {
+      const override = enabled && parentFields.some((parent) => parent.name === field.name);
+      return <div key={field[specRowId]}>
+        {override && <p className="text-xs font-semibold text-blue-800">Override · Inherited from {inheritance?.parentName}</p>}
+        <SpecificationRow field={field} index={index} fields={fields} override={override} onChange={(updates) => {
+          if (updates.name !== undefined && updates.name !== field.name && parentFields.some((parent) => parent.name.toLowerCase() === updates.name!.trim().toLowerCase())) {
+            setCollision("This key belongs to an inherited specification. Use Override instead.");
+            return;
+          }
+          setCollision("");
+          onChange(fields.map((item, i) => i === index ? { ...item, ...updates } : item));
+        }} onRemove={() => onChange(fields.filter((_, i) => i !== index))} />
+      </div>;
+    })}</div>
+    {enabled && excluded.length > 0 && <div className="mt-3 border p-3 text-sm"><h3 className="font-semibold">Excluded inherited fields</h3>{excluded.map((name) => <div key={name} className="flex justify-between py-1"><span>{parentFields.find((field) => field.name === name)?.label || name} ({name})</span><button onClick={() => updateExclusions(excluded.filter((key) => key !== name))}>Restore</button></div>)}</div>}
+  </section>;
 }
 
 function parseCsv(value: string): CsvCategoryRow[] {
@@ -429,6 +581,8 @@ export default function CategoryAtelierWorkspace() {
   const [newMainName, setNewMainName] = useState("");
   const [newSubName, setNewSubName] = useState("");
   const [newLeafName, setNewLeafName] = useState("");
+  const specFallbackRef = useRef<SpecField[] | null>(null);
+  const [specInheritance, setSpecInheritance] = useState<SpecificationInheritance>();
   const [specFields, setSpecFields] = useState<SpecField[]>([]);
   const [variantConfigForm, setVariantConfigForm] = useState<StructuredVariantConfig>(tshirtVariantConfig);
   const [sizeGuide, setSizeGuide] = useState<CategorySizeGuide>(() => createEmptySizeGuide());
@@ -481,6 +635,28 @@ export default function CategoryAtelierWorkspace() {
     [categories, selectedNodeId, selectedNodeType],
   );
 
+  const exactSpecTemplate = templates.find((template) => template.categoryId === categoryId && (template.subcategoryId || "") === subcategoryId && (template.productTypeId || "") === productTypeId);
+  const parentSpecTemplate = templates.find((template) => template.categoryId === categoryId && template.subcategoryId === subcategoryId && !template.productTypeId);
+  const immediateSubcategory = selectedCategory?.subcategories.find((item) => item.id === subcategoryId);
+  const immediateProductType = immediateSubcategory?.productTypes.find((item) => item.id === productTypeId);
+  const inheritanceContext: AdminInheritanceContext | undefined = subcategoryId ? {
+    scope: { categoryId, subcategoryId, productTypeId: productTypeId || null },
+    hierarchy: selectedCategory && immediateSubcategory ? { category: selectedCategory, subcategory: immediateSubcategory, productType: immediateProductType } : undefined,
+    parentName: immediateSubcategory?.name || "Unavailable parent",
+    parent: parentSpecTemplate?.specTemplate ? { ...parentSpecTemplate.specTemplate, fields: serializeSpecifications((parentSpecTemplate.specTemplate.fields || []).map(normalizeSpecField)) } : undefined,
+    metadata: specInheritance,
+    onMetadataChange: (value) => {
+      const fallback = specFallbackRef.current;
+      if (value.enabled && fallback) {
+        // Only deliberately edited/added rows become local definitions on opt-in.
+        setSpecFields((fields) => fields.filter((field) => !fallback.includes(field)));
+        specFallbackRef.current = null;
+      }
+      setSpecInheritance(value);
+      setDirty(true);
+    },
+  } : undefined;
+
   const categorySummaries = useMemo(
     () =>
       categories.map((category) => ({
@@ -491,6 +667,9 @@ export default function CategoryAtelierWorkspace() {
       })),
     [categories],
   );
+
+  const effectiveSpecPreview = inheritanceContext ? previewAdminSpecifications(specFields, inheritanceContext) : null;
+  const publishSpecFields = effectiveSpecPreview?.result?.inheritanceApplied ? effectiveSpecPreview.result.fields.map(normalizeSpecField) : specFields;
 
   const publishIssues = useMemo(() => {
     const issues = validateAtelierForPublish({
@@ -503,7 +682,7 @@ export default function CategoryAtelierWorkspace() {
         desktopBanner: metadata.desktopBanner,
         mobileBanner: metadata.mobileBanner,
         productTypes: linesToList(productTypeOptions),
-        specs: specFields,
+        specs: publishSpecFields,
         variants: variantConfigForm.dimensions.map((dimension) => ({
           sku: dimension.key,
           stock: dimension.options.join(","),
@@ -520,8 +699,9 @@ export default function CategoryAtelierWorkspace() {
         severity: "error",
       });
     }
+    issues.push(...specificationIdentityIssues(specFields));
     return issues;
-  }, [businessRules, categoryId, categorySummaries, metadata, productTypeOptions, sizeGuide, specFields, variantConfigForm]);
+  }, [businessRules, categoryId, categorySummaries, metadata, productTypeOptions, sizeGuide, specFields, publishSpecFields, variantConfigForm]);
   const completionPercent = completionFromIssues(publishIssues);
   const hasPublishErrors = publishIssues.some((issue) => issue.severity === "error");
   const metadataIssues = validateCategoryMetadata({
@@ -671,6 +851,8 @@ export default function CategoryAtelierWorkspace() {
   }, [categories, selectedNodeId, selectedNodeType]);
 
   useEffect(() => {
+    specFallbackRef.current = null;
+    setSpecInheritance(exactSpecTemplate?.specTemplate?.inheritance);
     if (!currentTemplate) {
       setProductTypeOptions("");
       setSpecFields([]);
@@ -680,7 +862,9 @@ export default function CategoryAtelierWorkspace() {
       return;
     }
     setProductTypeOptions((currentTemplate.productTypes || []).join("\n"));
-    setSpecFields((currentTemplate.specTemplate?.fields || []).map(normalizeSpecField));
+    const loadedFields = (currentTemplate.specTemplate?.fields || []).map(normalizeSpecField);
+    specFallbackRef.current = productTypeId && !exactSpecTemplate ? loadedFields : null;
+    setSpecFields(loadedFields);
     setVariantConfigForm(normalizeStructuredVariantConfig(currentTemplate.variantConfig));
     setSizeGuide(
       normalizeCategorySizeGuide(
@@ -689,7 +873,7 @@ export default function CategoryAtelierWorkspace() {
       ),
     );
     setBusinessRules({ ...emptyBusinessRules, ...(currentTemplate.specTemplate?.businessRules || {}) });
-  }, [currentTemplate, categoryId, subcategoryId, productTypeId, selectedResolvedNode?.breadcrumb]);
+  }, [currentTemplate, exactSpecTemplate, categoryId, subcategoryId, productTypeId, selectedResolvedNode?.breadcrumb]);
 
   useEffect(() => {
     const item = treeItemRefs.current[selectedNodeId];
@@ -872,7 +1056,7 @@ export default function CategoryAtelierWorkspace() {
       name: metadata.name,
       slug: metadata.slug,
       productTypes: linesToList(productTypeOptions),
-      specs: specFields,
+      specs: publishSpecFields,
       variants: variantConfigForm.dimensions.map((dimension) => ({
         sku: dimension.key,
         stock: dimension.options.join(","),
@@ -881,6 +1065,7 @@ export default function CategoryAtelierWorkspace() {
       businessRules,
       categories: categorySummaries,
     });
+    issues.push(...specificationIdentityIssues(specFields));
     const variantConfigErrors = validateStructuredVariantConfig(variantConfigForm);
     for (const message of variantConfigErrors) {
       issues.push({
@@ -895,6 +1080,18 @@ export default function CategoryAtelierWorkspace() {
       setValidationModalOpen(true);
       return false;
     }
+    if (inheritanceContext && specInheritance) {
+      try {
+        prepareSpecificationSave({ incoming: { fields: serializeSpecifications(specFields), inheritance: specInheritance }, scope: inheritanceContext.scope, now: "" });
+        if (!inheritanceContext.hierarchy) throw new Error("Verified immediate Subcategory relationship is unavailable.");
+        validateSpecificationScope(inheritanceContext.scope, inheritanceContext.hierarchy);
+        const preview = previewAdminSpecifications(specFields, inheritanceContext);
+        if (preview.error && parentSpecTemplate?.specTemplate?.publishedSpecifications) throw new Error(preview.error);
+      } catch (error) {
+        setToast(error instanceof Error ? error.message : "Invalid specification inheritance.");
+        return false;
+      }
+    }
     setSaving(true);
     const savedAt = new Date().toISOString();
     const body = {
@@ -905,7 +1102,8 @@ export default function CategoryAtelierWorkspace() {
       specTemplate: {
         title: "Category Specifications",
         helpText: "Vendor must complete the category-specific fields configured by admin.",
-        fields: specFields.map((field, index) => ({ ...field, displayOrder: index + 1 })),
+        fields: serializeSpecifications(specFields),
+        ...(specInheritance ? { inheritance: specInheritance } : {}),
         filterConfig: specFields.filter((field) => field.filterable).map((field) => field.name),
         sizeGuide,
         businessRules,
@@ -1164,14 +1362,6 @@ export default function CategoryAtelierWorkspace() {
         </button>
       </div>
     );
-  }
-
-  function addSpecField() {
-    setSpecFields((fields) => [
-      ...fields,
-      normalizeSpecField({ label: "", fieldType: "Text", vendorEditable: true, customerVisible: true }, fields.length),
-    ]);
-    markDirty();
   }
 
   function updateVariantDimension(index: number, updates: Partial<VariantDimensionConfig>) {
@@ -1957,37 +2147,7 @@ export default function CategoryAtelierWorkspace() {
               )}
 
               {(activeTab === "specifications" || expandAll) && (
-                <section className="min-w-0 bg-white p-4 shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-xl font-bold">Specifications</h2>
-                    <button onClick={addSpecField} className="border px-3 py-2 text-sm font-semibold">Add Specification</button>
-                  </div>
-                  <div className="mt-3 grid gap-3">
-                    {specFields.map((field, index) => (
-                      <div key={`${field.name}-${index}`} className="min-w-0 border p-3">
-                        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                          <input data-field={field.name} value={field.name} onChange={(event) => { setSpecFields((fields) => fields.map((item, i) => i === index ? { ...item, name: event.target.value } : item)); markDirty(); }} placeholder="Name/key" className="min-w-0 border px-2 py-2" />
-                          <input value={field.label} onChange={(event) => { setSpecFields((fields) => fields.map((item, i) => i === index ? { ...item, label: event.target.value } : item)); markDirty(); }} placeholder="Label" className="min-w-0 border px-2 py-2" />
-                          <select value={field.fieldType} onChange={(event) => { setSpecFields((fields) => fields.map((item, i) => i === index ? { ...item, fieldType: event.target.value as SpecField["fieldType"] } : item)); markDirty(); }} className="border px-2 py-2">
-                            {fieldTypes.map((type) => <option key={type}>{type}</option>)}
-                          </select>
-                          <input value={field.unit} onChange={(event) => { setSpecFields((fields) => fields.map((item, i) => i === index ? { ...item, unit: event.target.value } : item)); markDirty(); }} placeholder="Unit" className="min-w-0 border px-2 py-2" />
-                          <input value={field.placeholder} onChange={(event) => { setSpecFields((fields) => fields.map((item, i) => i === index ? { ...item, placeholder: event.target.value } : item)); markDirty(); }} placeholder="Placeholder" className="min-w-0 border px-2 py-2 md:col-span-2" />
-                          <textarea value={field.dropdownValues.join("\n")} onChange={(event) => { setSpecFields((fields) => fields.map((item, i) => i === index ? { ...item, dropdownValues: linesToList(event.target.value) } : item)); markDirty(); }} placeholder="Dropdown values" className="min-w-0 border p-2 md:col-span-2" />
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-3 text-xs">
-                          {(["required", "customerVisible", "filterable", "searchable", "vendorEditable", "adminOnly"] as const).map((key) => (
-                            <label key={key} className="flex items-center gap-1">
-                              <input type="checkbox" checked={Boolean(field[key])} onChange={(event) => { setSpecFields((fields) => fields.map((item, i) => i === index ? { ...item, [key]: event.target.checked } : item)); markDirty(); }} />
-                              {key}
-                            </label>
-                          ))}
-                          <button onClick={() => { setSpecFields((fields) => fields.filter((_, i) => i !== index)); markDirty(); }} className="font-semibold text-red-600">Remove</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+                <SpecificationsEditor key={selectedNodeId} inheritance={inheritanceContext} fields={specFields} onChange={(fields) => { setSpecFields(fields); markDirty(); }} />
               )}
 
               {(activeTab === "variants" || expandAll) && (
