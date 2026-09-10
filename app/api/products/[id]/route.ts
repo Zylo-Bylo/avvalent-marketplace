@@ -69,6 +69,7 @@ export async function GET(
           sku: true,
           inventory: true,
           images: true,
+          productTypeId: true,
           category: {
             select: {
               id: true,

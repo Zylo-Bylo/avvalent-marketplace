@@ -409,6 +409,61 @@ describe("public products API routes", () => {
         variants: [],
       },
     });
+    expect(mocks.prisma.product.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({ productTypeId: true }),
+      }),
+    );
+  });
+
+  it("returns the canonical ProductType ID when one is persisted", async () => {
+    mocks.prisma.product.findUnique.mockResolvedValue({
+      id: "product-with-type",
+      productTypeId: "a-line-kurtis",
+      images: [],
+      vendor: { status: "APPROVED" },
+    });
+
+    const response = await getProductById(
+      new Request("http://localhost/api/products/product-with-type"),
+      params({ id: "product-with-type" }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      product: {
+        id: "product-with-type",
+        productTypeId: "a-line-kurtis",
+        images: ["/product-placeholder.svg"],
+        vendor: { status: "APPROVED" },
+        variants: [],
+      },
+    });
+  });
+
+  it("returns legacy products safely when ProductType is null", async () => {
+    mocks.prisma.product.findUnique.mockResolvedValue({
+      id: "legacy-product",
+      productTypeId: null,
+      images: [],
+      vendor: { status: "APPROVED" },
+    });
+
+    const response = await getProductById(
+      new Request("http://localhost/api/products/legacy-product"),
+      params({ id: "legacy-product" }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      product: {
+        id: "legacy-product",
+        productTypeId: null,
+        images: ["/product-placeholder.svg"],
+        vendor: { status: "APPROVED" },
+        variants: [],
+      },
+    });
   });
 
   it("preserves valid images on slug product detail responses", async () => {
