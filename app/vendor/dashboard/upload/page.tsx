@@ -1826,6 +1826,7 @@ export default function ProductUploadPage() {
         modelNumber: form.modelNumber,
         partNumber: form.partNumber,
         productType: form.productType,
+        productTypeId,
         condition: form.condition,
         warranty: form.warranty,
         color: form.color,

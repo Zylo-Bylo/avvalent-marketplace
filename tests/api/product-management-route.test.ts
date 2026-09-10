@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => {
     subcategory: {
       findFirst: vi.fn(),
     },
+    productType: { findFirst: vi.fn() },
   };
 
   return {
@@ -99,6 +100,7 @@ describe("vendor product management API routes", () => {
     mocks.adjustProductStock.mockResolvedValue(undefined);
     mocks.prisma.category.findUnique.mockResolvedValue({ id: "category-1" });
     mocks.prisma.subcategory.findFirst.mockResolvedValue({ id: "subcategory-1" });
+    mocks.prisma.productType.findFirst.mockResolvedValue({ id: "type-1" });
   });
 
   it("lists only products belonging to the approved current vendor", async () => {
@@ -297,6 +299,76 @@ describe("vendor product management API routes", () => {
         }),
       }),
     );
+  });
+
+  describe('ProductType edits', () => {
+    beforeEach(() => {
+      mocks.prisma.user.findUnique.mockResolvedValue({ role: 'ADMIN' });
+      mocks.prisma.product.findUnique.mockResolvedValue({
+        id: 'product-1', vendorId: 'vendor-1', categoryId: 'category-1',
+        subcategoryId: 'subcategory-1', productTypeId: 'type-1',
+      });
+      mocks.prisma.product.update.mockImplementation(async ({ data }) => ({ id: 'product-1', ...data }));
+    });
+    const edit = (body: Record<string, unknown>) => updateProduct(jsonRequest('http://localhost/api/products/product-1', body), params());
+    const saved = () => mocks.prisma.product.update.mock.calls[0][0].data;
+
+    it('persists an explicitly selected stable ID on the validated branch', async () => {
+      expect((await edit({ productTypeId: 'type-2' })).status).toBe(200);
+      expect(mocks.prisma.subcategory.findFirst).toHaveBeenCalledWith({ where: { id: 'subcategory-1', categoryId: 'category-1' }, select: { id: true } });
+      expect(mocks.prisma.productType.findFirst).toHaveBeenCalledWith({ where: { id: 'type-2', subcategoryId: 'subcategory-1' }, select: { id: true } });
+      expect(saved().productTypeId).toBe('type-2');
+    });
+    it('rejects an explicit cross-branch ID without writing', async () => {
+      mocks.prisma.productType.findFirst.mockResolvedValue(null);
+      expect((await edit({ productTypeId: 'other-branch' })).status).toBe(400);
+      expect(mocks.prisma.product.update).not.toHaveBeenCalled();
+    });
+    it('rejects a subcategory outside the supplied category', async () => {
+      mocks.prisma.subcategory.findFirst.mockResolvedValue(null);
+      expect((await edit({ categoryId: 'category-2', subcategoryId: 'subcategory-1', productTypeId: 'type-1' })).status).toBe(400);
+      expect(mocks.prisma.product.update).not.toHaveBeenCalled();
+    });
+    it('clears an invalid carried-over ID when the branch changes', async () => {
+      mocks.prisma.productType.findFirst.mockResolvedValue(null);
+      expect((await edit({ categoryId: 'category-2', subcategoryId: 'subcategory-2' })).status).toBe(200);
+      expect(saved()).toMatchObject({ categoryId: 'category-2', subcategoryId: 'subcategory-2', productTypeId: null });
+    });
+    it('validates the actual persisted subcategory when a category-only edit clears it', async () => {
+      expect((await edit({ categoryId: 'category-2' })).status).toBe(200);
+      expect(saved()).toMatchObject({ categoryId: 'category-2', subcategoryId: null, productTypeId: null });
+      expect(mocks.prisma.productType.findFirst).not.toHaveBeenCalled();
+    });
+    it('clears a carried-over ID when the subcategory is removed', async () => {
+      expect((await edit({ subcategoryId: null })).status).toBe(200);
+      expect(saved()).toMatchObject({ subcategoryId: null, productTypeId: null });
+    });
+    it('rejects explicit ProductType without a subcategory', async () => {
+      expect((await edit({ subcategoryId: null, productTypeId: 'type-1' })).status).toBe(400);
+      expect(mocks.prisma.product.update).not.toHaveBeenCalled();
+    });
+    it('does not preserve a subcategory after its category is explicitly removed', async () => {
+      expect((await edit({ categoryId: null, subcategoryId: 'subcategory-1' })).status).toBe(400);
+      expect(mocks.prisma.product.update).not.toHaveBeenCalled();
+    });
+    it('preserves a valid existing ID when omitted by a legacy editor', async () => {
+      expect((await edit({ name: 'Renamed' })).status).toBe(200);
+      expect(saved()).not.toHaveProperty('productTypeId');
+    });
+    it('preserves legacy products with no ProductType', async () => {
+      mocks.prisma.product.findUnique.mockResolvedValue({ id: 'product-1', categoryId: 'category-1', subcategoryId: null, productTypeId: null });
+      expect((await edit({ name: 'Legacy' })).status).toBe(200);
+      expect(saved()).not.toHaveProperty('productTypeId');
+      expect(mocks.prisma.productType.findFirst).not.toHaveBeenCalled();
+    });
+    it.each([null, ''])('allows explicit optional clearing with %s', async (productTypeId) => {
+      expect((await edit({ productTypeId })).status).toBe(200);
+      expect(saved().productTypeId).toBeNull();
+    });
+    it.each([false, 5, {}])('rejects malformed ProductType %j', async (productTypeId) => {
+      expect((await edit({ productTypeId })).status).toBe(400);
+      expect(mocks.prisma.product.update).not.toHaveBeenCalled();
+    });
   });
 
   it("lets an approved vendor delete their own product", async () => {

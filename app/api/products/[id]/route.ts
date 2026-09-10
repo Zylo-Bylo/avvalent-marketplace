@@ -229,6 +229,7 @@ export async function PUT(
       codCharge,
       categoryId,
       subcategoryId,
+      productTypeId,
       sku,
       inventory,
       images,
@@ -236,7 +237,9 @@ export async function PUT(
     const nextCategoryId =
       categoryId !== undefined ? categoryId || null : product.categoryId;
     const nextSubcategoryId =
-      subcategoryId !== undefined ? subcategoryId || null : product.subcategoryId;
+      subcategoryId !== undefined
+        ? subcategoryId || null
+        : categoryId !== undefined ? null : product.subcategoryId;
 
     if (nextCategoryId) {
       const category = await prisma.category.findUnique({
@@ -253,10 +256,16 @@ export async function PUT(
     }
 
     if (nextSubcategoryId) {
+      if (!nextCategoryId) {
+        return NextResponse.json(
+          { error: 'Selected subcategory does not belong to this category.' },
+          { status: 400 },
+        );
+      }
       const subcategory = await prisma.subcategory.findFirst({
         where: {
           id: nextSubcategoryId,
-          ...(nextCategoryId ? { categoryId: nextCategoryId } : {}),
+          categoryId: nextCategoryId,
         },
         select: { id: true },
       });
@@ -266,6 +275,32 @@ export async function PUT(
           { error: 'Selected subcategory does not belong to this category.' },
           { status: 400 }
         );
+      }
+    }
+
+    if (productTypeId !== undefined && productTypeId !== null && typeof productTypeId !== 'string') {
+      return NextResponse.json({ error: 'ProductType ID must be a string.' }, { status: 400 });
+    }
+
+    let nextProductTypeId = productTypeId !== undefined
+      ? productTypeId || null
+      : product.productTypeId || null;
+    if (nextProductTypeId) {
+      const validProductType = nextCategoryId && nextSubcategoryId
+        ? await prisma.productType.findFirst({
+            where: { id: nextProductTypeId, subcategoryId: nextSubcategoryId },
+            select: { id: true },
+          })
+        : null;
+      if (!validProductType) {
+        if (productTypeId !== undefined) {
+          return NextResponse.json(
+            { error: 'Selected ProductType was not found in this subcategory.' },
+            { status: 400 },
+          );
+        }
+        // Legacy editors may omit ProductType when moving a product to a new branch.
+        nextProductTypeId = null;
       }
     }
 
@@ -337,6 +372,8 @@ export async function PUT(
           priceApproved: manager.user.role === 'ADMIN' || product.priceApproved,
         }),
         ...(categoryId !== undefined && { categoryId: categoryId || null }),
+        ...((productTypeId !== undefined || nextProductTypeId !== (product.productTypeId || null))
+          && { productTypeId: nextProductTypeId }),
         ...(subcategoryId !== undefined
           ? { subcategoryId: subcategoryId || null }
           : categoryId !== undefined

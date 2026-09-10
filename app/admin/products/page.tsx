@@ -13,6 +13,7 @@ type Subcategory = {
   id: string;
   name: string;
   categoryId: string;
+  productTypes?: { id: string; name: string }[];
 };
 
 type Category = {
@@ -44,6 +45,7 @@ type Product = {
   images: string[];
   categoryId?: string | null;
   subcategoryId?: string | null;
+  productTypeId?: string | null;
   category?: {
     id: string;
     name: string;
@@ -76,6 +78,7 @@ type ProductForm = {
   inventory: string;
   categoryId: string;
   subcategoryId: string;
+  productTypeId: string;
   imageUrls: string;
 };
 
@@ -100,6 +103,7 @@ function formFromProduct(product: Product): ProductForm {
     inventory: String(product.inventory),
     categoryId: product.categoryId || product.category?.id || "",
     subcategoryId: product.subcategoryId || product.subcategory?.id || "",
+    productTypeId: product.productTypeId || "",
     imageUrls: (product.images || []).join("\n"),
   };
 }
@@ -126,6 +130,7 @@ export default function AdminProductsPage() {
     (category) => category.id === form?.categoryId
   );
   const formSubcategories = selectedFormCategory?.subcategories || [];
+  const formProductTypes = formSubcategories.find((item) => item.id === form?.subcategoryId)?.productTypes || [];
   const pricingPreview = form
     ? calculateMarketplacePricing({
         price: form.price,
@@ -221,12 +226,14 @@ export default function AdminProductsPage() {
           ...current,
           categoryId: value,
           subcategoryId: "",
+          productTypeId: "",
         };
       }
 
       return {
         ...current,
         [name]: nextValue,
+        ...(name === "subcategoryId" && { productTypeId: "" }),
       };
     });
   }
@@ -262,6 +269,7 @@ export default function AdminProductsPage() {
         inventory: form.inventory,
         categoryId: form.categoryId,
         subcategoryId: form.subcategoryId,
+        productTypeId: form.productTypeId,
         images: imageList(form.imageUrls),
       }),
     });
@@ -593,6 +601,7 @@ export default function AdminProductsPage() {
                               />
                               <select
                                 name="categoryId"
+                                aria-label="Category"
                                 value={form.categoryId}
                                 onChange={updateForm}
                                 className="border border-stone-300 px-4 py-3 text-sm outline-none"
@@ -606,6 +615,7 @@ export default function AdminProductsPage() {
                               </select>
                               <select
                                 name="subcategoryId"
+                                aria-label="Subcategory"
                                 value={form.subcategoryId}
                                 onChange={updateForm}
                                 disabled={!form.categoryId}
@@ -616,6 +626,22 @@ export default function AdminProductsPage() {
                                   <option key={subcategory.id} value={subcategory.id}>
                                     {subcategory.name}
                                   </option>
+                                ))}
+                              </select>
+                              <select
+                                name="productTypeId"
+                                aria-label="ProductType"
+                                value={form.productTypeId}
+                                onChange={updateForm}
+                                disabled={!form.subcategoryId}
+                                className="border border-stone-300 px-4 py-3 text-sm outline-none disabled:bg-stone-100"
+                              >
+                                <option value="">No ProductType</option>
+                                {form.productTypeId && !formProductTypes.some((item) => item.id === form.productTypeId) && (
+                                  <option value={form.productTypeId}>Current ProductType unavailable — clear or select another</option>
+                                )}
+                                {formProductTypes.map((item) => (
+                                  <option key={item.id} value={item.id}>{item.name}</option>
                                 ))}
                               </select>
                               <textarea

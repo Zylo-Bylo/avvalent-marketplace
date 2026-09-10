@@ -73,6 +73,7 @@ export async function POST(request: Request) {
       modelNumber,
       partNumber,
       productType,
+      productTypeId,
       condition,
       warranty,
       color,
@@ -216,6 +217,31 @@ export async function POST(request: Request) {
       }
     }
 
+    if (productTypeId !== undefined && productTypeId !== null && typeof productTypeId !== 'string') {
+      return NextResponse.json({ error: 'ProductType ID must be a string.' }, { status: 400 });
+    }
+
+    if (productTypeId) {
+      if (!subcategoryId) {
+        return NextResponse.json(
+          { error: 'Please select a subcategory for this ProductType.' },
+          { status: 400 },
+        );
+      }
+
+      const productType = await prisma.productType.findFirst({
+        where: { id: productTypeId, subcategoryId },
+        select: { id: true },
+      });
+
+      if (!productType) {
+        return NextResponse.json(
+          { error: 'Selected ProductType was not found in this subcategory.' },
+          { status: 400 },
+        );
+      }
+    }
+
     const specs = [
       ['Brand', brand],
       ['Model number', modelNumber],
@@ -289,6 +315,7 @@ export async function POST(request: Request) {
         vendorPayout: pricing.vendorPayout,
         categoryId,
         subcategoryId: subcategoryId || undefined,
+        productTypeId: productTypeId || undefined,
         sku: productSku,
         inventory: parseInt(inventory),
         images: Array.isArray(images) ? images : [],

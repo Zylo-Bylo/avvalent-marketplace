@@ -136,7 +136,7 @@ describe('Vendor Upload integration with the unchanged Step B renderer', () => {
 });
 
 
-it('submits only specification values through the existing product description and material fields', async () => {
+it('submits the selected canonical ProductType ID while preserving specification and legacy text payloads', async () => {
   const fetch = await openPage(() => http(response([field('choices', { fieldType: 'Multi-select', dropdownValues: ['Red', 'Blue'] }), field('material')], { resolution: { inheritanceApplied: true, provenance: [] } })));
   fireEvent.change(screen.getByPlaceholderText('Product Name *'), { target: { value: 'Test Kurti' } });
   select('a-line-id'); specs(); await screen.findByLabelText('choices');
@@ -154,6 +154,10 @@ it('submits only specification values through the existing product description a
   await waitFor(() => expect(fetch.mock.calls.some(([url]) => String(url) === '/api/products/create')).toBe(true));
   const payload = JSON.parse(fetch.mock.calls.find(([url]) => String(url) === '/api/products/create')![1]!.body as string);
   expect(payload.material).toBe('Cotton');
+  expect(payload.productTypeId).toBe('a-line-id');
+  expect(payload).toHaveProperty('productType');
+  expect(payload.categoryId).toBe('category-id');
+  expect(payload.subcategoryId).toBe('subcategory-id');
   expect(payload.description).toContain('choices: "Red","Blue"');
   expect(payload.description).toContain('A-Line Kurtis');
   expect(payload).not.toHaveProperty('inheritance'); expect(payload).not.toHaveProperty('resolution'); expect(payload).not.toHaveProperty('specTemplate');

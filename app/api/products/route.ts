@@ -325,6 +325,7 @@ export async function GET(request: NextRequest) {
       images: true,
       categoryId: true,
       subcategoryId: true,
+      productTypeId: true,
       category: {
         select: {
           id: true,
