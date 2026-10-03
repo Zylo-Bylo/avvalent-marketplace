@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/navbar/Navbar";
+import ReturnReceiptQcPanel from "@/components/admin/ReturnReceiptQcPanel";
 
 type RefundStatus = "PENDING" | "REFUND_PENDING" | "REJECTED" | "REFUNDED";
 
@@ -453,6 +454,9 @@ export default function AdminRefundsPage() {
                         </div>
                       </div>
                     </div>
+                    {request.status === "REFUNDED" && order?.status === "RETURNED" && (
+                      <ReturnReceiptQcPanel returnRequestId={request.id} />
+                    )}
                   </article>
                 );
               })}

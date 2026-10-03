@@ -153,6 +153,18 @@ enum VendorWarehouseStatus {
   DEACTIVATED
 }
 
+enum ReturnReceiptStatus {
+  PENDING
+  RECEIVED
+  QC_COMPLETED
+}
+
+enum ReturnStockDispositionType {
+  RESELLABLE
+  DAMAGED
+  REJECTED
+}
+
 model User {
   id            String         @id @default(cuid())
   email         String         @unique
@@ -178,6 +190,9 @@ model User {
   vendorKycVerifications VendorKycDocument[] @relation("VendorKycVerifiedBy")
   vendorVerificationEvents VendorVerificationEvent[] @relation("VendorVerificationActor")
   vendorSuspensionEvents VendorSuspensionEvent[] @relation("VendorSuspensionActor")
+  receivedReturnReceipts ReturnReceipt[] @relation("ReturnReceiptReceivedBy")
+  completedReturnReceipts ReturnReceipt[] @relation("ReturnReceiptQcCompletedBy")
+  processedReturnDispositions ReturnStockDisposition[] @relation("ReturnDispositionProcessedBy")
 }
 
 model AuthIdentityMapping {
@@ -309,6 +324,8 @@ model VendorWarehouse {
   inventories    Inventory[]
   stockMovements StockMovement[]
   stockReservations StockReservation[]
+  fulfilledOrderItems OrderItem[] @relation("OrderItemFulfillmentWarehouse")
+  returnReceiptItems ReturnReceiptItem[] @relation("ReturnItemRestorationWarehouse")
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 
@@ -491,6 +508,7 @@ model Product {
   inventories Inventory[]
   stockMovements StockMovement[]
   stockReservations StockReservation[]
+  returnReceiptItems ReturnReceiptItem[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -538,6 +556,7 @@ model ProductVariant {
   inventories       Inventory[]
   stockMovements    StockMovement[]
   stockReservations StockReservation[]
+  returnReceiptItems ReturnReceiptItem[]
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -609,6 +628,9 @@ model StockMovement {
   orderId          String?
   adjustedBy       User?             @relation(fields: [adjustedByUserId], references: [id])
   adjustedByUserId String?
+  returnDisposition ReturnStockDisposition? @relation("StockMovementReturnDisposition", fields: [returnDispositionId], references: [id], onDelete: Restrict)
+  returnDispositionId String? @unique
+  linkedReturnDisposition ReturnStockDisposition? @relation("ReturnDispositionStockMovement")
   createdAt        DateTime          @default(now())
 
   @@index([productId])
@@ -648,6 +670,7 @@ model Order {
   refundAdjustments RefundAdjustment[]
   stockMovements StockMovement[]
   stockReservations StockReservation[]
+  returnReceipts ReturnReceipt[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -829,9 +852,82 @@ model OrderItem {
   packagingCharge Float?
   shippingCharge Float?
   vendorPayout Float?
+  fulfillmentWarehouse VendorWarehouse? @relation("OrderItemFulfillmentWarehouse", fields: [fulfillmentWarehouseId], references: [id], onDelete: Restrict)
+  fulfillmentWarehouseId String?
+  returnReceiptItems ReturnReceiptItem[]
 
   @@index([orderId])
   @@index([productId])
+  @@index([fulfillmentWarehouseId])
+}
+
+model ReturnReceipt {
+  id                    String              @id @default(cuid())
+  returnRequestId       String              @unique
+  order                 Order               @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderId               String
+  status                ReturnReceiptStatus @default(PENDING)
+  receivedAt            DateTime?
+  receivedBy            User?               @relation("ReturnReceiptReceivedBy", fields: [receivedByUserId], references: [id], onDelete: Restrict)
+  receivedByUserId      String?
+  qcCompletedAt         DateTime?
+  qcCompletedBy         User?               @relation("ReturnReceiptQcCompletedBy", fields: [qcCompletedByUserId], references: [id], onDelete: Restrict)
+  qcCompletedByUserId   String?
+  qcNote                String?
+  items                 ReturnReceiptItem[]
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+  @@index([receivedAt])
+  @@index([qcCompletedAt])
+}
+
+model ReturnReceiptItem {
+  id                       String                   @id @default(cuid())
+  receipt                  ReturnReceipt            @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  receiptId                String
+  orderItem                OrderItem                @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  orderItemId              String
+  product                  Product                  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productId                String
+  variant                  ProductVariant?          @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  variantId                String?
+  orderedQuantity          Int
+  receivedQuantity         Int
+  restorationWarehouse     VendorWarehouse          @relation("ReturnItemRestorationWarehouse", fields: [restorationWarehouseId], references: [id], onDelete: Restrict)
+  restorationWarehouseId   String
+  dispositions             ReturnStockDisposition[]
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+
+  @@unique([receiptId, orderItemId])
+  @@index([orderItemId])
+  @@index([productId])
+  @@index([variantId])
+  @@index([restorationWarehouseId])
+}
+
+model ReturnStockDisposition {
+  id                    String                     @id @default(cuid())
+  receiptItem           ReturnReceiptItem          @relation(fields: [receiptItemId], references: [id], onDelete: Restrict)
+  receiptItemId         String
+  disposition           ReturnStockDispositionType
+  quantity              Int
+  processedAt           DateTime?
+  processedBy           User?                      @relation("ReturnDispositionProcessedBy", fields: [processedByUserId], references: [id], onDelete: Restrict)
+  processedByUserId     String?
+  stockMovement         StockMovement?             @relation("ReturnDispositionStockMovement", fields: [stockMovementId], references: [id], onDelete: Restrict)
+  stockMovementId       String?                    @unique
+  restorationMovement  StockMovement?             @relation("StockMovementReturnDisposition")
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+
+  @@unique([receiptItemId, disposition])
+  @@index([receiptItemId])
+  @@index([disposition])
+  @@index([processedAt])
 }
 
 model Wishlist {
